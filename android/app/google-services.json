@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "792841260501",
+    "project_id": "yakku-badc2",
+    "storage_bucket": "yakku-badc2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792841260501:android:65d72476e10138f34b415c",
+        "android_client_info": {
+          "package_name": "com.example.yakku"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiFI2z9C4uuW1_q0ikoHJrnnN2UtbECtg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
