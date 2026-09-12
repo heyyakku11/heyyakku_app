@@ -374,6 +374,7 @@ void _showMakeItYourSheet({
 
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: false,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
     ),
@@ -381,9 +382,9 @@ void _showMakeItYourSheet({
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
+            AppSpacing.md,
             AppSpacing.sm,
-            AppSpacing.xl,
+            AppSpacing.md,
             AppSpacing.xl,
           ),
           child: Column(
@@ -400,28 +401,36 @@ void _showMakeItYourSheet({
               const SizedBox(height: AppSpacing.lg),
               Text('Make it your', style: theme.textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xl),
-              AppButton(
-                label: 'Share',
-                icon: Icons.share,
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  onShare?.call();
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    onEdit?.call(poll);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(_actionButtonHeight),
+              Row(
+                spacing: 10,
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: 'Share',
+                      icon: Icons.share,
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        onShare?.call();
+                      },
+                    ),
                   ),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit'),
-                ),
+                  Expanded(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          onEdit?.call(poll);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(_actionButtonHeight),
+                        ),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

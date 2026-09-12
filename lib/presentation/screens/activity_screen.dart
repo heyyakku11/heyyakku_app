@@ -78,7 +78,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
       body: SafeArea(child: _buildBody()),
     );
   }
@@ -119,7 +118,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screen,
-            AppSpacing.sm,
+            AppSpacing.md,
             AppSpacing.screen,
             AppSpacing.md,
           ),
