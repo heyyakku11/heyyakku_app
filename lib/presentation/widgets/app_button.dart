@@ -59,8 +59,9 @@ class AppOutlinedButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
+          backgroundColor: Colors.red
         ),
-        child: Text(label),
+        child: Text(label, style: TextStyle(color: Colors.white),),
       ),
     );
   }
