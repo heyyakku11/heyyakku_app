@@ -128,9 +128,7 @@ Widget bulletItem(String text) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('•  '),
-        Expanded(
-          child: Text(text),
-        ),
+        Expanded(child: Text(text)),
       ],
     ),
   );

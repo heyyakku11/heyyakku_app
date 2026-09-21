@@ -2,13 +2,20 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
   SecureStorageService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage(),
-        _memory = null;
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(),
+            iOptions: IOSOptions(
+              accessibility: KeychainAccessibility.first_unlock_this_device,
+            ),
+          ),
+      _memory = null;
 
   /// In-memory backend for tests (avoids platform secure storage).
   SecureStorageService.inMemory([Map<String, String>? store])
-      : _storage = null,
-        _memory = store ?? <String, String>{};
+    : _storage = null,
+      _memory = store ?? <String, String>{};
 
   final FlutterSecureStorage? _storage;
   final Map<String, String>? _memory;

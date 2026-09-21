@@ -22,8 +22,8 @@ void main() {
           StreamController<List<ConnectivityResult>>.broadcast();
       return InternetConnectionServiceImpl(
         connectivityStream: connectivityController.stream,
-        checkConnectivity: checkConnectivity ??
-            () async => const [ConnectivityResult.wifi],
+        checkConnectivity:
+            checkConnectivity ?? () async => const [ConnectivityResult.wifi],
         hasInternetAccess: hasInternetAccess ?? () async => true,
       );
     }
@@ -45,9 +45,7 @@ void main() {
     });
 
     test('Wi-Fi without reachability reports offline', () async {
-      final service = createService(
-        hasInternetAccess: () async => false,
-      );
+      final service = createService(hasInternetAccess: () async => false);
 
       final statuses = <bool>[];
       final sub = service.onStatusChanged.listen(statuses.add);

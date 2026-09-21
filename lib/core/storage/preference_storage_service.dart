@@ -56,9 +56,7 @@ class PreferenceStorageService {
     await prefs.remove(key);
   }
 
-  Future<void> clearAuthPrefs({
-    required List<String> keys,
-  }) async {
+  Future<void> clearAuthPrefs({required List<String> keys}) async {
     final prefs = await _instance();
     for (final key in keys) {
       await prefs.remove(key);

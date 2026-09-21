@@ -18,11 +18,11 @@ class InternetConnectionServiceImpl implements InternetConnectionService {
     this._connectivityStream,
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
     Future<bool> Function()? hasInternetAccess,
-  })  : _connectivity = connectivity ?? Connectivity(),
-        _internetConnection =
-            internetConnection ?? InternetConnection.createInstance(),
-        _checkConnectivityOverride = checkConnectivity,
-        _hasInternetAccessOverride = hasInternetAccess {
+  }) : _connectivity = connectivity ?? Connectivity(),
+       _internetConnection =
+           internetConnection ?? InternetConnection.createInstance(),
+       _checkConnectivityOverride = checkConnectivity,
+       _hasInternetAccessOverride = hasInternetAccess {
     _subscription = (_connectivityStream ?? _connectivity.onConnectivityChanged)
         .listen(_onConnectivityChanged);
     _log('Internet monitoring initialized');
@@ -34,8 +34,7 @@ class InternetConnectionServiceImpl implements InternetConnectionService {
   final Future<List<ConnectivityResult>> Function()? _checkConnectivityOverride;
   final Future<bool> Function()? _hasInternetAccessOverride;
 
-  final StreamController<bool> _controller =
-      StreamController<bool>.broadcast();
+  final StreamController<bool> _controller = StreamController<bool>.broadcast();
 
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool? _lastEmitted;
@@ -122,9 +121,7 @@ class InternetConnectionServiceImpl implements InternetConnectionService {
     if (_lastEmitted == online) return;
     _lastEmitted = online;
     _controller.add(online);
-    _log(
-      'Internet status changed: ${online ? 'ONLINE' : 'OFFLINE'}',
-    );
+    _log('Internet status changed: ${online ? 'ONLINE' : 'OFFLINE'}');
   }
 
   void _log(String message) {

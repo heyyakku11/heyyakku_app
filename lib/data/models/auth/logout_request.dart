@@ -1,13 +1,9 @@
 class LogoutRequestModel {
   final String refreshToken;
 
-  const LogoutRequestModel({
-    required this.refreshToken,
-  });
+  const LogoutRequestModel({required this.refreshToken});
 
   Map<String, dynamic> toJson() {
-    return {
-      'refreshToken': refreshToken,
-    };
+    return {'refreshToken': refreshToken};
   }
 }

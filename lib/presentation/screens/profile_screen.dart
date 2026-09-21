@@ -1,9 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/draft_screen.dart';
 import 'package:yakku/presentation/screens/privacy_policy_screen.dart';
-import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
 import 'package:yakku/presentation/widgets/app_switch.dart';
 import 'package:yakku/presentation/widgets/profile_card.dart';
@@ -17,36 +15,15 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isLoggingOut = false;
   bool notificationsEnabled = true;
 
-  String _logoutErrorMessage(Object error) {
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      if (error.message != null && error.message!.isNotEmpty) {
-        return error.message!;
-      }
-    }
-    if (error is StateError && error.message.isNotEmpty) {
-      return error.message;
-    }
-    return 'Logged out locally, but the server request failed.';
-  }
-
   Future<void> _logOut() async {
-    if (_isLoggingOut) return;
-
     final response = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Logout'),
-          content: const Text(
-            'Are you sure you want to log out from Yakku?',
-          ),
+          content: const Text('Are you sure you want to log out from Yakku?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -63,26 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (response != true || !mounted) return;
 
-    setState(() {
-      _isLoggingOut = true;
-    });
-
-    try {
-      await AppScope.of(context).authController.logout();
-    } catch (error) {
-      if (!mounted) return;
-      await showAppAlert(
-        context,
-        title: 'Logout',
-        message: _logoutErrorMessage(error),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoggingOut = false;
-        });
-      }
-    }
+    await AppScope.of(context).authController.logout();
   }
 
   @override
@@ -97,13 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 16,
               children: [
-                Column(
-                  spacing: 10,
-                  children: [
-                    ProfileCard(),
-                    ProfileStats(),
-                  ],
-                ),
+                Column(spacing: 10, children: [ProfileCard(), ProfileStats()]),
 
                 //info tab
                 Column(
@@ -142,19 +94,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Your Draft',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                          ),
+                                          style: TextStyle(fontSize: 16),
                                         ),
                                         Text(
                                           'view your draft here',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                          ),
+                                          style: TextStyle(fontSize: 10),
                                         ),
                                       ],
                                     ),
@@ -169,30 +118,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(width: double.infinity, height: 2),
                           GestureDetector(
-                            onTap: () {
-
-                            },
+                            onTap: () {},
                             child: Padding(
                               padding: const EdgeInsets.all(10.0),
                               child: Row(
                                 spacing: 10,
                                 children: [
-                                  const Icon(Icons.notifications_active_outlined, size: 26),
+                                  const Icon(
+                                    Icons.notifications_active_outlined,
+                                    size: 26,
+                                  ),
                                   const Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Notification',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                          ),
+                                          style: TextStyle(fontSize: 16),
                                         ),
                                         Text(
                                           'handle your notification',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                          ),
+                                          style: TextStyle(fontSize: 10),
                                         ),
                                       ],
                                     ),
@@ -249,19 +196,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Icon(Icons.privacy_tip_outlined, size: 26),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Privacy Policy',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                          ),
+                                          style: TextStyle(fontSize: 16),
                                         ),
                                         Text(
                                           'view your yakku\'s policy',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                          ),
+                                          style: TextStyle(fontSize: 10),
                                         ),
                                       ],
                                     ),
@@ -280,13 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
-                if (_isLoggingOut)
-                  const Center(child: CircularProgressIndicator()),
-
-                AppOutlinedButton(
-                  label: 'Log out',
-                  onPressed: _isLoggingOut ? null : _logOut,
-                ),
+                AppOutlinedButton(label: 'Log out', onPressed: _logOut),
               ],
             ),
           ),

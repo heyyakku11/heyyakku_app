@@ -6,13 +6,11 @@ class TermsOfServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Terms of Service '),
-      ),
+      appBar: AppBar(title: Text('Terms of Service ')),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
-            padding: const EdgeInsetsGeometry.fromLTRB(20.0, 10.0, 20.0, 40.0),
+          padding: const EdgeInsetsGeometry.fromLTRB(20.0, 10.0, 20.0, 40.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

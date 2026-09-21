@@ -31,7 +31,9 @@ class MockPollRepository extends ChangeNotifier implements PollRepository {
   @override
   List<Poll> getMyPolls() {
     return _data.polls
-        .where((poll) => poll.creatorId == MockPollLocalDataSource.currentUserId)
+        .where(
+          (poll) => poll.creatorId == MockPollLocalDataSource.currentUserId,
+        )
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }

@@ -1,26 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:yakku/core/auth/auth_token_store.dart';
 import 'package:yakku/core/auth/user_preferences.dart';
-import 'package:yakku/core/storage/secure_storage_service.dart';
-import 'package:yakku/core/storage/storage_keys.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
+import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController({
     required this.userPreferences,
-    required SecureStorageService secureStorage,
+    required AuthTokenStore tokenStore,
     required AuthRemoteDataSource authRemote,
     bool isUserLogged = false,
     String? this._email,
     String? this._displayName,
-  })  : _secureStorage = secureStorage,
-        _authRemote = authRemote,
-        _isLoggedIn = isUserLogged;
+  }) : _tokenStore = tokenStore,
+       _authRemote = authRemote,
+       _isLoggedIn = isUserLogged;
 
   final UserPreferences userPreferences;
-  final SecureStorageService _secureStorage;
+  final AuthTokenStore _tokenStore;
   final AuthRemoteDataSource _authRemote;
 
   bool _isLoggedIn;
@@ -31,83 +33,82 @@ class AuthController extends ChangeNotifier {
   String? get email => _email;
   String? get displayName => _displayName;
 
-  Future<void> sendOtp(String email) async {
-    await _authRemote.sendOtp(SendOtpRequestModel(email: email));
+  Future<SendOtpData> sendOtp(String email) {
+    return _authRemote.sendOtp(SendOtpRequestModel(email: email));
   }
 
-  Future<void> verifyOtp({
-    required String email,
-    required String otp,
-  }) async {
+  Future<void> verifyOtp({required String email, required String otp}) async {
     final data = await _authRemote.verifyOtp(
       VerifyOtpRequestModel(email: email, otp: otp),
     );
 
-    await _secureStorage.update(StorageKeys.accessToken, data.accessToken);
-    await _secureStorage.update(StorageKeys.refreshToken, data.refreshToken);
+    await _tokenStore.saveTokens(
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    );
 
-    await userPreferences.setEmail(data.email);
+    await userPreferences.setEmail(email);
     await userPreferences.setDisplayName(data.displayName);
     await userPreferences.setIsUserLogged(true);
 
     _isLoggedIn = true;
-    _email = data.email;
+    _email = email;
     _displayName = data.displayName;
     notifyListeners();
   }
 
-  Future<void> login({String? email}) async {
-    _isLoggedIn = true;
-    _email = email;
-    await userPreferences.setIsUserLogged(true);
-    if (email != null) {
-      await userPreferences.setEmail(email);
-    }
-    notifyListeners();
+  Future<void> logout() async {
+    final refreshToken = _tokenStore.refreshToken;
+    final accessToken = _tokenStore.accessToken;
+
+    await clearLocalSession();
+
+    if (refreshToken == null || refreshToken.isEmpty) return;
+
+    unawaited(
+      _logoutRemote(refreshToken: refreshToken, accessToken: accessToken),
+    );
   }
 
-  Future<void> logout() async {
-    final refreshToken = await _secureStorage.read(StorageKeys.refreshToken);
-    final accessToken = await _secureStorage.read(StorageKeys.accessToken);
-
-    Object? remoteError;
-    if (refreshToken != null && refreshToken.isNotEmpty) {
-      try {
-        await _authRemote.logout(
-          LogoutRequestModel(refreshToken: refreshToken),
-          accessToken: accessToken,
-        );
-      } catch (error) {
-        remoteError = error;
+  Future<void> _logoutRemote({
+    required String refreshToken,
+    required String? accessToken,
+  }) async {
+    try {
+      await _authRemote.logout(
+        LogoutRequestModel(refreshToken: refreshToken),
+        accessToken: accessToken,
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[AUTH] Background logout failed: $error');
       }
     }
+  }
 
-    await _secureStorage.clearKeys([
-      StorageKeys.accessToken,
-      StorageKeys.refreshToken,
-    ]);
+  /// Clears tokens and prefs without calling the logout API (e.g. after refresh failure).
+  Future<void> clearLocalSession() async {
+    await _tokenStore.clear();
     await userPreferences.clearAuth();
 
     _isLoggedIn = false;
     _email = null;
     _displayName = null;
     notifyListeners();
-
-    if (remoteError != null) {
-      throw remoteError;
-    }
   }
 
-  /// Resolves session from prefs + secure token. Clears stale sessions.
+  /// Resolves session from prefs + secure tokens. Hydrates [tokenStore].
+  /// Clears stale half-sessions (prefs without tokens or tokens without prefs).
   static Future<AuthSessionBootstrap> bootstrap({
     required UserPreferences userPreferences,
-    required SecureStorageService secureStorage,
+    required AuthTokenStore tokenStore,
   }) async {
-    final isUserLogged = await userPreferences.getIsUserLogged();
-    final accessToken = await secureStorage.read(StorageKeys.accessToken);
-    final hasToken = accessToken != null && accessToken.isNotEmpty;
+    await tokenStore.hydrate();
 
-    if (isUserLogged && hasToken) {
+    final isUserLogged = await userPreferences.getIsUserLogged();
+    final hasTokens = tokenStore.hasSessionTokens;
+
+    if (isUserLogged && hasTokens) {
       return AuthSessionBootstrap(
         isUserLogged: true,
         email: await userPreferences.getEmail(),
@@ -115,11 +116,10 @@ class AuthController extends ChangeNotifier {
       );
     }
 
-    if (isUserLogged || hasToken) {
-      await secureStorage.clearKeys([
-        StorageKeys.accessToken,
-        StorageKeys.refreshToken,
-      ]);
+    if (isUserLogged ||
+        tokenStore.hasAccessToken ||
+        tokenStore.hasRefreshToken) {
+      await tokenStore.clear();
       await userPreferences.clearAuth();
     }
 

@@ -1,15 +1,19 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:yakku/core/auth/otp_error_codes.dart';
+import 'package:yakku/core/network/api_exception.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
 class OtpBottomSheet extends StatefulWidget {
   final String email;
+  final int expiresInMinutes;
 
   const OtpBottomSheet({
     super.key,
     required this.email,
+    required this.expiresInMinutes,
   });
 
   @override
@@ -17,8 +21,10 @@ class OtpBottomSheet extends StatefulWidget {
 }
 
 class _OtpBottomSheetState extends State<OtpBottomSheet> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
 
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
@@ -63,28 +69,79 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
 
   bool get _isOtpComplete => _otp.length == 6;
 
-  Future<void> _showError(String message) {
+  void _clearOtpFields() {
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    _focusNodes.first.requestFocus();
+  }
+
+  Future<void> _showError(String message, {String title = 'Verification failed'}) {
     return showAppAlert(
       context,
-      title: 'Verification failed',
+      title: title,
       message: message,
     );
   }
 
-  String _errorMessage(Object error) {
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      if (error.message != null && error.message!.isNotEmpty) {
-        return error.message!;
-      }
+  ApiException _mappedError(Object error) {
+    return DioErrorMapper.map(
+      error,
+      fallback: 'Failed to verify OTP. Please try again.',
+    );
+  }
+
+  String? _otpErrorCode(ApiException error) {
+    final fromCode = OtpErrorCodes.normalize(error.code);
+    if (fromCode != null) return fromCode;
+
+    final message = error.message.toLowerCase();
+    if (message.contains('retry') && message.contains('limit')) {
+      return OtpErrorCodes.retryLimitExceeded;
     }
-    if (error is StateError && error.message.isNotEmpty) {
-      return error.message;
+    if (message.contains('not found')) {
+      return OtpErrorCodes.notFound;
     }
-    return 'Failed to verify OTP. Please try again.';
+    if (message.contains('invalid')) {
+      return OtpErrorCodes.invalid;
+    }
+    return null;
+  }
+
+  void _closeSheet() {
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _handleVerifyFailure(Object error) async {
+    _clearOtpFields();
+
+    final mapped = _mappedError(error);
+    final code = _otpErrorCode(mapped);
+
+    switch (code) {
+      case OtpErrorCodes.invalid:
+        await _showError(
+          mapped.message,
+          title: 'Invalid code',
+        );
+        return;
+      case OtpErrorCodes.notFound:
+        await _showError(
+          mapped.message,
+          title: 'Code not found',
+        );
+        return;
+      case OtpErrorCodes.retryLimitExceeded:
+        await _showError(
+          mapped.message,
+          title: 'Too many attempts',
+        );
+        if (!mounted) return;
+        _closeSheet();
+        return;
+      default:
+        await _showError(mapped.message);
+    }
   }
 
   Future<void> _verifyOtp() async {
@@ -101,10 +158,10 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     try {
       await authController.verifyOtp(email: widget.email, otp: _otp);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      _closeSheet();
     } catch (e) {
       if (!mounted) return;
-      await _showError(_errorMessage(e));
+      await _handleVerifyFailure(e);
     } finally {
       if (mounted) {
         setState(() {
@@ -132,27 +189,20 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
               children: [
                 const Text(
                   'Verify your email',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: _isVerifying
-                        ? null
-                        : () => Navigator.of(context).pop(),
+                    onTap: _isVerifying ? null : _closeSheet,
                     customBorder: const CircleBorder(),
                     child: Container(
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.grey.shade400,
-                        ),
+                        border: Border.all(color: Colors.grey.shade400),
                       ),
                       child: Icon(
                         Icons.close,
@@ -168,7 +218,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
             const SizedBox(height: 10),
 
             Text(
-              'We sent a 6-digit verification code to\n${widget.email}',
+              'We sent a 6-digit verification code to ${widget.email}. This code will expire in ${widget.expiresInMinutes} minutes.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -180,10 +230,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(
-                6,
-                (index) => _otpField(index),
-              ),
+              children: List.generate(6, (index) => _otpField(index)),
             ),
 
             const SizedBox(height: 28),
@@ -236,25 +283,15 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: 1,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-          ],
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             counterText: '',
             contentPadding: EdgeInsets.zero,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.black,
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Colors.black, width: 2),
             ),
           ),
           onChanged: (value) => _onOtpChanged(value, index),

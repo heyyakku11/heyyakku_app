@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../data/models/dashboard_item.dart';
+import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/activity_screen.dart';
 import 'package:yakku/presentation/screens/create_screen.dart';
 import 'package:yakku/presentation/screens/home_screen.dart';
 import 'package:yakku/presentation/screens/profile_screen.dart';
+import 'package:yakku/presentation/widgets/notification_permission_dialog.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -16,6 +20,7 @@ class _DashboardState extends State<Dashboard> {
   int _index = 0;
   late final PageController _pageController;
   late final List<DashboardItem> _items;
+  bool _deviceFlowStarted = false;
 
   @override
   void initState() {
@@ -47,6 +52,32 @@ class _DashboardState extends State<Dashboard> {
         page: ProfileScreen(),
       ),
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_runDeviceRegistrationFlow());
+    });
+  }
+
+  Future<void> _runDeviceRegistrationFlow() async {
+    if (_deviceFlowStarted || !mounted) return;
+    _deviceFlowStarted = true;
+
+    final deviceRegistration = AppScope.of(context).deviceRegistration;
+    final shouldPrompt = await deviceRegistration.shouldPromptForPermission();
+    if (!mounted) return;
+
+    if (shouldPrompt) {
+      final allow = await showNotificationPermissionDialog(context);
+      if (!mounted) return;
+      if (allow == true) {
+        await deviceRegistration.applyAllowChoice();
+      } else {
+        await deviceRegistration.applySkipChoice();
+      }
+      return;
+    }
+
+    deviceRegistration.registerDeviceInBackground();
   }
 
   @override

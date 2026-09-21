@@ -1,13 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_colors.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
-import 'package:yakku/domain/enums/poll_duration.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_text_field.dart';
-
-enum _CreatePhase { question, options, review }
+import 'package:yakku/presentation/widgets/created_poll_card_sheet.dart';
 
 class CreateScreen extends StatefulWidget {
   const CreateScreen({super.key});
@@ -17,17 +18,44 @@ class CreateScreen extends StatefulWidget {
 }
 
 class _CreateScreenState extends State<CreateScreen> {
-  final _questionController = TextEditingController();
-  late List<TextEditingController> _optionControllers;
+  static const _revealDuration = Duration(milliseconds: 480);
+  static const _revealCurve = Curves.easeOutCubic;
 
-  _CreatePhase _phase = _CreatePhase.question;
-  bool _myCircleSelected = true;
+  final _questionController = TextEditingController();
+  final _questionFocus = FocusNode();
+  late List<TextEditingController> _optionControllers;
+  late List<FocusNode> _optionFocusNodes;
+
+  bool _isCreating = false;
+  int? _selectedOptionIndex;
+  bool _showOptions = false;
+  bool _showExtras = false;
+  Timer? _collapseTimer;
 
   bool get _hasQuestion => _questionController.text.trim().isNotEmpty;
 
+  List<({int index, String text})> get _filledOptions {
+    final options = <({int index, String text})>[];
+    for (var i = 0; i < _optionControllers.length; i++) {
+      final text = _optionControllers[i].text.trim();
+      if (text.isNotEmpty) {
+        options.add((index: i, text: text));
+      }
+    }
+    return options;
+  }
+
   bool get _optionsFilled =>
-      _optionControllers.length >= AppLimits.minOptions &&
-      _optionControllers.every((controller) => controller.text.trim().isNotEmpty);
+      _filledOptions.length >= AppLimits.minOptions &&
+      _optionControllers
+          .take(AppLimits.minOptions)
+          .every((controller) => controller.text.trim().isNotEmpty);
+
+  bool get _canCreate =>
+      _hasQuestion &&
+      _optionsFilled &&
+      _selectedOptionIndex != null &&
+      !_isCreating;
 
   @override
   void initState() {
@@ -36,15 +64,60 @@ class _CreateScreenState extends State<CreateScreen> {
       AppLimits.minOptions,
       (_) => TextEditingController(),
     );
+    _optionFocusNodes = List.generate(AppLimits.minOptions, (_) => FocusNode());
   }
 
   @override
   void dispose() {
+    _collapseTimer?.cancel();
     _questionController.dispose();
+    _questionFocus.dispose();
     for (final controller in _optionControllers) {
       controller.dispose();
     }
+    for (final node in _optionFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  void _cancelCollapseTimer() {
+    _collapseTimer?.cancel();
+    _collapseTimer = null;
+  }
+
+  void _onQuestionChanged() {
+    if (_hasQuestion) {
+      _cancelCollapseTimer();
+      setState(() {
+        _showOptions = true;
+        _showExtras = _optionsFilled;
+      });
+      return;
+    }
+    _onQuestionCleared();
+  }
+
+  void _onQuestionCleared() {
+    _resetOptionFields();
+    if (_showExtras) {
+      setState(() => _showExtras = false);
+      _cancelCollapseTimer();
+      _collapseTimer = Timer(_revealDuration, () {
+        if (!mounted || _hasQuestion) return;
+        setState(() => _showOptions = false);
+      });
+      return;
+    }
+    setState(() => _showOptions = false);
+  }
+
+  void _syncExtras() {
+    final shouldShow = _hasQuestion && _optionsFilled;
+    if (shouldShow) {
+      _cancelCollapseTimer();
+    }
+    setState(() => _showExtras = shouldShow);
   }
 
   void _showMessage(String message) {
@@ -53,67 +126,91 @@ class _CreateScreenState extends State<CreateScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _onMediaTap() {
-    _showMessage('Coming soon');
-  }
-
   void _addOption() {
     if (_optionControllers.length >= AppLimits.maxOptions) return;
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
     setState(() {
-      _optionControllers.add(TextEditingController());
+      _optionControllers.add(controller);
+      _optionFocusNodes.add(focusNode);
     });
   }
 
   void _removeOption(int index) {
     if (_optionControllers.length <= AppLimits.minOptions) return;
     final controller = _optionControllers[index];
+    final focusNode = _optionFocusNodes[index];
     setState(() {
       _optionControllers.removeAt(index);
+      _optionFocusNodes.removeAt(index);
+      if (_selectedOptionIndex == index) {
+        _selectedOptionIndex = null;
+      } else if (_selectedOptionIndex != null &&
+          _selectedOptionIndex! > index) {
+        _selectedOptionIndex = _selectedOptionIndex! - 1;
+      }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-  }
-
-  void _onReorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
-      final item = _optionControllers.removeAt(oldIndex);
-      _optionControllers.insert(newIndex, item);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+      focusNode.dispose();
     });
   }
 
-  void _onNext() {
-    FocusScope.of(context).unfocus();
-    if (_phase == _CreatePhase.question && _hasQuestion) {
-      setState(() => _phase = _CreatePhase.options);
-      return;
-    }
-    if (_phase == _CreatePhase.options && _optionsFilled) {
-      setState(() => _phase = _CreatePhase.review);
-    }
+  void _selectOpinion(int index) {
+    setState(() => _selectedOptionIndex = index);
   }
 
-  void _resetForm() {
-    _questionController.clear();
-    FocusScope.of(context).unfocus();
+  void _onOptionChanged() {
+    if (_selectedOptionIndex != null) {
+      final selected = _optionControllers[_selectedOptionIndex!];
+      if (selected.text.trim().isEmpty) {
+        _selectedOptionIndex = null;
+      }
+    }
+    _syncExtras();
+  }
+
+  void _resetOptionFields() {
+    for (final node in _optionFocusNodes) {
+      if (node.hasFocus) {
+        node.unfocus();
+      }
+    }
     for (final controller in _optionControllers) {
       controller.clear();
     }
-    final extras = _optionControllers.length > AppLimits.minOptions
-        ? _optionControllers.sublist(AppLimits.minOptions)
-        : <TextEditingController>[];
-    setState(() {
-      _optionControllers = _optionControllers.take(AppLimits.minOptions).toList();
-      _phase = _CreatePhase.question;
-      _myCircleSelected = true;
-    });
+    _selectedOptionIndex = null;
+    _trimToMinOptions();
+  }
+
+  void _trimToMinOptions() {
+    if (_optionControllers.length <= AppLimits.minOptions) return;
+    final extraControllers = _optionControllers.sublist(AppLimits.minOptions);
+    final extraFocus = _optionFocusNodes.sublist(AppLimits.minOptions);
+    _optionControllers = _optionControllers.take(AppLimits.minOptions).toList();
+    _optionFocusNodes = _optionFocusNodes.take(AppLimits.minOptions).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final controller in extras) {
+      for (final controller in extraControllers) {
         controller.dispose();
+      }
+      for (final node in extraFocus) {
+        node.dispose();
       }
     });
   }
 
-  void _onAskYakku() {
+  void _resetForm() {
+    _cancelCollapseTimer();
+    _questionController.clear();
+    FocusScope.of(context).unfocus();
+    _resetOptionFields();
+    setState(() {
+      _showOptions = false;
+      _showExtras = false;
+    });
+  }
+
+  Future<void> _onCreate() async {
     final question = _questionController.text.trim();
     if (question.isEmpty) {
       _showMessage('Ask a question first.');
@@ -129,6 +226,11 @@ class _CreateScreenState extends State<CreateScreen> {
       _showMessage('Add at least two options.');
       return;
     }
+    final selectedIndex = _selectedOptionIndex;
+    if (selectedIndex == null) {
+      _showMessage('Choose your opinion before creating the poll.');
+      return;
+    }
     final options = _optionControllers
         .map((controller) => controller.text.trim())
         .toList();
@@ -139,240 +241,207 @@ class _CreateScreenState extends State<CreateScreen> {
       return;
     }
 
-    AppScope.of(context).repository.createPoll(
+    await _createPoll(
       question: question,
       options: options,
-      isAnonymous: true,
-      allowMultipleAnswers: false,
-      duration: PollDuration.hours24,
-    );
-    _resetForm();
-    _showMessage('Poll posted anonymously');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final showOptions = _phase != _CreatePhase.question;
-    final showReview = _phase == _CreatePhase.review;
-
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppTextField(
-                controller: _questionController,
-                hintText: "What's on your mind?",
-                maxLines: 5,
-                maxLength: AppLimits.maxQuestionLength,
-                showCounter: true,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              if (!showOptions) _MediaRow(onTap: _onMediaTap),
-              if (showOptions) ...[
-                Row(
-                  children: [
-                    Text(
-                      'Add options',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${_optionControllers.length} / ${AppLimits.maxOptions}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ReorderableListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  buildDefaultDragHandles: false,
-                  itemCount: _optionControllers.length,
-                  onReorder: _onReorder,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      key: ValueKey(_optionControllers[index]),
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: _OptionTile(
-                        index: index,
-                        controller: _optionControllers[index],
-                        onChanged: (_) => setState(() {}),
-                        onRemove: index >= AppLimits.minOptions
-                            ? () => _removeOption(index)
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-                if (_optionControllers.length < AppLimits.maxOptions)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _addOption,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add another option'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.text,
-                        side: const BorderSide(color: AppColors.border),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadii.lg),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-              if (showReview) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const _VotersCanAddCard(),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Choose audience',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _AudienceCard(
-                        title: 'My Circle',
-                        subtitle: 'People you know',
-                        selected: _myCircleSelected,
-                        onTap: () => setState(() => _myCircleSelected = true),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _AudienceCard(
-                        title: 'Nearby',
-                        subtitle: 'Anonymous',
-                        selected: !_myCircleSelected,
-                        onTap: () => setState(() => _myCircleSelected = false),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_phase == _CreatePhase.question) ...[
-                Text(
-                  'Ask anything. Get real opinions.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: showReview
-                    ? ElevatedButton(
-                        onPressed: _optionsFilled && _hasQuestion
-                            ? _onAskYakku
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: AppColors.surface,
-                          disabledBackgroundColor: AppColors.border,
-                          disabledForegroundColor: AppColors.textMuted,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                          ),
-                        ),
-                        child: const Text('Ask Yakku'),
-                      )
-                    : ElevatedButton(
-                        onPressed: _phase == _CreatePhase.question
-                            ? (_hasQuestion ? _onNext : null)
-                            : (_optionsFilled ? _onNext : null),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.surface,
-                          disabledBackgroundColor: AppColors.border,
-                          disabledForegroundColor: AppColors.textMuted,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                          ),
-                        ),
-                        child: const Text('Next'),
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      selectedOptionIndex: selectedIndex,
     );
   }
-}
 
-class _MediaRow extends StatelessWidget {
-  const _MediaRow({required this.onTap});
+  Future<void> _createPoll({
+    required String question,
+    required List<String> options,
+    required int selectedOptionIndex,
+  }) async {
+    if (_isCreating) return;
+    setState(() => _isCreating = true);
 
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _MediaButton(icon: Icons.photo_outlined, label: 'Photo', onTap: onTap),
-      ],
-    );
+    try {
+      final poll = await AppScope.of(context).pollApi.createTextPoll(
+        question: question,
+        options: options,
+        selectedOptionIndex: selectedOptionIndex,
+      );
+      if (!mounted) return;
+      setState(() => _isCreating = false);
+      _resetForm();
+      await showCreatedPollCardSheet(context, poll: poll);
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(_errorMessage(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
   }
-}
 
-class _MediaButton extends StatelessWidget {
-  const _MediaButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  String _errorMessage(Object error) {
+    return DioErrorMapper.map(
+      error,
+      fallback: 'Could not create poll. Please try again.',
+    ).message;
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.border),
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        body: SafeArea(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppTextField(
+                  controller: _questionController,
+                  focusNode: _questionFocus,
+                  hintText: "What's on your mind?",
+                  maxLines: 5,
+                  maxLength: AppLimits.maxQuestionLength,
+                  showCounter: true,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                  onChanged: (_) => _onQuestionChanged(),
+                ),
+                _SlideReveal(
+                  visible: _showOptions,
+                  duration: _revealDuration,
+                  curve: _revealCurve,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < _optionControllers.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.md,
+                            ),
+                            child: _OptionTile(
+                              index: i,
+                              controller: _optionControllers[i],
+                              focusNode: _optionFocusNodes[i],
+                              onChanged: (_) => _onOptionChanged(),
+                              onRemove: i >= AppLimits.minOptions
+                                  ? () => _removeOption(i)
+                                  : null,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                _SlideReveal(
+                  visible: _showExtras,
+                  duration: _revealDuration,
+                  curve: _revealCurve,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_optionControllers.length < AppLimits.maxOptions)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _addOption,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add another option'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.text,
+                              side: const BorderSide(color: AppColors.border),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.lg,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: AppSpacing.md),
+                      const _VotersCanAddCard(),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (_filledOptions.length >= AppLimits.minOptions)
+                        _OpinionGrid(
+                          options: _filledOptions,
+                          selectedIndex: _selectedOptionIndex,
+                          onSelected: _selectOpinion,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            child: Icon(icon, color: AppColors.text),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _canCreate ? _onCreate : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.surface,
+                  disabledBackgroundColor: AppColors.border,
+                  disabledForegroundColor: AppColors.textMuted,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                  ),
+                ),
+                child: _isCreating
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Create poll'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SlideReveal extends StatelessWidget {
+  const _SlideReveal({
+    required this.visible,
+    required this.child,
+    required this.duration,
+    required this.curve,
+  });
+
+  final bool visible;
+  final Widget child;
+  final Duration duration;
+  final Curve curve;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: AnimatedSize(
+        duration: duration,
+        curve: curve,
+        alignment: Alignment.topCenter,
+        child: visible
+            ? AnimatedOpacity(
+                duration: duration,
+                curve: curve,
+                opacity: 1,
+                child: child,
+              )
+            : const SizedBox(width: double.infinity),
       ),
     );
   }
@@ -382,42 +451,32 @@ class _OptionTile extends StatelessWidget {
   const _OptionTile({
     required this.index,
     required this.controller,
+    required this.focusNode,
     required this.onChanged,
     this.onRemove,
   });
 
   final int index;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String> onChanged;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: AppTextField(
-            controller: controller,
-            hintText: 'Option ${index + 1}',
-            maxLength: AppLimits.maxOptionLength,
-            textInputAction: TextInputAction.next,
-            onChanged: onChanged,
-            suffixIcon: onRemove != null
-                ? IconButton(
-                    onPressed: onRemove,
-                    icon: const Icon(Icons.close, size: 20),
-                  )
-                : null,
-          ),
-        ),
-        ReorderableDragStartListener(
-          index: index,
-          child: const Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Icon(Icons.drag_handle_rounded, color: AppColors.textMuted),
-          ),
-        ),
-      ],
+    return AppTextField(
+      controller: controller,
+      focusNode: focusNode,
+      hintText: 'Option ${index + 1}',
+      maxLength: AppLimits.maxOptionLength,
+      textInputAction: TextInputAction.next,
+      onChanged: onChanged,
+      suffixIcon: onRemove != null
+          ? IconButton(
+              onPressed: onRemove,
+              icon: const Icon(Icons.close, size: 20),
+            )
+          : null,
     );
   }
 }
@@ -442,9 +501,9 @@ class _VotersCanAddCard extends StatelessWidget {
           Expanded(
             child: Text(
               'Voters can add their own option while voting',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -453,56 +512,108 @@ class _VotersCanAddCard extends StatelessWidget {
   }
 }
 
-class _AudienceCard extends StatelessWidget {
-  const _AudienceCard({
-    required this.title,
-    required this.subtitle,
+class _OpinionGrid extends StatelessWidget {
+  const _OpinionGrid({
+    required this.options,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<({int index, String text})> options;
+  final int? selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Register your opinion',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Choose the option that matches what you think.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            for (var i = 0; i < options.length; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _OpinionChoice(
+                  letter: String.fromCharCode(65 + i),
+                  text: options[i].text,
+                  selected: selectedIndex == options[i].index,
+                  onTap: () => onSelected(options[i].index),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OpinionChoice extends StatelessWidget {
+  const _OpinionChoice({
+    required this.letter,
+    required this.text,
     required this.selected,
     required this.onTap,
   });
 
-  final String title;
-  final String subtitle;
+  final String letter;
+  final String text;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        side: BorderSide(
-          color: selected ? AppColors.accent : AppColors.border,
-          width: selected ? 2 : 1,
-        ),
-      ),
+      color: selected
+          ? AppColors.accent.withValues(alpha: 0.12)
+          : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 88),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(
+              color: selected ? AppColors.accent : AppColors.border,
+              width: selected ? 2 : 1,
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  if (selected)
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppColors.accent,
-                      size: 20,
-                    ),
-                ],
+              Text(
+                'Option $letter',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: selected ? AppColors.accent : AppColors.textMuted,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
         ),

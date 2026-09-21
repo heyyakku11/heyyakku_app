@@ -1,6 +1,8 @@
 import 'package:yakku/data/models/Poll.dart';
 
-/// Activity poll lists. Swap the dummy implementation for an API later.
+/// Activity poll lists (asked / answered).
+///
+/// Production: [ApiActivityPollRepository] via [AppScope.activityPolls].
 abstract class ActivityPollRepository {
   Future<List<PollModel>> getCreatedPolls();
 

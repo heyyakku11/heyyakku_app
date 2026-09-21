@@ -8,16 +8,12 @@ import 'package:yakku/presentation/widgets/offline_banner.dart';
 ///
 /// Does not block interaction with the rest of the app.
 class InternetStatusListener extends StatefulWidget {
-  const InternetStatusListener({
-    super.key,
-    required this.child,
-  });
+  const InternetStatusListener({super.key, required this.child});
 
   final Widget? child;
 
   @override
-  State<InternetStatusListener> createState() =>
-      _InternetStatusListenerState();
+  State<InternetStatusListener> createState() => _InternetStatusListenerState();
 }
 
 class _InternetStatusListenerState extends State<InternetStatusListener> {

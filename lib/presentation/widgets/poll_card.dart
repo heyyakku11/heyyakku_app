@@ -18,12 +18,14 @@ class PollCard extends StatelessWidget {
     this.onShare,
     this.onEdit,
     this.showMakeItYours = true,
+    this.showVoteCount = false,
   });
 
   final PollModel poll;
   final VoidCallback? onShare;
   final ValueChanged<PollModel>? onEdit;
   final bool showMakeItYours;
+  final bool showVoteCount;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class PollCard extends StatelessWidget {
           children: [
             _PollCardHeader(
               question: poll.question,
+              voteCount: showVoteCount ? poll.totalVoteCount : null,
               onMakeItYours: showMakeItYours
                   ? () => _showMakeItYourSheet(
                       context: context,
@@ -61,9 +64,14 @@ class PollCard extends StatelessWidget {
 }
 
 class _PollCardHeader extends StatelessWidget {
-  const _PollCardHeader({required this.question, this.onMakeItYours});
+  const _PollCardHeader({
+    required this.question,
+    this.voteCount,
+    this.onMakeItYours,
+  });
 
   final String question;
+  final int? voteCount;
   final VoidCallback? onMakeItYours;
 
   @override
@@ -75,11 +83,25 @@ class _PollCardHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(
-            question,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                question,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (voteCount != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  voteCount == 1 ? '1 vote' : '$voteCount votes',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         if (onMakeItYours != null) ...[
@@ -423,7 +445,9 @@ void _showMakeItYourSheet({
                           onEdit?.call(poll);
                         },
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(_actionButtonHeight),
+                          minimumSize: const Size.fromHeight(
+                            _actionButtonHeight,
+                          ),
                         ),
                         icon: const Icon(Icons.edit_outlined),
                         label: const Text('Edit'),

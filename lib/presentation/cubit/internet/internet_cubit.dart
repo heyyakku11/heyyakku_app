@@ -10,7 +10,7 @@ import 'package:yakku/core/network/internet_status.dart';
 /// [BlocListener] or by observing state changes on this cubit.
 class InternetCubit extends Cubit<InternetStatus> {
   InternetCubit(this._internetConnectionService)
-      : super(InternetStatus.offline);
+    : super(InternetStatus.offline);
 
   final InternetConnectionService _internetConnectionService;
   StreamSubscription<bool>? _subscription;
@@ -24,12 +24,12 @@ class InternetCubit extends Cubit<InternetStatus> {
     if (isClosed) return;
     _emitStatus(connected);
 
-    _subscription = _internetConnectionService.onStatusChanged.listen(
-      (connected) {
-        if (isClosed) return;
-        _emitStatus(connected);
-      },
-    );
+    _subscription = _internetConnectionService.onStatusChanged.listen((
+      connected,
+    ) {
+      if (isClosed) return;
+      _emitStatus(connected);
+    });
   }
 
   Future<void> refresh() => _internetConnectionService.refresh();

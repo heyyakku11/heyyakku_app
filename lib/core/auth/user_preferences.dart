@@ -3,7 +3,7 @@ import 'package:yakku/core/storage/storage_keys.dart';
 
 class UserPreferences {
   UserPreferences({PreferenceStorageService? storage})
-      : _storage = storage ?? PreferenceStorageService();
+    : _storage = storage ?? PreferenceStorageService();
 
   final PreferenceStorageService _storage;
 

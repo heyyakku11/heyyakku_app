@@ -59,7 +59,10 @@ ThemeData buildLightTheme() {
       type: BottomNavigationBarType.fixed,
       elevation: 8,
       selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-      unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+      unselectedLabelStyle: TextStyle(
+        fontWeight: FontWeight.w500,
+        fontSize: 12,
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -106,8 +109,16 @@ ThemeData buildLightTheme() {
         fontWeight: FontWeight.w600,
         color: YakkuPalette.slate,
       ),
-      bodyLarge: TextStyle(fontSize: 16, color: YakkuPalette.slate, height: 1.4),
-      bodyMedium: TextStyle(fontSize: 14, color: YakkuPalette.slate, height: 1.4),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: YakkuPalette.slate,
+        height: 1.4,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: YakkuPalette.slate,
+        height: 1.4,
+      ),
       bodySmall: TextStyle(fontSize: 12, color: YakkuPalette.muted),
     ),
   );

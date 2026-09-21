@@ -28,10 +28,7 @@ class AppButton extends StatelessWidget {
             ],
           );
 
-    final button = ElevatedButton(
-      onPressed: onPressed,
-      child: child,
-    );
+    final button = ElevatedButton(onPressed: onPressed, child: child);
 
     if (!expanded) return button;
     return SizedBox(width: double.infinity, child: button);
@@ -59,9 +56,9 @@ class AppOutlinedButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          backgroundColor: Colors.red.shade500
+          backgroundColor: Colors.red.shade500,
         ),
-        child: Text(label, style: TextStyle(color: Colors.white,fontSize: 16),),
+        child: Text(label, style: TextStyle(color: Colors.white, fontSize: 16)),
       ),
     );
   }

@@ -59,7 +59,10 @@ ThemeData buildDarkTheme() {
       type: BottomNavigationBarType.fixed,
       elevation: 8,
       selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-      unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+      unselectedLabelStyle: TextStyle(
+        fontWeight: FontWeight.w500,
+        fontSize: 12,
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

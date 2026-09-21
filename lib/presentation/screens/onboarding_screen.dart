@@ -1,8 +1,8 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/privacy_policy_screen.dart';
 import 'package:yakku/presentation/screens/terms_of_service_screen.dart';
@@ -66,36 +66,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
+  void _resetEmailInput() {
+    if (!mounted) return;
+    _emailController.clear();
+    setState(() {
+      _emailError = null;
+    });
+  }
+
   Future<void> _showError(String message) {
-    return showAppAlert(
-      context,
-      title: 'Could not send OTP',
-      message: message,
-    );
+    return showAppAlert(context, title: 'Could not send OTP', message: message);
   }
 
   String _otpErrorMessage(Object error) {
-    if (error is DioException) {
-      switch (error.type) {
-        case DioExceptionType.connectionTimeout:
-        case DioExceptionType.sendTimeout:
-        case DioExceptionType.receiveTimeout:
-          return 'Request timed out. Please try again.';
-        default:
-          break;
-      }
-      final data = error.response?.data;
-      if (data is Map && data['message'] is String) {
-        return data['message'] as String;
-      }
-      if (error.message != null && error.message!.isNotEmpty) {
-        return error.message!;
-      }
-    }
-    if (error is StateError && error.message.isNotEmpty) {
-      return error.message;
-    }
-    return 'Failed to send OTP. Please try again.';
+    return DioErrorMapper.map(
+      error,
+      fallback: 'Failed to send OTP. Please try again.',
+    ).message;
   }
 
   Future<void> _continue() async {
@@ -115,7 +102,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     try {
-      await AppScope.of(context).authController.sendOtp(email);
+      final sendOtpData = await AppScope.of(context).authController.sendOtp(
+        email,
+      );
       if (!mounted) return;
 
       showModalBottomSheet(
@@ -125,16 +114,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         enableDrag: false,
         backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         builder: (context) {
           return OtpBottomSheet(
             email: email,
+            expiresInMinutes: sendOtpData.expiresInMinutes,
           );
         },
-      );
+      ).whenComplete(_resetEmailInput);
     } catch (e) {
       if (!mounted) return;
       await _showError(_otpErrorMessage(e));
@@ -174,9 +162,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: AppSpacing.xl),
               Text(
                 'Yakku',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontFamily: 'Pacifico',
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineMedium?.copyWith(fontFamily: 'Pacifico'),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -202,10 +190,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text.rich(
                 TextSpan(
                   text: 'Before using Yakku, you reviewed it\'s ',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                   children: [
                     TextSpan(
                       text: 'Privacy Policy',
@@ -218,8 +203,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const PrivacyPolicyScreen(),
+                              builder: (context) => const PrivacyPolicyScreen(),
                             ),
                           );
                         },

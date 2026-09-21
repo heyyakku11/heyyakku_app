@@ -10,6 +10,7 @@ class PollModel {
   final bool allowCustomOption;
   final PollStatus status;
   final List<PollOptionModel> options;
+  final int totalVoteCount;
 
   const PollModel({
     required this.id,
@@ -19,6 +20,7 @@ class PollModel {
     required this.allowCustomOption,
     required this.status,
     required this.options,
+    this.totalVoteCount = 0,
   });
 
   bool get isMultipleChoice => answerType == PollAnswerType.multipleChoice;
@@ -59,6 +61,7 @@ class PollModel {
       allowCustomOption: _asBool(json['allowCustomOption']),
       status: PollStatus.fromValue(_asInt(json['status'])),
       options: List<PollOptionModel>.unmodifiable(options),
+      totalVoteCount: _asInt(json['totalVoteCount']),
     );
   }
 

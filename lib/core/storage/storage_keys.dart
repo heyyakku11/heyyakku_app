@@ -7,4 +7,7 @@ abstract final class StorageKeys {
   static const isUserLogged = 'isUserLogged';
   static const email = 'email';
   static const displayName = 'displayName';
+  static const installationId = 'installationId';
+  static const isNotificationAllowed = 'isNotificationAllowed';
+  static const notificationPermissionAsked = 'notificationPermissionAsked';
 }

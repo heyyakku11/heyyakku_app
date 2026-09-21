@@ -6,13 +6,11 @@ import 'package:yakku/core/network/internet_status.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
 
 class _FakeInternetConnectionService implements InternetConnectionService {
-  _FakeInternetConnectionService({
-    required bool initiallyConnected,
-  }) : _connected = initiallyConnected;
+  _FakeInternetConnectionService({required bool initiallyConnected})
+    : _connected = initiallyConnected;
 
   bool _connected;
-  final StreamController<bool> _controller =
-      StreamController<bool>.broadcast();
+  final StreamController<bool> _controller = StreamController<bool>.broadcast();
   bool disposed = false;
   int refreshCount = 0;
 

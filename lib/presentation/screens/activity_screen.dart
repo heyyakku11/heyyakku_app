@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
-import 'package:yakku/data/repositories/dummy_activity_poll_repository.dart';
+import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_segmented_control.dart';
 import 'package:yakku/presentation/widgets/poll_card.dart';
 
@@ -11,6 +13,7 @@ enum _ActivityTab { asked, answered }
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key, this.repository});
 
+  /// Optional override for tests. Production uses [AppScope.activityPolls].
   final ActivityPollRepository? repository;
 
   @override
@@ -18,19 +21,22 @@ class ActivityScreen extends StatefulWidget {
 }
 
 class _ActivityScreenState extends State<ActivityScreen> {
-  late final ActivityPollRepository _repository =
-      widget.repository ?? const DummyActivityPollRepository();
-
+  ActivityPollRepository? _repository;
   bool _isLoading = true;
   Object? _error;
   _ActivityTab _selectedTab = _ActivityTab.asked;
   List<PollModel> _createdPolls = const [];
   List<PollModel> _answeredPolls = const [];
+  bool _hasRequestedLoad = false;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchActivity();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _repository ??= widget.repository ?? AppScope.of(context).activityPolls;
+    if (!_hasRequestedLoad) {
+      _hasRequestedLoad = true;
+      _fetchActivity();
+    }
   }
 
   Future<void> _loadActivity() async {
@@ -42,9 +48,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   Future<void> _fetchActivity() async {
+    final repository = _repository;
+    if (repository == null) return;
+
     try {
-      final created = await _repository.getCreatedPolls();
-      final answered = await _repository.getAnsweredPolls();
+      final created = await repository.getCreatedPolls();
+      final answered = await repository.getAnsweredPolls();
       if (!mounted) return;
       setState(() {
         _createdPolls = created;
@@ -64,9 +73,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   List<PollModel> get _visiblePolls {
-    return _selectedTab == _ActivityTab.asked
-        ? _createdPolls
-        : _answeredPolls;
+    return _selectedTab == _ActivityTab.asked ? _createdPolls : _answeredPolls;
   }
 
   String get _emptyMessage {
@@ -77,9 +84,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(child: _buildBody()),
-    );
+    return Scaffold(body: SafeArea(child: _buildBody()));
   }
 
   Widget _buildBody() {
@@ -132,12 +137,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
         Expanded(
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: AppSpacing.screen),
-            children: polls.isEmpty
-                ? [_ActivityMessage(text: _emptyMessage)]
-                : polls.map(_pollCard).toList(growable: false),
+          child: RefreshIndicator(
+            onRefresh: _fetchActivity,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: AppSpacing.screen),
+              children: polls.isEmpty
+                  ? [_ActivityMessage(text: _emptyMessage)]
+                  : polls.map(_pollCard).toList(growable: false),
+            ),
           ),
         ),
       ],
@@ -152,8 +160,24 @@ class _ActivityScreenState extends State<ActivityScreen> {
         AppSpacing.screen,
         AppSpacing.lg,
       ),
-      child: PollCard(poll: poll, showMakeItYours: false),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openPoll(poll),
+          borderRadius: BorderRadius.circular(12),
+          child: PollCard(
+            poll: poll,
+            showMakeItYours: false,
+            showVoteCount: true,
+          ),
+        ),
+      ),
     );
+  }
+
+  void _openPoll(PollModel poll) {
+    if (GoRouter.maybeOf(context) == null) return;
+    context.push(AppRoutes.pollView, extra: poll.id);
   }
 }
 
