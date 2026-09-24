@@ -31,6 +31,7 @@ import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source_impl.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/api_activity_poll_repository.dart';
+import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -56,6 +57,8 @@ Future<void> main() async {
     userPreferences: userPreferences,
     tokenStore: tokenStore,
   );
+  final draftPolls = DraftPollStore();
+  await draftPolls.open();
 
   runApp(
     MyApp(
@@ -66,6 +69,7 @@ Future<void> main() async {
       preferenceStorage: preferenceStorage,
       secureStorage: secureStorage,
       tokenStore: tokenStore,
+      draftPolls: draftPolls,
     ),
   );
 }
@@ -87,6 +91,7 @@ class MyApp extends StatefulWidget {
     this.tokenStore,
     this.internetConnectionService,
     this.deviceRegistrationService,
+    required this.draftPolls,
   });
 
   final bool isUserLogged;
@@ -103,6 +108,7 @@ class MyApp extends StatefulWidget {
   final AuthTokenStore? tokenStore;
   final InternetConnectionService? internetConnectionService;
   final DeviceRegistrationService? deviceRegistrationService;
+  final DraftPollStore draftPolls;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -211,6 +217,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _authController.dispose();
     _deviceRegistration.dispose();
     _polls.dispose();
+    unawaited(widget.draftPolls.close());
     _router.dispose();
     unawaited(_internetCubit.close());
     super.dispose();
@@ -229,6 +236,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         userRemote: _userRemote,
         notifications: _notifications,
         deviceRegistration: _deviceRegistration,
+        draftPolls: widget.draftPolls,
         child: ListenableBuilder(
           listenable: _themeController,
           builder: (context, _) {

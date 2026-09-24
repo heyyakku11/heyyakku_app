@@ -35,13 +35,9 @@ ThemeData buildLightTheme() {
       ),
     ),
     cardTheme: CardThemeData(
-      color: YakkuPalette.cream,
+      color: Colors.white,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        side: const BorderSide(color: Color(0xFFE6E1D8)),
-      ),
     ),
     dividerColor: const Color(0xFFE6E1D8),
     snackBarTheme: SnackBarThemeData(

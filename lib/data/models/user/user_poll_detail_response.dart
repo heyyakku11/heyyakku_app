@@ -1,3 +1,5 @@
+import 'package:yakku/data/models/poll/poll_why.dart';
+
 class UserPollDetailOptionResponse {
   final String id;
   final String? text;
@@ -72,6 +74,7 @@ class UserPollDetailResponse {
   final DateTime createdAt;
   final int totalVoteCount;
   final List<UserPollDetailOptionResponse> pollOptions;
+  final List<PollWhy> whys;
   final YouVsCrowdResponse youVsCrowd;
 
   const UserPollDetailResponse({
@@ -84,8 +87,11 @@ class UserPollDetailResponse {
     required this.totalVoteCount,
     required this.pollOptions,
     required this.youVsCrowd,
+    this.whys = const [],
     this.expiresAt,
   });
+
+  int get totalWhyCount => whys.length;
 
   factory UserPollDetailResponse.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['pollOptions'] as List<dynamic>? ?? const [];
@@ -107,6 +113,7 @@ class UserPollDetailResponse {
             ),
           )
           .toList(growable: false),
+      whys: List<PollWhy>.unmodifiable(PollWhy.listFromJson(json['whys'])),
       youVsCrowd: rawYouVsCrowd is Map
           ? YouVsCrowdResponse.fromJson(Map<String, dynamic>.from(rawYouVsCrowd))
           : const YouVsCrowdResponse(),

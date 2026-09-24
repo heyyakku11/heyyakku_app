@@ -5,7 +5,8 @@ class PollResponse {
   final String question;
   final String shareToken;
   final String optionType;
-  final DateTime? expiresAt;
+  final DateTime expiresAt;
+  final bool allowComments;
   final int totalVoteCount;
   final String? selectedOptionId;
   final List<PollOptionResponse> options;
@@ -17,7 +18,8 @@ class PollResponse {
     required this.optionType,
     required this.totalVoteCount,
     required this.options,
-    this.expiresAt,
+    required this.expiresAt,
+    required this.allowComments,
     this.selectedOptionId,
   });
 
@@ -28,7 +30,8 @@ class PollResponse {
       question: json['question'] as String? ?? '',
       shareToken: json['shareToken'] as String? ?? '',
       optionType: json['optionType'] as String? ?? 'text',
-      expiresAt: _parseDate(json['expiresAt']),
+      expiresAt: _parseDate(json['expiresAt']) ?? DateTime.now(),
+      allowComments: json['allowComments'] as bool? ?? false,
       totalVoteCount: _asInt(json['totalVoteCount']),
       selectedOptionId: json['selectedOptionId']?.toString(),
       options: rawOptions

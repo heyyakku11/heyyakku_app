@@ -1,3 +1,4 @@
+import 'package:yakku/data/models/poll/poll_why.dart';
 import 'package:yakku/data/models/poll_option.dart';
 import 'package:yakku/domain/enums/poll_answer_type.dart';
 import 'package:yakku/domain/enums/poll_status.dart';
@@ -11,6 +12,7 @@ class PollModel {
   final PollStatus status;
   final List<PollOptionModel> options;
   final int totalVoteCount;
+  final List<PollWhy> whys;
 
   const PollModel({
     required this.id,
@@ -21,7 +23,10 @@ class PollModel {
     required this.status,
     required this.options,
     this.totalVoteCount = 0,
+    this.whys = const [],
   });
+
+  int get totalWhyCount => whys.length;
 
   bool get isMultipleChoice => answerType == PollAnswerType.multipleChoice;
 
@@ -62,6 +67,7 @@ class PollModel {
       status: PollStatus.fromValue(_asInt(json['status'])),
       options: List<PollOptionModel>.unmodifiable(options),
       totalVoteCount: _asInt(json['totalVoteCount']),
+      whys: List<PollWhy>.unmodifiable(PollWhy.listFromJson(json['whys'])),
     );
   }
 

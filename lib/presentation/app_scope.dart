@@ -5,6 +5,7 @@ import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
+import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/domain/repositories/poll_repository.dart';
@@ -20,6 +21,7 @@ class AppScope extends InheritedWidget {
     required this.userRemote,
     required this.notifications,
     required this.deviceRegistration,
+    required this.draftPolls,
     required super.child,
   });
 
@@ -31,6 +33,7 @@ class AppScope extends InheritedWidget {
   final UserRemoteDataSource userRemote;
   final NotificationRemoteDataSource notifications;
   final DeviceRegistrationService deviceRegistration;
+  final DraftPollStore draftPolls;
 
   PollRepository get repository => polls;
 
@@ -49,6 +52,7 @@ class AppScope extends InheritedWidget {
         activityPolls != oldWidget.activityPolls ||
         userRemote != oldWidget.userRemote ||
         notifications != oldWidget.notifications ||
-        deviceRegistration != oldWidget.deviceRegistration;
+        deviceRegistration != oldWidget.deviceRegistration ||
+        draftPolls != oldWidget.draftPolls;
   }
 }

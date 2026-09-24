@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/data/models/Poll.dart';
@@ -19,6 +18,8 @@ class PollCard extends StatelessWidget {
     this.onEdit,
     this.showMakeItYours = true,
     this.showVoteCount = false,
+    this.showWhyCount = false,
+    this.draftedAt,
   });
 
   final PollModel poll;
@@ -26,6 +27,8 @@ class PollCard extends StatelessWidget {
   final ValueChanged<PollModel>? onEdit;
   final bool showMakeItYours;
   final bool showVoteCount;
+  final bool showWhyCount;
+  final DateTime? draftedAt;
 
   @override
   Widget build(BuildContext context) {
@@ -39,23 +42,28 @@ class PollCard extends StatelessWidget {
           spacing: AppSpacing.sm,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _PollCardHeader(
-              question: poll.question,
+            // 1. Question
+            _PollCardHeader(question: poll.question, draftedAt: draftedAt),
+
+            // 2. Poll options
+            _PollOptions(options: poll.standardOptions),
+
+            // 3. Footer with vote count
+            _PollCardFooter(
               voteCount: showVoteCount ? poll.totalVoteCount : null,
-              onMakeItYours: showMakeItYours
-                  ? () => _showMakeItYourSheet(
-                      context: context,
-                      poll: poll,
-                      onShare: onShare,
-                      onEdit: onEdit,
-                    )
-                  : null,
+              whyCount: showWhyCount ? poll.totalWhyCount : null,
             ),
-            _PollOptions(
-              options: poll.standardOptions,
-              isMultipleChoice: poll.isMultipleChoice,
-            ),
-            _CustomOptionRow(option: poll.customOption),
+
+            // 4. Make it yours
+            if (showMakeItYours)
+              _MakeItYoursAction(
+                onTap: () => _showMakeItYourSheet(
+                  context: context,
+                  poll: poll,
+                  onShare: onShare,
+                  onEdit: onEdit,
+                ),
+              ),
           ],
         ),
       ),
@@ -64,71 +72,120 @@ class PollCard extends StatelessWidget {
 }
 
 class _PollCardHeader extends StatelessWidget {
-  const _PollCardHeader({
-    required this.question,
-    this.voteCount,
-    this.onMakeItYours,
-  });
+  const _PollCardHeader({required this.question, this.draftedAt});
 
   final String question;
-  final int? voteCount;
-  final VoidCallback? onMakeItYours;
+  final DateTime? draftedAt;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.xs,
+      children: [
+        Text(
+          question,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        if (draftedAt != null)
+          Row(
+            children: [
+              Icon(
+                Icons.schedule_outlined,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'Drafted ${_formatDraftedAt(draftedAt!)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+String _formatDraftedAt(DateTime date) {
+  final local = date.toLocal();
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final period = local.hour >= 12 ? 'PM' : 'AM';
+  return '${local.day} ${months[local.month - 1]} ${local.year}, $hour:$minute $period';
+}
+
+class _PollCardFooter extends StatelessWidget {
+  const _PollCardFooter({required this.voteCount, required this.whyCount});
+
+  final int? voteCount;
+  final int? whyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpacing.sm,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (voteCount != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
             children: [
+              Icon(
+                Icons.people_alt_outlined,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
               Text(
-                question,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                voteCount == 1 ? '1 vote' : '$voteCount votes',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (voteCount != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  voteCount == 1 ? '1 vote' : '$voteCount votes',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
             ],
           ),
-        ),
-        if (onMakeItYours != null) ...[
-          const SizedBox(width: AppSpacing.sm),
-          InkWell(
-            onTap: onMakeItYours,
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xs,
+        ],
+
+        if (whyCount != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 16,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Make it your',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Icon(Icons.arrow_forward, color: accent, size: 16),
-                ],
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                whyCount == 1 ? '1 why' : '$whyCount whys',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ],
@@ -136,15 +193,56 @@ class _PollCardHeader extends StatelessWidget {
   }
 }
 
-class _PollOptions extends StatelessWidget {
-  const _PollOptions({required this.options, required this.isMultipleChoice});
+class _MakeItYoursAction extends StatelessWidget {
+  const _MakeItYoursAction({required this.onTap});
 
-  final List<PollOptionModel> options;
-  final bool isMultipleChoice;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (options.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Make it yours',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(Icons.arrow_forward, color: accent, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PollOptions extends StatelessWidget {
+  const _PollOptions({required this.options});
+
+  final List<PollOptionModel> options;
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -154,17 +252,11 @@ class _PollOptions extends StatelessWidget {
           children: [
             for (final option in options)
               if (option.type == PollOptionType.image)
-                _PollImageOption(
-                  option: option,
-                  isMultipleChoice: isMultipleChoice,
-                )
+                _PollImageOption(option: option)
               else if (option.type == PollOptionType.text && option.hasText)
                 ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                  child: _PollTextOption(
-                    option: option,
-                    isMultipleChoice: isMultipleChoice,
-                  ),
+                  child: _PollTextOption(option: option),
                 ),
           ],
         );
@@ -174,10 +266,9 @@ class _PollOptions extends StatelessWidget {
 }
 
 class _PollTextOption extends StatelessWidget {
-  const _PollTextOption({required this.option, required this.isMultipleChoice});
+  const _PollTextOption({required this.option});
 
   final PollOptionModel option;
-  final bool isMultipleChoice;
 
   @override
   Widget build(BuildContext context) {
@@ -185,17 +276,13 @@ class _PollTextOption extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: theme.colorScheme.outline),
+        color: theme.colorScheme.surface.withValues(alpha: 1),
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ChoiceIndicator(isMultipleChoice: isMultipleChoice),
           const SizedBox(width: AppSpacing.sm),
           Flexible(
             child: Text(option.text!, style: theme.textTheme.bodyMedium),
@@ -207,13 +294,9 @@ class _PollTextOption extends StatelessWidget {
 }
 
 class _PollImageOption extends StatelessWidget {
-  const _PollImageOption({
-    required this.option,
-    required this.isMultipleChoice,
-  });
+  const _PollImageOption({required this.option});
 
   final PollOptionModel option;
-  final bool isMultipleChoice;
 
   @override
   Widget build(BuildContext context) {
@@ -239,15 +322,8 @@ class _PollImageOption extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface.withValues(alpha: 0.86),
-                shape: isMultipleChoice ? BoxShape.rectangle : BoxShape.circle,
-                borderRadius: isMultipleChoice
-                    ? BorderRadius.circular(AppRadii.sm)
-                    : null,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: _ChoiceIndicator(isMultipleChoice: isMultipleChoice),
-              ),
+              child: Padding(padding: const EdgeInsets.all(2)),
             ),
           ),
         ],
@@ -265,6 +341,7 @@ class _PollNetworkImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = url?.trim() ?? '';
+
     if (imageUrl.isEmpty) {
       return _PollImagePlaceholder(size: size);
     }
@@ -275,7 +352,10 @@ class _PollNetworkImage extends StatelessWidget {
       height: size,
       fit: BoxFit.cover,
       loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
+        if (progress == null) {
+          return child;
+        }
+
         return _PollImagePlaceholder(
           size: size,
           child: const SizedBox(
@@ -301,6 +381,7 @@ class _PollImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return SizedBox(
       width: size,
       height: size,
@@ -314,73 +395,6 @@ class _PollImagePlaceholder extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
         ),
-      ),
-    );
-  }
-}
-
-class _ChoiceIndicator extends StatelessWidget {
-  const _ChoiceIndicator({required this.isMultipleChoice});
-
-  final bool isMultipleChoice;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.outline;
-    return Icon(
-      isMultipleChoice
-          ? Icons.check_box_outline_blank
-          : Icons.radio_button_unchecked,
-      size: _choiceIconSize,
-      color: color,
-    );
-  }
-}
-
-class _CustomOptionRow extends StatelessWidget {
-  const _CustomOptionRow({this.option});
-
-  final PollOptionModel? option;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.secondary;
-    final label = option?.hasText == true
-        ? option!.text!
-        : AppLimits.somethingElseLabel;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.add_circle_outline, color: accent),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Your friends can add their own answer',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -421,7 +435,7 @@ void _showMakeItYourSheet({
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('Make it your', style: theme.textTheme.titleLarge),
+              Text('Make it yours', style: theme.textTheme.titleLarge),
               const SizedBox(height: AppSpacing.xl),
               Row(
                 spacing: 10,

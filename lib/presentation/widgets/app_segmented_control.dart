@@ -15,21 +15,25 @@ class AppSegmentedControl<T> extends StatelessWidget {
     required this.value,
     required this.segments,
     required this.onChanged,
+    this.margin = const EdgeInsets.all(AppSpacing.md),
   });
 
   final T value;
   final List<AppSegment<T>> segments;
   final ValueChanged<T> onChanged;
+  final EdgeInsetsGeometry margin;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return DecoratedBox(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      margin: margin,
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppRadii.full),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(color: colorScheme.outline),
       ),
       child: Row(
@@ -68,10 +72,10 @@ class _SegmentButton extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Material(
         color: selected ? colorScheme.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadii.full),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadii.full),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Text(

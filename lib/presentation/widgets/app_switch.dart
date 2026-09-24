@@ -5,8 +5,9 @@ class AppSwitch extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
-    this.scale = 0.8,
+    this.scale = 0.7,
   });
+
   final bool value;
   final ValueChanged<bool> onChanged;
   final double scale;
@@ -15,7 +16,11 @@ class AppSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     return Transform.scale(
       scale: scale,
-      child: Switch(value: value, onChanged: onChanged),
+      child: Switch(
+        value: value,
+        onChanged: onChanged,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
     );
   }
 }

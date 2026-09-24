@@ -1,13 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../data/models/dashboard_item.dart';
-import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/activity_screen.dart';
-import 'package:yakku/presentation/screens/create_screen.dart';
-import 'package:yakku/presentation/screens/home_screen.dart';
-import 'package:yakku/presentation/screens/profile_screen.dart';
-import 'package:yakku/presentation/widgets/notification_permission_dialog.dart';
+import 'package:yakku/presentation/screens/activity/activity_screen.dart';
+import 'package:yakku/presentation/screens/create/create_screen.dart';
+import 'package:yakku/presentation/screens/home/home_screen.dart';
+import 'package:yakku/presentation/screens/profile/profile_screen.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -17,67 +12,44 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  int _index = 0;
+  static const _createNavIndex = 1;
+
+  int _navIndex = 0;
   late final PageController _pageController;
-  late final List<DashboardItem> _items;
-  bool _deviceFlowStarted = false;
+  late final List<Widget> _pages;
+  late final List<BottomNavigationBarItem> _navItems;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _items = [
-      DashboardItem(
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home_rounded,
+    _pages = [
+      HomeScreen(onAskAnything: _openCreateSheet),
+      const ActivityScreen(),
+      const ProfileScreen(),
+    ];
+    _navItems = const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.home_outlined),
+        activeIcon: Icon(Icons.home_rounded),
         label: 'Home',
-        page: HomeScreen(onAskAnything: _goToCreate),
       ),
-      const DashboardItem(
-        icon: Icons.add_circle_outline,
-        activeIcon: Icons.add_circle,
+      BottomNavigationBarItem(
+        icon: Icon(Icons.add_circle_outline),
+        activeIcon: Icon(Icons.add_circle),
         label: 'Create',
-        page: CreateScreen(),
       ),
-      const DashboardItem(
-        icon: Icons.favorite_border_rounded,
-        activeIcon: Icons.favorite_rounded,
+      BottomNavigationBarItem(
+        icon: Icon(Icons.chat_bubble_outline_rounded),
+        activeIcon: Icon(Icons.chat_bubble_rounded),
         label: 'Activity',
-        page: ActivityScreen(),
       ),
-      const DashboardItem(
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
+      BottomNavigationBarItem(
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
         label: 'Profile',
-        page: ProfileScreen(),
       ),
     ];
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_runDeviceRegistrationFlow());
-    });
-  }
-
-  Future<void> _runDeviceRegistrationFlow() async {
-    if (_deviceFlowStarted || !mounted) return;
-    _deviceFlowStarted = true;
-
-    final deviceRegistration = AppScope.of(context).deviceRegistration;
-    final shouldPrompt = await deviceRegistration.shouldPromptForPermission();
-    if (!mounted) return;
-
-    if (shouldPrompt) {
-      final allow = await showNotificationPermissionDialog(context);
-      if (!mounted) return;
-      if (allow == true) {
-        await deviceRegistration.applyAllowChoice();
-      } else {
-        await deviceRegistration.applySkipChoice();
-      }
-      return;
-    }
-
-    deviceRegistration.registerDeviceInBackground();
   }
 
   @override
@@ -86,14 +58,28 @@ class _DashboardState extends State<Dashboard> {
     super.dispose();
   }
 
-  void _goToCreate() => _pageController.jumpToPage(1);
+  int _pageToNav(int pageIndex) =>
+      pageIndex >= _createNavIndex ? pageIndex + 1 : pageIndex;
 
-  void _onPageChanged(int index) {
-    setState(() => _index = index);
+  int _navToPage(int navIndex) =>
+      navIndex > _createNavIndex ? navIndex - 1 : navIndex;
+
+  void _openCreateSheet() {
+    showCreatePollSheet(context);
   }
 
-  void _onNavTap(int index) {
-    _pageController.jumpToPage(index);
+  void _onPageChanged(int pageIndex) {
+    setState(() => _navIndex = _pageToNav(pageIndex));
+  }
+
+  void _onNavTap(int navIndex) {
+    if (navIndex == _createNavIndex) {
+      _openCreateSheet();
+      return;
+    }
+    final pageIndex = _navToPage(navIndex);
+    _pageController.jumpToPage(pageIndex);
+    setState(() => _navIndex = navIndex);
   }
 
   @override
@@ -103,18 +89,12 @@ class _DashboardState extends State<Dashboard> {
         controller: _pageController,
         physics: const ClampingScrollPhysics(),
         onPageChanged: _onPageChanged,
-        children: _items.map((item) => item.page).toList(),
+        children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
+        currentIndex: _navIndex,
         onTap: _onNavTap,
-        items: _items.map((item) {
-          return BottomNavigationBarItem(
-            icon: Icon(item.icon),
-            activeIcon: Icon(item.activeIcon),
-            label: item.label,
-          );
-        }).toList(),
+        items: _navItems,
       ),
     );
   }

@@ -5,7 +5,7 @@ import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
-import 'package:yakku/presentation/widgets/social_share_sheet.dart';
+import 'package:yakku/presentation/widgets/app_switch.dart';
 
 Future<void> showCreatedPollCardSheet(
   BuildContext context, {
@@ -26,61 +26,124 @@ class CreatedPollCardSheet extends StatelessWidget {
 
   final PollResponse poll;
 
+  static const _platforms = [
+    _SharePlatform(
+      label: 'WhatsApp',
+      icon: Icons.chat_rounded,
+      gradient: const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [Color(0xFF25D366), Color(0xFF25D366)],
+      ),
+    ),
+
+    _SharePlatform(
+      label: 'Instagram',
+      icon: Icons.camera_alt_rounded,
+      gradient: const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [
+          Color(0xFFFEDA75),
+          Color(0xFFFA7E1E),
+          Color(0xFFD62976),
+          Color(0xFF962FBF),
+          Color(0xFF4F5BD5),
+        ],
+      ),
+    ),
+
+    _SharePlatform(
+      label: 'Snapchat',
+      icon: Icons.snapchat,
+      gradient: const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [Color(0xFFFFFC00), Color(0xFFFFFC00)],
+      ),
+    ),
+
+    _SharePlatform(
+      label: 'Copy Link',
+      icon: Icons.link,
+      gradient: const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [Color(0xFF6B7280), Color(0xFF6B7280)],
+      ),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final options = [...poll.options]
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     final media = MediaQuery.of(context);
-    final cardHeight = (media.size.height * 0.62).clamp(420.0, 640.0);
+    final cardHeight = (media.size.height * 0.5).clamp(420.0, 640.0);
 
     return Material(
       color: AppColors.surface,
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(AppRadii.xl),
       ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.sm,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: SafeArea(
+          top: true,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(AppRadii.sm),
-                ),
-              ),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Your poll is live',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                'your yakku is ready!',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                ),
+                textAlign: TextAlign.start,
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 height: cardHeight,
                 width: double.infinity,
                 child: _PortraitPollCard(
                   question: poll.question,
                   options: options,
+                  expiresAt: poll.expiresAt,
+                  allowComment: poll.allowComments,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: () => showSocialShareSheet(context),
-                  icon: const Icon(Icons.ios_share_rounded),
-                  label: const Text('Share'),
+              const SizedBox(height: AppSpacing.md),
+
+              Container(
+                decoration: BoxDecoration(color: AppColors.surface),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Share via',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: AppSpacing.xs,
+                      mainAxisSpacing: AppSpacing.xs,
+                      children: [
+                        for (final platform in _platforms)
+                          _SharePlatformButton(platform: platform),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -92,10 +155,17 @@ class CreatedPollCardSheet extends StatelessWidget {
 }
 
 class _PortraitPollCard extends StatelessWidget {
-  const _PortraitPollCard({required this.question, required this.options});
+  const _PortraitPollCard({
+    required this.question,
+    required this.options,
+    required this.expiresAt,
+    required this.allowComment,
+  });
 
   final String question;
   final List<PollOptionResponse> options;
+  final DateTime expiresAt;
+  final bool allowComment;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +173,7 @@ class _PortraitPollCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.accent.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: AppColors.border),
       ),
@@ -113,19 +183,11 @@ class _PortraitPollCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Yakku',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.4,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
               question,
               style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 height: 1.25,
+                fontSize: 26,
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -136,6 +198,7 @@ class _PortraitPollCard extends StatelessWidget {
                     _CardOptionRow(
                       letter: String.fromCharCode(65 + i),
                       text: options[i].text ?? '',
+                      muted: true,
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
@@ -147,11 +210,45 @@ class _PortraitPollCard extends StatelessWidget {
                 ],
               ),
             ),
+            // Row(
+            //   children: [
+            //     Icon(Icons.lock_clock_outlined),
+            //     Text(
+            //       expiresAt == null
+            //           ? 'No expiry'
+            //           : 'Expires in ${expiresAt!.difference(DateTime.now()).inDays} days',
+            //     ),
+            //   ],
+            // ),
+
+            Row(
+              spacing: 10,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  'Allow Comments',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                AppSwitch(value: allowComment, onChanged: (value) => {}),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 10,
+              children: [
+                Text('Tap to vote', style: TextStyle(fontSize: 18)),
+                Icon(Icons.arrow_forward, size: 18),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+
             Text(
-              'Ask anonymously. Get honest opinions.',
+              '🔒 Ask anonymously. Get honest opinions.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textMuted,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -182,7 +279,6 @@ class _CardOptionRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: muted ? AppColors.background : AppColors.background,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -211,6 +307,55 @@ class _CardOptionRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SharePlatform {
+  final String label;
+  final IconData icon;
+  final Gradient gradient;
+
+  const _SharePlatform({
+    required this.label,
+    required this.icon,
+    required this.gradient,
+  });
+}
+
+class _SharePlatformButton extends StatelessWidget {
+  const _SharePlatformButton({required this.platform});
+
+  final _SharePlatform platform;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: platform.gradient,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {},
+              child: Icon(platform.icon, color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          platform.label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

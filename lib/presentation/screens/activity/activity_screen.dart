@@ -2,74 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/router/app_routes.dart';
+import 'package:yakku/data/datasources/poll_list_datasource.dart';
 import 'package:yakku/data/models/Poll.dart';
-import 'package:yakku/data/repositories/activity_poll_repository.dart';
-import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_segmented_control.dart';
 import 'package:yakku/presentation/widgets/poll_card.dart';
 
 enum _ActivityTab { asked, answered }
 
 class ActivityScreen extends StatefulWidget {
-  const ActivityScreen({super.key, this.repository});
-
-  /// Optional override for tests. Production uses [AppScope.activityPolls].
-  final ActivityPollRepository? repository;
+  const ActivityScreen({super.key});
 
   @override
   State<ActivityScreen> createState() => _ActivityScreenState();
 }
 
 class _ActivityScreenState extends State<ActivityScreen> {
-  ActivityPollRepository? _repository;
-  bool _isLoading = true;
-  Object? _error;
   _ActivityTab _selectedTab = _ActivityTab.asked;
-  List<PollModel> _createdPolls = const [];
-  List<PollModel> _answeredPolls = const [];
-  bool _hasRequestedLoad = false;
+  late final List<PollModel> _createdPolls;
+  late final List<PollModel> _answeredPolls;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _repository ??= widget.repository ?? AppScope.of(context).activityPolls;
-    if (!_hasRequestedLoad) {
-      _hasRequestedLoad = true;
-      _fetchActivity();
-    }
-  }
-
-  Future<void> _loadActivity() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    await _fetchActivity();
-  }
-
-  Future<void> _fetchActivity() async {
-    final repository = _repository;
-    if (repository == null) return;
-
-    try {
-      final created = await repository.getCreatedPolls();
-      final answered = await repository.getAnsweredPolls();
-      if (!mounted) return;
-      setState(() {
-        _createdPolls = created;
-        _answeredPolls = answered;
-        _error = null;
-        _isLoading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _createdPolls = const [];
-        _answeredPolls = const [];
-        _error = error;
-        _isLoading = false;
-      });
-    }
+  void initState() {
+    super.initState();
+    final polls = const PollListDataSource().fetchActivePolls();
+    final midpoint = (polls.length / 2).ceil();
+    _createdPolls = polls.take(midpoint).toList(growable: false);
+    _answeredPolls = polls.skip(midpoint).toList(growable: false);
   }
 
   List<PollModel> get _visiblePolls {
@@ -88,33 +46,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screen),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Could not load activity.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: _loadActivity,
-                child: const Text('Try again'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     final polls = _visiblePolls;
 
     return Column(
@@ -137,15 +68,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _fetchActivity,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: AppSpacing.screen),
-              children: polls.isEmpty
-                  ? [_ActivityMessage(text: _emptyMessage)]
-                  : polls.map(_pollCard).toList(growable: false),
-            ),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: AppSpacing.screen),
+            children: polls.isEmpty
+                ? [_ActivityMessage(text: _emptyMessage)]
+                : polls.map(_pollCard).toList(growable: false),
           ),
         ),
       ],
@@ -169,6 +97,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             poll: poll,
             showMakeItYours: false,
             showVoteCount: true,
+            showWhyCount: true,
           ),
         ),
       ),

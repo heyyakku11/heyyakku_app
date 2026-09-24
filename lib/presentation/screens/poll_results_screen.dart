@@ -69,9 +69,9 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
+            AppSpacing.screen,
             AppSpacing.md,
-            AppSpacing.lg,
+            AppSpacing.screen,
             AppSpacing.xl,
           ),
           child: Column(

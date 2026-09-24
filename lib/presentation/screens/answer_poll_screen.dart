@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/router/app_routes.dart';
+import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
-import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
-import 'package:yakku/presentation/widgets/app_alert.dart';
 
 class AnswerPollScreen extends StatefulWidget {
   const AnswerPollScreen({super.key, required this.poll});
@@ -21,49 +19,24 @@ class AnswerPollScreen extends StatefulWidget {
 
 class _AnswerPollScreenState extends State<AnswerPollScreen> {
   String? _selectedOptionId;
-  bool _isSubmitting = false;
 
-  Future<void> _showError(String message) {
-    return showAppAlert(
-      context,
-      title: 'Could not submit opinion',
-      message: message,
-    );
-  }
-
-  String _errorMessage(Object error) {
-    return DioErrorMapper.map(
-      error,
-      fallback: 'Could not submit opinion. Please try again.',
-    ).message;
-  }
-
-  Future<void> _onSubmit() async {
+  void _onSubmit() {
     final optionId = _selectedOptionId;
-    if (optionId == null || _isSubmitting) return;
+    if (optionId == null) return;
 
-    setState(() => _isSubmitting = true);
-    try {
-      final vote = await AppScope.of(
-        context,
-      ).pollApi.castVote(pollId: widget.poll.id, optionId: optionId);
-      if (!mounted) return;
-      context.pushReplacement(
-        AppRoutes.pollResults,
-        extra: PollResultsArgs(
-          poll: widget.poll,
-          selectedOptionId: optionId,
-          vote: vote,
+    context.pushReplacement(
+      AppRoutes.pollResults,
+      extra: PollResultsArgs(
+        poll: widget.poll,
+        selectedOptionId: optionId,
+        vote: CastVoteResponse(
+          id: 'local-vote',
+          pollId: widget.poll.id,
+          pollOptionId: optionId,
+          createdAt: DateTime.now().toUtc(),
         ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      await _showError(_errorMessage(error));
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
+      ),
+    );
   }
 
   @override
@@ -77,9 +50,9 @@ class _AnswerPollScreenState extends State<AnswerPollScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
+            AppSpacing.screen,
             AppSpacing.md,
-            AppSpacing.lg,
+            AppSpacing.screen,
             AppSpacing.xl,
           ),
           child: Column(
@@ -109,25 +82,16 @@ class _AnswerPollScreenState extends State<AnswerPollScreen> {
                     return _OptionChoiceTile(
                       option: option,
                       selected: option.id == _selectedOptionId,
-                      onTap: _isSubmitting
-                          ? null
-                          : () => setState(() => _selectedOptionId = option.id),
+                      onTap: () =>
+                          setState(() => _selectedOptionId = option.id),
                     );
                   },
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton(
-                onPressed: _selectedOptionId == null || _isSubmitting
-                    ? null
-                    : _onSubmit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Submit opinion'),
+                onPressed: _selectedOptionId == null ? null : _onSubmit,
+                child: const Text('Submit opinion'),
               ),
             ],
           ),
