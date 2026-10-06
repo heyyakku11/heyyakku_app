@@ -21,7 +21,11 @@ abstract class DeviceRegistrationService {
 
   Future<bool> shouldPromptForPermission();
 
-  Future<void> applyAllowChoice();
+  Future<bool> isNotificationAllowed();
+
+  /// Requests OS permission, stores the result, and registers the device.
+  /// Returns whether the OS granted notification permission.
+  Future<bool> applyAllowChoice();
 
   Future<void> applySkipChoice();
 
@@ -80,6 +84,11 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
   Future<bool> shouldPromptForPermission() async {
     if (!_authController.isLoggedIn) return false;
     return !(await _permissionService.hasAsked());
+  }
+
+  @override
+  Future<bool> isNotificationAllowed() {
+    return _permissionService.isNotificationAllowed();
   }
 
   Future<void> _safeRegister() async {
@@ -144,11 +153,12 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
   }
 
   @override
-  Future<void> applyAllowChoice() async {
+  Future<bool> applyAllowChoice() async {
     final status = await _permissionService.requestOsPermission();
     final allowed = status == NotificationPermissionValues.granted;
     await _permissionService.markAsked(allowed: allowed);
     registerDeviceInBackground();
+    return allowed;
   }
 
   @override
@@ -180,7 +190,10 @@ class NoOpDeviceRegistrationService implements DeviceRegistrationService {
   Future<bool> shouldPromptForPermission() async => false;
 
   @override
-  Future<void> applyAllowChoice() async {}
+  Future<bool> isNotificationAllowed() async => false;
+
+  @override
+  Future<bool> applyAllowChoice() async => false;
 
   @override
   Future<void> applySkipChoice() async {}

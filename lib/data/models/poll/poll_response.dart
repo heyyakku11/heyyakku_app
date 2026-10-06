@@ -5,11 +5,12 @@ class PollResponse {
   final String question;
   final String shareToken;
   final String optionType;
-  final DateTime expiresAt;
+  final DateTime? expiresAt;
   final bool allowComments;
   final int totalVoteCount;
   final String? selectedOptionId;
   final List<PollOptionResponse> options;
+  final List<String> categories;
 
   const PollResponse({
     required this.id,
@@ -18,9 +19,10 @@ class PollResponse {
     required this.optionType,
     required this.totalVoteCount,
     required this.options,
-    required this.expiresAt,
     required this.allowComments,
+    this.expiresAt,
     this.selectedOptionId,
+    this.categories = const [],
   });
 
   factory PollResponse.fromJson(Map<String, dynamic> json) {
@@ -30,10 +32,11 @@ class PollResponse {
       question: json['question'] as String? ?? '',
       shareToken: json['shareToken'] as String? ?? '',
       optionType: json['optionType'] as String? ?? 'text',
-      expiresAt: _parseDate(json['expiresAt']) ?? DateTime.now(),
+      expiresAt: _parseDate(json['expiresAt']),
       allowComments: json['allowComments'] as bool? ?? false,
       totalVoteCount: _asInt(json['totalVoteCount']),
       selectedOptionId: json['selectedOptionId']?.toString(),
+      categories: _categoryNames(json),
       options: rawOptions
           .map(
             (item) => PollOptionResponse.fromJson(item as Map<String, dynamic>),
@@ -46,6 +49,42 @@ class PollResponse {
     if (value is! String || value.isEmpty) return null;
     return DateTime.tryParse(value);
   }
+
+  static List<String> _categoryNames(Map<String, dynamic> json) {
+    final names = <String>[];
+
+    void addName(Object? value) {
+      final name = value?.toString().trim() ?? '';
+      if (name.isEmpty || names.contains(name)) return;
+      names.add(name);
+    }
+
+    void addCategory(Object? value) {
+      if (value is Map) {
+        addName(value['name'] ?? value['slug']);
+        return;
+      }
+      if (value is String) addName(value);
+    }
+
+    final rawCategories = json['categories'];
+    if (rawCategories is List) {
+      for (final item in rawCategories) {
+        addCategory(item);
+      }
+    }
+    addCategory(json['category']);
+
+    return List<String>.unmodifiable(names);
+  }
+}
+
+class PollsPage {
+  final List<PollResponse> items;
+  final String? nextCursor;
+  final bool hasMore;
+
+  const PollsPage({required this.items, this.nextCursor, this.hasMore = false});
 }
 
 int _asInt(dynamic value, {int fallback = 0}) {

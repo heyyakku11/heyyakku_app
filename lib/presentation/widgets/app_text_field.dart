@@ -15,6 +15,7 @@ class AppTextField extends StatelessWidget {
     this.showCounter = false,
     this.textInputAction,
     this.keyboardType,
+    this.textCapitalization,
     this.onChanged,
     this.onSubmitted,
     this.enabled = true,
@@ -35,6 +36,7 @@ class AppTextField extends StatelessWidget {
   final bool showCounter;
   final TextInputAction? textInputAction;
   final TextInputType? keyboardType;
+  final TextCapitalization? textCapitalization;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool enabled;
@@ -60,6 +62,7 @@ class AppTextField extends StatelessWidget {
       maxLines: maxLines,
       maxLength: maxWords != null ? null : maxLength,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization ?? TextCapitalization.none,
       textInputAction: textInputAction,
       onChanged: onChanged,
       onSubmitted: onSubmitted,

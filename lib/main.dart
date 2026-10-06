@@ -23,7 +23,11 @@ import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/activity_poll_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source_impl.dart';
+import 'package:yakku/data/datasources/category_remote_data_source.dart';
+import 'package:yakku/data/datasources/category_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/device_remote_data_source_impl.dart';
+import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
+import 'package:yakku/data/datasources/notification_preference_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
@@ -122,6 +126,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
   late final NotificationRemoteDataSource _notifications;
+  late final NotificationPreferenceRemoteDataSource _notificationPreferences;
+  late final CategoryRemoteDataSource _categories;
   late final DeviceRegistrationService _deviceRegistration;
   late final GoRouter _router;
   late final InternetCubit _internetCubit;
@@ -154,6 +160,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           widget.userPreferences ?? UserPreferences(storage: preferenceStorage),
       tokenStore: tokenStore,
       authRemote: authRemote,
+      draftPolls: widget.draftPolls,
       isUserLogged: widget.isUserLogged,
       email: widget.email,
       displayName: widget.displayName,
@@ -182,6 +189,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _notifications =
         widget.notificationRemoteDataSource ??
         NotificationRemoteDataSourceImpl(authenticatedDio);
+
+    _notificationPreferences = NotificationPreferenceRemoteDataSourceImpl(
+      authenticatedDio,
+    );
+    _categories = CategoryRemoteDataSourceImpl(ApiClient.create());
 
     _deviceRegistration =
         widget.deviceRegistrationService ??
@@ -235,6 +247,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         activityPolls: _activityPolls,
         userRemote: _userRemote,
         notifications: _notifications,
+        notificationPreferences: _notificationPreferences,
+        categories: _categories,
         deviceRegistration: _deviceRegistration,
         draftPolls: widget.draftPolls,
         child: ListenableBuilder(

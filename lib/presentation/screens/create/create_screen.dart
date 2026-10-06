@@ -4,27 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
+import 'package:yakku/data/models/category/category_response.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
-import 'package:yakku/data/models/poll/poll_option_response.dart';
-import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_switch.dart';
 import 'package:yakku/presentation/widgets/app_text_field.dart';
-import 'package:yakku/presentation/widgets/created_poll_card_sheet.dart';
 
-/// Sheet-local color grading. Promote to AppColors / theme later.
-abstract final class _CreateSheetColors {
-  static const Color surface = Color(0xFFFFFBF7);
-  static const Color background = Color(0xFFF7F4EF);
-  static const Color border = Color(0xFFE7EEF0);
-  static const Color text = Color(0xFF334155);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color accent = Color(0xFFE07A5F);
-  static const Color error = Color(0xFFB42318);
-  static const Color closeIcon = Color(0xFF334155);
-  static const Color closeBorder = Color(0xFFE7EEF0);
-  static const Color onAccent = Color(0xFFFFFBF7);
+String _capitalizeOption(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
 }
 
 Future<void> showCreatePollSheet(BuildContext context, {DraftPoll? draft}) {
@@ -65,8 +57,12 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
   int? _selectedOptionIndex;
   bool _showOptions = false;
   bool _showExtras = false;
-  int _expiryDays = AppLimits.minPollExpiryDays;
+  int? _expiryDays;
   bool _allowComments = true;
+  final Set<String> _selectedCategoryIds = {};
+  List<CategoryResponse> _categories = const [];
+  bool _loadingCategories = true;
+  String? _categoriesError;
   Timer? _collapseTimer;
 
   bool get _hasQuestion => _questionController.text.trim().isNotEmpty;
@@ -125,8 +121,9 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     )) {
       return true;
     }
-    if (_expiryDays != AppLimits.minPollExpiryDays) return true;
+    if (_expiryDays != null) return true;
     if (!_allowComments) return true;
+    if (_selectedCategoryIds.isNotEmpty) return true;
     return false;
   }
 
@@ -136,24 +133,56 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     final draft = widget.draft;
     if (draft != null) {
       _questionController.text = draft.question;
-      _expiryDays = _boundedExpiry(draft.expiryDays);
+      _expiryDays = _expiryFromDraft(draft.expiryDays);
       _allowComments = draft.allowComments;
+      _selectedCategoryIds.addAll(draft.categoryIds);
     }
 
     final optionTexts = draft?.options ?? const <String>[];
     final optionCount = _seededOptionCount(optionTexts.length);
     _optionControllers = List.generate(optionCount, (index) {
-      final text = index < optionTexts.length ? optionTexts[index] : '';
-      return TextEditingController(text: text);
+      final raw = index < optionTexts.length ? optionTexts[index] : '';
+      return TextEditingController(text: _capitalizeOption(raw));
     });
     _optionFocusNodes = List.generate(optionCount, (_) => FocusNode());
     _showOptions = _hasQuestion;
     _showExtras = _hasQuestion && _optionsFilled;
 
-    if (draft == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadCategories();
+      if (draft == null) {
         _questionFocus.requestFocus();
+      }
+    });
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _loadingCategories = true;
+      _categoriesError = null;
+    });
+    try {
+      final items = await AppScope.of(context).categories.getCategories();
+      if (!mounted) return;
+      final active = items
+          .where((category) => category.isActive && category.id.isNotEmpty)
+          .toList(growable: false);
+      setState(() {
+        _categories = active;
+        _loadingCategories = false;
+        _selectedCategoryIds.removeWhere(
+          (id) => active.every((category) => category.id != id),
+        );
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+        _categoriesError = DioErrorMapper.map(
+          error,
+          fallback: 'Could not load categories',
+        ).message;
       });
     }
   }
@@ -178,8 +207,8 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     return filled;
   }
 
-  int _boundedExpiry(int days) {
-    if (days < AppLimits.minPollExpiryDays) return AppLimits.minPollExpiryDays;
+  int? _expiryFromDraft(int days) {
+    if (days <= 0) return null;
     if (days > AppLimits.maxPollExpiryDays) return AppLimits.maxPollExpiryDays;
     return days;
   }
@@ -218,8 +247,9 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
             .map((controller) => controller.text.trim())
             .where((option) => option.isNotEmpty)
             .toList(growable: false),
-        expiryDays: _expiryDays,
+        expiryDays: _expiryDays ?? 0,
         allowComments: _allowComments,
+        categoryIds: _selectedCategoryIds.toList(growable: false),
       );
     }
     if (!mounted) return;
@@ -360,8 +390,9 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     setState(() {
       _showOptions = false;
       _showExtras = false;
-      _expiryDays = AppLimits.minPollExpiryDays;
+      _expiryDays = null;
       _allowComments = true;
+      _selectedCategoryIds.clear();
     });
   }
 
@@ -390,7 +421,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
       return;
     }
     final options = _optionControllers
-        .map((controller) => controller.text.trim())
+        .map((controller) => _capitalizeOption(controller.text))
         .toList();
     if (options.any((option) => option.length > AppLimits.maxOptionLength)) {
       _showMessage(
@@ -405,6 +436,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
       selectedOptionIndex: selectedIndex,
       expiryDays: _expiryDays,
       allowComments: _allowComments,
+      categoryIds: _selectedCategoryIds.toList(growable: false),
     );
   }
 
@@ -412,40 +444,60 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    required int expiryDays,
+    required int? expiryDays,
     required bool allowComments,
+    required List<String> categoryIds,
   }) async {
     if (_isCreating) return;
-    // allowComments is not written onto the local poll payload.
+
+    final filled = <String>[];
+    int? apiSelectedIndex;
+    for (var i = 0; i < options.length; i++) {
+      final text = options[i].trim();
+      if (text.isEmpty) continue;
+      if (i == selectedOptionIndex) {
+        apiSelectedIndex = filled.length;
+      }
+      filled.add(text);
+    }
+    if (apiSelectedIndex == null) {
+      _showMessage('Choose your opinion before creating the poll.');
+      return;
+    }
+
     setState(() => _isCreating = true);
-
-    final poll = PollResponse(
-      id: 'local-${DateTime.now().millisecondsSinceEpoch}',
-      question: question,
-      shareToken: 'local-share',
-      optionType: 'text',
-      expiresAt: DateTime.now().toUtc().add(Duration(days: expiryDays)),
-      allowComments: allowComments,
-      totalVoteCount: 1,
-      selectedOptionId: 'option-$selectedOptionIndex',
-      options: [
-        for (var i = 0; i < options.length; i++)
-          PollOptionResponse(
-            id: 'option-$i',
-            text: options[i],
-            sortOrder: i,
-            voteCount: i == selectedOptionIndex ? 1 : 0,
-            percentage: i == selectedOptionIndex ? 100 : 0,
-          ),
-      ],
-    );
-
-    if (!mounted) return;
-    setState(() => _isCreating = false);
-    _resetForm(); //this reset the create form
-    await showCreatedPollCardSheet(context, poll: poll);
-    if (mounted) {
+    try {
+      final poll = await AppScope.of(context).pollApi.createTextPoll(
+        question: question,
+        options: filled,
+        selectedOptionIndex: apiSelectedIndex,
+        expiresIn: expiryDays == null ? null : Duration(days: expiryDays),
+        allowComments: allowComments,
+        categoryIds: categoryIds,
+      );
+      if (!mounted) return;
+      final categoryNames = [
+        for (final category in _categories)
+          if (categoryIds.contains(category.id) &&
+              category.name.trim().isNotEmpty)
+            category.name.trim(),
+      ];
       setState(() => _isCreating = false);
+      _resetForm();
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => CreatedPollScreen(
+            poll: poll,
+            categories: categoryNames,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isCreating = false);
+      _showMessage(
+        DioErrorMapper.map(error, fallback: 'Could not create poll').message,
+      );
     }
   }
 
@@ -453,40 +505,29 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
     final sheetTheme = Theme.of(context).copyWith(
-      colorScheme: Theme.of(context).colorScheme.copyWith(
-        error: _CreateSheetColors.error,
-        onError: _CreateSheetColors.surface,
-      ),
       inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
         hintStyle: textTheme.bodyLarge?.copyWith(
-          color: _CreateSheetColors.textMuted,
+          color: colors.onSurfaceVariant,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(color: _CreateSheetColors.border),
+          borderSide: BorderSide(color: colors.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(
-            color: _CreateSheetColors.accent,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: colors.secondary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(color: _CreateSheetColors.error),
+          borderSide: BorderSide(color: colors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(
-            color: _CreateSheetColors.error,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: colors.error, width: 1.5),
         ),
-        errorStyle: textTheme.bodySmall?.copyWith(
-          color: _CreateSheetColors.error,
-        ),
+        errorStyle: textTheme.bodySmall?.copyWith(color: colors.error),
       ),
     );
 
@@ -506,7 +547,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
             child: SizedBox(
               height: media.size.height - media.viewInsets.bottom,
               child: Material(
-                color: _CreateSheetColors.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadii.xl),
                 ),
@@ -555,8 +596,10 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
                                 showCounter: true,
                                 keyboardType: TextInputType.text,
                                 textInputAction: TextInputAction.next,
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: _CreateSheetColors.text,
+                                style: textTheme.titleLarge?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   height: 1.35,
                                 ),
                                 onChanged: (_) => _onQuestionChanged(),
@@ -614,15 +657,19 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
                                             'Add another option',
                                             style: textTheme.titleMedium
                                                 ?.copyWith(
-                                                  color:
-                                                      _CreateSheetColors.text,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
                                                 ),
                                           ),
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                _CreateSheetColors.text,
-                                            side: const BorderSide(
-                                              color: _CreateSheetColors.border,
+                                            foregroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
+                                            side: BorderSide(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.outline,
                                             ),
                                             padding: const EdgeInsets.symmetric(
                                               vertical: 14,
@@ -639,17 +686,43 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
                                     const SizedBox(height: AppSpacing.md),
                                     const _VotersCanAddCard(),
                                     const SizedBox(height: AppSpacing.md),
-                                    _ExpiryStepper(
-                                      days: _expiryDays,
-                                      onChanged: (days) =>
-                                          setState(() => _expiryDays = days),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _ExpiryDropdown(
+                                            days: _expiryDays,
+                                            onChanged: (days) => setState(
+                                              () => _expiryDays = days,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.md),
+                                        Expanded(
+                                          child: _AllowCommentsToggle(
+                                            value: _allowComments,
+                                            onChanged: (value) => setState(
+                                              () => _allowComments = value,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: AppSpacing.md),
-                                    _AllowCommentsToggle(
-                                      value: _allowComments,
-                                      onChanged: (value) => setState(
-                                        () => _allowComments = value,
-                                      ),
+                                    _CategoryPicker(
+                                      categories: _categories,
+                                      selectedIds: _selectedCategoryIds,
+                                      isLoading: _loadingCategories,
+                                      error: _categoriesError,
+                                      onToggle: (id) {
+                                        setState(() {
+                                          if (!_selectedCategoryIds.add(id)) {
+                                            _selectedCategoryIds.remove(id);
+                                          }
+                                        });
+                                      },
+                                      onRetry: _loadCategories,
                                     ),
                                     const SizedBox(height: AppSpacing.lg),
                                     if (_filledOptions.length >=
@@ -687,19 +760,19 @@ class _CloseButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      shape: const CircleBorder(
-        side: BorderSide(color: _CreateSheetColors.closeBorder),
+      shape: CircleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onPressed,
-        child: const SizedBox(
+        child: SizedBox(
           width: 40,
           height: 40,
           child: Icon(
             Icons.close,
             size: 20,
-            color: _CreateSheetColors.closeIcon,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),
@@ -727,14 +800,14 @@ class _CreateButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: enabled ? onPressed : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _CreateSheetColors.accent,
-          foregroundColor: _CreateSheetColors.onAccent,
-          disabledBackgroundColor: _CreateSheetColors.accent.withValues(
-            alpha: 0.5,
-          ),
-          disabledForegroundColor: _CreateSheetColors.onAccent.withValues(
-            alpha: 0.5,
-          ),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          foregroundColor: Theme.of(context).colorScheme.onSecondary,
+          disabledBackgroundColor: Theme.of(
+            context,
+          ).colorScheme.secondary.withValues(alpha: 0.5),
+          disabledForegroundColor: Theme.of(
+            context,
+          ).colorScheme.onSecondary.withValues(alpha: 0.5),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           minimumSize: const Size(0, 40),
@@ -744,18 +817,18 @@ class _CreateButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: _CreateSheetColors.onAccent,
+                  color: Theme.of(context).colorScheme.onSecondary,
                 ),
               )
             : Text(
                 'Create',
                 style: textTheme.titleMedium?.copyWith(
-                  color: _CreateSheetColors.onAccent,
+                  color: Theme.of(context).colorScheme.onSecondary,
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
@@ -824,16 +897,19 @@ class _OptionTile extends StatelessWidget {
       hintText: 'Option ${index + 1}',
       maxLength: AppLimits.maxOptionLength,
       textInputAction: TextInputAction.next,
+      textCapitalization: TextCapitalization.sentences,
       errorText: errorText,
-      style: textTheme.bodyLarge?.copyWith(color: _CreateSheetColors.text),
+      style: textTheme.bodyLarge?.copyWith(
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       onChanged: onChanged,
       suffixIcon: onRemove != null
           ? IconButton(
               onPressed: onRemove,
-              icon: const Icon(
+              icon: Icon(
                 Icons.close,
                 size: 20,
-                color: _CreateSheetColors.textMuted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
           : null,
@@ -850,19 +926,19 @@ class _VotersCanAddCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: _CreateSheetColors.background,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: _CreateSheetColors.border),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: [
-          const Icon(Icons.people, color: _CreateSheetColors.closeIcon),
+          Icon(Icons.people, color: Theme.of(context).colorScheme.onSurface),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               'Voters can add their own option while voting',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: _CreateSheetColors.text,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -874,57 +950,189 @@ class _VotersCanAddCard extends StatelessWidget {
   }
 }
 
-class _ExpiryStepper extends StatelessWidget {
-  const _ExpiryStepper({required this.days, required this.onChanged});
+class _ExpiryDropdown extends StatelessWidget {
+  const _ExpiryDropdown({required this.days, required this.onChanged});
 
-  final int days;
-  final ValueChanged<int> onChanged;
-
-  String get _label => days == 1 ? '1 day' : '$days days';
+  final int? days;
+  final ValueChanged<int?> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final atMin = days <= AppLimits.minPollExpiryDays;
-    final atMax = days >= AppLimits.maxPollExpiryDays;
+    final labelStyle = textTheme.titleMedium?.copyWith(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontWeight: FontWeight.w700,
+      fontSize: 14,
+    );
+    final labels = [
+      'No expiry',
+      for (var day = 1; day <= AppLimits.maxPollExpiryDays; day++)
+        day == 1 ? '1 day' : '$day days',
+    ];
     return _SettingCard(
       child: Row(
         children: [
-          const Icon(Icons.schedule, color: _CreateSheetColors.closeIcon),
-          const SizedBox(width: AppSpacing.md),
+          Icon(
+            Icons.schedule,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(
-              'Poll expires in',
-              style: textTheme.titleMedium?.copyWith(
-                color: _CreateSheetColors.text,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: days ?? 0,
+                isDense: true,
+                isExpanded: true,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                style: labelStyle,
+                selectedItemBuilder: (context) => [
+                  for (final label in labels)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: labelStyle,
+                      ),
+                    ),
+                ],
+                items: [
+                  for (var i = 0; i < labels.length; i++)
+                    DropdownMenuItem(value: i, child: Text(labels[i])),
+                ],
+                onChanged: (value) =>
+                    onChanged(value == null || value == 0 ? null : value),
               ),
             ),
-          ),
-          _StepButton(
-            icon: Icons.remove,
-            enabled: !atMin,
-            onPressed: () => onChanged(days - 1),
-          ),
-          SizedBox(
-            width: 64,
-            child: Text(
-              _label,
-              textAlign: TextAlign.center,
-              style: textTheme.titleMedium?.copyWith(
-                color: _CreateSheetColors.text,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          _StepButton(
-            icon: Icons.add,
-            enabled: !atMax,
-            onPressed: () => onChanged(days + 1),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CategoryPicker extends StatelessWidget {
+  const _CategoryPicker({
+    required this.categories,
+    required this.selectedIds,
+    required this.isLoading,
+    required this.error,
+    required this.onToggle,
+    required this.onRetry,
+  });
+
+  final List<CategoryResponse> categories;
+  final Set<String> selectedIds;
+  final bool isLoading;
+  final String? error;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return _SettingCard(
+      child: Row(
+        children: [
+          Icon(
+            Icons.sell_outlined,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: _buildOptions(context, textTheme)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptions(BuildContext context, TextTheme textTheme) {
+    if (isLoading) {
+      return const Align(
+        alignment: Alignment.centerRight,
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (error != null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              error!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      );
+    }
+
+    if (categories.isEmpty) {
+      return Text(
+        'No categories available',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Categories',
+                style: textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            );
+          }
+          final category = categories[index - 1];
+          final selected = selectedIds.contains(category.id);
+          return FilterChip(
+            label: Text(category.name),
+            selected: selected,
+            showCheckmark: false,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            selectedColor: Theme.of(
+              context,
+            ).colorScheme.secondary.withValues(alpha: 0.18),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            side: BorderSide(
+              color: selected
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).colorScheme.outline,
+            ),
+            labelStyle: textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+            onSelected: (_) => onToggle(category.id),
+          );
+        },
       ),
     );
   }
@@ -942,16 +1150,17 @@ class _AllowCommentsToggle extends StatelessWidget {
     return _SettingCard(
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.chat_bubble_outline,
-            color: _CreateSheetColors.closeIcon,
+            color: Theme.of(context).colorScheme.onSurface,
+            size: 20,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'Allow comments on this poll',
+              'Allow comments',
               style: textTheme.titleMedium?.copyWith(
-                color: _CreateSheetColors.text,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -962,15 +1171,15 @@ class _AllowCommentsToggle extends StatelessWidget {
               switchTheme: SwitchThemeData(
                 thumbColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return _CreateSheetColors.onAccent;
+                    return Theme.of(context).colorScheme.onSecondary;
                   }
-                  return _CreateSheetColors.surface;
+                  return Theme.of(context).colorScheme.surface;
                 }),
                 trackColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return _CreateSheetColors.accent;
+                    return Theme.of(context).colorScheme.secondary;
                   }
-                  return _CreateSheetColors.border;
+                  return Theme.of(context).colorScheme.outline;
                 }),
                 trackOutlineColor: const WidgetStatePropertyAll(
                   Colors.transparent,
@@ -994,54 +1203,13 @@ class _SettingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: _CreateSheetColors.background,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: _CreateSheetColors.border),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: child,
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  const _StepButton({
-    required this.icon,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: CircleBorder(
-        side: BorderSide(
-          color: enabled
-              ? _CreateSheetColors.border
-              : _CreateSheetColors.border.withValues(alpha: 0.5),
-        ),
-      ),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: enabled ? onPressed : null,
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: Icon(
-            icon,
-            size: 18,
-            color: enabled
-                ? _CreateSheetColors.closeIcon
-                : _CreateSheetColors.textMuted.withValues(alpha: 0.4),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1064,11 +1232,11 @@ class _OpinionGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          'What do YOU think?',
+          'What\'s your opinion?',
           style: textTheme.titleMedium?.copyWith(
-            color: _CreateSheetColors.text,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
-            fontSize: 18,
+            fontSize: 17,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -1107,8 +1275,8 @@ class _OpinionChoice extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Material(
       color: selected
-          ? _CreateSheetColors.accent.withValues(alpha: 0.12)
-          : _CreateSheetColors.surface,
+          ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12)
+          : Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         onTap: onTap,
@@ -1123,8 +1291,8 @@ class _OpinionChoice extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
               color: selected
-                  ? _CreateSheetColors.accent
-                  : _CreateSheetColors.border,
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).colorScheme.outline,
               width: selected ? 2 : 1,
             ),
           ),
@@ -1133,8 +1301,8 @@ class _OpinionChoice extends StatelessWidget {
             'Option $letter',
             style: textTheme.labelMedium?.copyWith(
               color: selected
-                  ? _CreateSheetColors.accent
-                  : _CreateSheetColors.textMuted,
+                  ? Theme.of(context).colorScheme.secondary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w800,
               fontSize: 14,
             ),

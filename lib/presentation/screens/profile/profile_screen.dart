@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/profile/answered_polls_screen.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
+import 'package:yakku/presentation/screens/profile/saved_polls_screen.dart';
 import 'package:yakku/presentation/screens/privacy_policy_screen.dart';
-import 'package:yakku/presentation/widgets/app_button.dart';
 import 'package:yakku/presentation/widgets/app_switch.dart';
+import 'package:yakku/presentation/widgets/profile_option_tile.dart';
+import 'package:yakku/presentation/widgets/review_feedback_sheet.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,7 +21,100 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool notificationsEnabled = true;
+  bool notificationsEnabled = false;
+  bool _preferencesReady = false;
+  bool _updatingNotifications = false;
+  String? _appVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadNotificationPreference();
+      _loadAppVersion();
+    });
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      _appVersion = info.version;
+    });
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    try {
+      final preferences = await AppScope.of(
+        context,
+      ).notificationPreferences.getPreferences();
+      if (!mounted) return;
+      setState(() {
+        notificationsEnabled = preferences.pushEnabled;
+        _preferencesReady = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _preferencesReady = true);
+      _showPreferenceError(
+        error,
+        fallback: 'Could not load notification preference',
+      );
+    }
+  }
+
+  Future<void> _onNotificationChanged(bool value) async {
+    if (!_preferencesReady || _updatingNotifications) return;
+
+    final previous = notificationsEnabled;
+    setState(() {
+      notificationsEnabled = value;
+      _updatingNotifications = true;
+    });
+
+    final scope = AppScope.of(context);
+    try {
+      var enabled = value;
+      if (value) {
+        enabled = await scope.deviceRegistration.applyAllowChoice();
+        if (!mounted) return;
+        if (!enabled) {
+          setState(() => notificationsEnabled = false);
+          _showMessage('Notifications are blocked in system settings');
+        }
+      } else {
+        await scope.deviceRegistration.applySkipChoice();
+        if (!mounted) return;
+      }
+
+      await scope.notificationPreferences.updatePreferences(
+        UpdateNotificationPreferenceRequest(pushEnabled: enabled),
+      );
+      if (!mounted) return;
+      setState(() => notificationsEnabled = enabled);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => notificationsEnabled = previous);
+      _showPreferenceError(
+        error,
+        fallback: 'Could not update notification preference',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingNotifications = false);
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showPreferenceError(Object error, {required String fallback}) {
+    _showMessage(DioErrorMapper.map(error, fallback: fallback).message);
+  }
 
   Future<void> _logOut() async {
     final response = await showDialog<bool>(
@@ -159,14 +258,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      GestureDetector(
+                      ProfileOptionTile(
+                        icon: Icons.card_membership,
+                        iconColor: Colors.black87,
+                        label: 'Your Draft',
+                        showDivider: true,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -175,173 +277,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           );
                         },
-                        child: const Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Row(
-                            spacing: 10,
-                            children: [
-                              Icon(
-                                Icons.card_membership,
-                                color: Colors.black87,
-                                size: 22,
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Your Draft',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(Icons.arrow_forward_ios_outlined, size: 18),
-                            ],
-                          ),
-                        ),
                       ),
-                      Divider(),
-                      GestureDetector(
-                        onTap: () {},
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(
-                            spacing: 10,
-                            children: [
-                              const Icon(
-                                Icons.notifications_active_outlined,
-                                size: 22,
-                              ),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Notification',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              AppSwitch(
-                                value: notificationsEnabled,
-                                onChanged: (value) {
-                                  setState(() {
-                                    notificationsEnabled = value;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
+                      ProfileOptionTile(
+                        icon: Icons.bookmark_border,
+                        iconColor: Colors.black87,
+                        label: 'Saved',
+                        showDivider: true,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SavedPollsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      ProfileOptionTile(
+                        icon: Icons.check_circle_outline,
+                        iconColor: Colors.black87,
+                        label: 'Answered',
+                        showDivider: true,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const AnsweredPollsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      ProfileOptionTile(
+                        icon: Icons.notifications_active_outlined,
+                        label: 'Notification',
+                        showChevron: false,
+                        trailing: AppSwitch(
+                          value: notificationsEnabled,
+                          onChanged:
+                              _preferencesReady && !_updatingNotifications
+                              ? _onNotificationChanged
+                              : null,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PrivacyPolicyScreen(),
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Row(
-                            spacing: 10,
-                            children: [
-                              Icon(Icons.policy_outlined, size: 22),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Privacy Policy',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  clipBehavior: Clip.antiAlias,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+                    child: Column(
+                      children: [
+                        ProfileOptionTile(
+                          icon: Icons.policy_outlined,
+                          label: 'Privacy Policy',
+                          showDivider: true,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PrivacyPolicyScreen(),
                               ),
-                              Icon(Icons.arrow_forward_ios_outlined, size: 18),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      ),
-                      Divider(),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PrivacyPolicyScreen(),
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Row(
-                            spacing: 10,
-                            children: [
-                              Icon(Icons.star_border, size: 22),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Review & Feedback',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        ProfileOptionTile(
+                          icon: Icons.star_border,
+                          label: 'Review & Feedback',
+                          showChevron: false,
+                          onTap: () => showReviewFeedbackSheet(context),
                         ),
-                      ),
-                      Divider(),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PrivacyPolicyScreen(),
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Row(
-                            spacing: 10,
-                            children: [
-                              Icon(Icons.share, size: 22),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Share yakku',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
@@ -375,6 +386,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+
+                if (_appVersion != null) ...[
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Version $_appVersion',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

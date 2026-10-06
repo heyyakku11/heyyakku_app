@@ -1,6 +1,13 @@
 import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 
+class PollViewArgs {
+  const PollViewArgs({required this.pollId, this.canManage = false});
+
+  final String pollId;
+  final bool canManage;
+}
+
 class AnswerPollArgs {
   const AnswerPollArgs({required this.poll});
 

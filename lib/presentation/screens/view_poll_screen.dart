@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_colors.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
@@ -11,6 +12,7 @@ import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/poll/poll_why.dart';
 import 'package:yakku/data/models/user/user_poll_detail_response.dart';
 import 'package:yakku/presentation/widgets/app_segmented_control.dart';
+import 'package:yakku/presentation/widgets/poll_owner_actions_sheet.dart';
 
 enum _PollDetailTab { summary, whys, somethingElse }
 
@@ -45,9 +47,14 @@ class _PollDetailDummy {
 }
 
 class ViewPollScreen extends StatefulWidget {
-  const ViewPollScreen({super.key, required this.pollId});
+  const ViewPollScreen({
+    super.key,
+    required this.pollId,
+    this.canManage = false,
+  });
 
   final String pollId;
+  final bool canManage;
 
   @override
   State<ViewPollScreen> createState() => _ViewPollScreenState();
@@ -56,6 +63,15 @@ class ViewPollScreen extends StatefulWidget {
 class _ViewPollScreenState extends State<ViewPollScreen> {
   _PollDetailTab _tab = _PollDetailTab.summary;
   late final _PollDetailDummy _detail = _dummyPollDetail(widget.pollId);
+
+  Future<void> _onManagePoll() async {
+    final changed = await showPollOwnerActionsSheet(
+      context,
+      pollId: widget.pollId,
+    );
+    if (!mounted || !changed) return;
+    context.pop(true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +124,14 @@ class _ViewPollScreenState extends State<ViewPollScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          if (widget.canManage)
+            IconButton(
+              tooltip: 'Poll actions',
+              onPressed: _onManagePoll,
+              icon: const Icon(Icons.list),
+            ),
+        ],
       ),
       body: SafeArea(
         child: ListView(

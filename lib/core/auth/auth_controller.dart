@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
 import 'package:yakku/core/auth/user_preferences.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
+import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
@@ -14,6 +15,7 @@ class AuthController extends ChangeNotifier {
     required this.userPreferences,
     required AuthTokenStore tokenStore,
     required AuthRemoteDataSource authRemote,
+    this._draftPolls,
     bool isUserLogged = false,
     String? this._email,
     String? this._displayName,
@@ -24,6 +26,7 @@ class AuthController extends ChangeNotifier {
   final UserPreferences userPreferences;
   final AuthTokenStore _tokenStore;
   final AuthRemoteDataSource _authRemote;
+  final DraftPollStore? _draftPolls;
 
   bool _isLoggedIn;
   String? _email;
@@ -86,8 +89,13 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Clears tokens and prefs without calling the logout API (e.g. after refresh failure).
+  /// Clears tokens, prefs, and local poll drafts without calling the logout API
+  /// (e.g. after refresh failure).
   Future<void> clearLocalSession() async {
+    final drafts = _draftPolls;
+    if (drafts != null && drafts.isReady) {
+      await drafts.clearAll();
+    }
     await _tokenStore.clear();
     await userPreferences.clearAuth();
 

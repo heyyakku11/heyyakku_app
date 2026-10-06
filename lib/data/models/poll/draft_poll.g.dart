@@ -22,23 +22,28 @@ const DraftPollSchema = CollectionSchema(
       name: r'allowComments',
       type: IsarType.bool,
     ),
-    r'expiryDays': PropertySchema(
+    r'categoryIds': PropertySchema(
       id: 1,
+      name: r'categoryIds',
+      type: IsarType.stringList,
+    ),
+    r'expiryDays': PropertySchema(
+      id: 2,
       name: r'expiryDays',
       type: IsarType.long,
     ),
     r'options': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'options',
       type: IsarType.stringList,
     ),
     r'question': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'question',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -65,6 +70,13 @@ int _draftPollEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.categoryIds.length * 3;
+  {
+    for (var i = 0; i < object.categoryIds.length; i++) {
+      final value = object.categoryIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.options.length * 3;
   {
     for (var i = 0; i < object.options.length; i++) {
@@ -83,10 +95,11 @@ void _draftPollSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeBool(offsets[0], object.allowComments);
-  writer.writeLong(offsets[1], object.expiryDays);
-  writer.writeStringList(offsets[2], object.options);
-  writer.writeString(offsets[3], object.question);
-  writer.writeDateTime(offsets[4], object.updatedAt);
+  writer.writeStringList(offsets[1], object.categoryIds);
+  writer.writeLong(offsets[2], object.expiryDays);
+  writer.writeStringList(offsets[3], object.options);
+  writer.writeString(offsets[4], object.question);
+  writer.writeDateTime(offsets[5], object.updatedAt);
 }
 
 DraftPoll _draftPollDeserialize(
@@ -97,11 +110,12 @@ DraftPoll _draftPollDeserialize(
 ) {
   final object = DraftPoll();
   object.allowComments = reader.readBool(offsets[0]);
-  object.expiryDays = reader.readLong(offsets[1]);
+  object.categoryIds = reader.readStringList(offsets[1]) ?? [];
+  object.expiryDays = reader.readLong(offsets[2]);
   object.id = id;
-  object.options = reader.readStringList(offsets[2]) ?? [];
-  object.question = reader.readString(offsets[3]);
-  object.updatedAt = reader.readDateTime(offsets[4]);
+  object.options = reader.readStringList(offsets[3]) ?? [];
+  object.question = reader.readString(offsets[4]);
+  object.updatedAt = reader.readDateTime(offsets[5]);
   return object;
 }
 
@@ -115,12 +129,14 @@ P _draftPollDeserializeProp<P>(
     case 0:
       return (reader.readBool(offset)) as P;
     case 1:
-      return (reader.readLong(offset)) as P;
-    case 2:
       return (reader.readStringList(offset) ?? []) as P;
+    case 2:
+      return (reader.readLong(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 4:
+      return (reader.readString(offset)) as P;
+    case 5:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -226,6 +242,200 @@ extension DraftPollQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.equalTo(property: r'allowComments', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementEqualTo(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'categoryIds',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'categoryIds',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'categoryIds',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'categoryIds', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'categoryIds', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'categoryIds', length, true, length, true);
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'categoryIds', 0, true, 0, true);
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'categoryIds', 0, false, 999999, true);
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsLengthLessThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'categoryIds', 0, true, length, include);
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsLengthGreaterThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'categoryIds', length, include, 999999, true);
+    });
+  }
+
+  QueryBuilder<DraftPoll, DraftPoll, QAfterFilterCondition>
+  categoryIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'categoryIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
       );
     });
   }
@@ -871,6 +1081,12 @@ extension DraftPollQueryWhereDistinct
     });
   }
 
+  QueryBuilder<DraftPoll, DraftPoll, QDistinct> distinctByCategoryIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'categoryIds');
+    });
+  }
+
   QueryBuilder<DraftPoll, DraftPoll, QDistinct> distinctByExpiryDays() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'expiryDays');
@@ -909,6 +1125,13 @@ extension DraftPollQueryProperty
   QueryBuilder<DraftPoll, bool, QQueryOperations> allowCommentsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'allowComments');
+    });
+  }
+
+  QueryBuilder<DraftPoll, List<String>, QQueryOperations>
+  categoryIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'categoryIds');
     });
   }
 

@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/poll_list_datasource.dart';
 import 'package:yakku/data/models/Poll.dart';
+import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/data/models/poll/poll_carousel_item.dart';
-import 'package:yakku/presentation/screens/home/notification_screen.dart';
-import 'package:yakku/presentation/widgets/poll_card.dart';
 import 'package:yakku/data/models/poll_option.dart';
-import 'package:yakku/domain/enums/poll_options_type.dart';
 import 'package:yakku/domain/enums/poll_answer_type.dart';
+import 'package:yakku/domain/enums/poll_options_type.dart';
 import 'package:yakku/domain/enums/poll_status.dart';
+import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/home/notification_screen.dart';
+import 'package:yakku/data/models/poll/draft_poll.dart';
+import 'package:yakku/presentation/screens/create/create_screen.dart';
+import 'package:yakku/presentation/widgets/notification_permission_dialog.dart';
+import 'package:yakku/presentation/widgets/poll_card.dart';
+import 'package:yakku/presentation/widgets/yakku_carousel_card.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.onAskAnything});
+  const HomeScreen({
+    super.key,
+    this.onAskAnything,
+    this.notificationsReady = false,
+  });
 
   final VoidCallback? onAskAnything;
+
+  /// Set by the dashboard after the launch permission prompt finishes.
+  final bool notificationsReady;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -23,10 +37,57 @@ class _HomeScreenState extends State<HomeScreen> {
   List<PollModel> _polls = const [];
   Object? _error;
 
+  bool _openingNotifications = false;
+  int? _unreadCount;
+
   @override
   void initState() {
     super.initState();
+
     _loadPolls();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshUnreadCount());
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.notificationsReady && !oldWidget.notificationsReady) {
+      _refreshUnreadCount();
+    }
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    final allowed = await AppScope.of(
+      context,
+    ).deviceRegistration.isNotificationAllowed();
+
+    if (!mounted) return;
+
+    if (!allowed) {
+      setState(() {
+        _unreadCount = null;
+      });
+
+      return;
+    }
+
+    try {
+      final page = await AppScope.of(context).notifications.getMine();
+
+      if (!mounted) return;
+
+      setState(() {
+        _unreadCount = page.items.where((item) => !item.isRead).length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _unreadCount = null;
+      });
+    }
   }
 
   void _loadPolls() {
@@ -51,69 +112,170 @@ class _HomeScreenState extends State<HomeScreen> {
       ..showSnackBar(SnackBar(content: Text('Edit "${poll.question}"')));
   }
 
+  Future<void> _openNotificationScreen() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const NotificationScreen()),
+    );
+
+    if (!mounted || changed != true) return;
+
+    await _refreshUnreadCount();
+  }
+
+  Future<void> _onNotificationsPressed() async {
+    if (_openingNotifications) return;
+
+    _openingNotifications = true;
+
+    final scope = AppScope.of(context);
+    final registration = scope.deviceRegistration;
+
+    try {
+      final allowed = await registration.isNotificationAllowed();
+
+      if (!mounted) return;
+
+      if (allowed) {
+        await _openNotificationScreen();
+        return;
+      }
+
+      final allow = await showNotificationPermissionDialog(context);
+
+      if (!mounted || allow != true) return;
+
+      final granted = await registration.applyAllowChoice();
+
+      if (!mounted) return;
+
+      await scope.notificationPreferences.updatePreferences(
+        UpdateNotificationPreferenceRequest(pushEnabled: granted),
+      );
+
+      if (!mounted) return;
+
+      if (!granted) {
+        _showMessage('Notifications are blocked in system settings');
+        return;
+      }
+
+      await _refreshUnreadCount();
+
+      if (!mounted) return;
+
+      await _openNotificationScreen();
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage(
+        DioErrorMapper.map(
+          error,
+          fallback: 'Could not save notification preference',
+        ).message,
+      );
+    } finally {
+      _openingNotifications = false;
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          spacing: AppSpacing.xs,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              'yakku'.toUpperCase(),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            Image.asset(
+              'assets/images/yakku.png',
+              height: 42,
+              width: 42,
+              fit: BoxFit.contain,
             ),
+            const SizedBox(width: 6),
             Text(
-              'Stop guessing, Ask your people',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+              'Yakku',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.notifications),
+            onPressed: _onNotificationsPressed,
+            icon: Badge(
+              isLabelVisible: (_unreadCount ?? 0) > 0,
+              label: Text('${_unreadCount ?? 0}'),
+              child: const Icon(Icons.notifications_none_rounded),
+            ),
           ),
         ],
       ),
+
       body: SafeArea(
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.screen),
-          itemCount: 1 + _itemCount,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: PollCarousel(
-                  polls: pollCarouselItems.map((item) => item.poll).toList(),
-                ),
-              );
-            }
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWideScreen = constraints.maxWidth >= 600;
 
-            if (_error != null) {
-              return const _PollMessage(text: 'Could not load polls.');
-            }
+            final horizontalPadding = isWideScreen
+                ? AppSpacing.xxl
+                : AppSpacing.screen;
 
-            if (_polls.isEmpty) {
-              return const _PollMessage(text: 'No polls yet.');
-            }
-
-            final poll = _polls[index - 1];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: PollCard(
-                poll: poll,
-                onShare: () => _onShare(poll),
-                onEdit: _onEdit,
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                AppSpacing.sm,
+                horizontalPadding,
+                AppSpacing.xxl,
               ),
+              itemCount: 1 + _itemCount,
+              itemBuilder: (context, index) {
+                // ─────────────────────────────
+                // FEATURED POLL CAROUSEL
+                // ─────────────────────────────
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                    child: PollCarousel(items: pollCarouselItems),
+                  );
+                }
+
+                // ─────────────────────────────
+                // POLL ERROR / EMPTY STATE
+                // ─────────────────────────────
+                if (_error != null) {
+                  return const _PollMessage(text: 'Could not load polls.');
+                }
+
+                if (_polls.isEmpty) {
+                  return const _PollMessage(text: 'No polls yet.');
+                }
+
+                // ─────────────────────────────
+                // NORMAL POLL CARDS
+                // ─────────────────────────────
+                final poll = _polls[index - 1];
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: PollCard(
+                    poll: poll,
+                    onShare: () => _onShare(poll),
+                    onEdit: _onEdit,
+                  ),
+                );
+              },
             );
           },
         ),
@@ -122,10 +284,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get _itemCount {
-    if (_error != null || _polls.isEmpty) return 1;
+    if (_error != null || _polls.isEmpty) {
+      return 1;
+    }
+
     return _polls.length;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// POLL MESSAGE
+// ═══════════════════════════════════════════════════════════════
 
 class _PollMessage extends StatelessWidget {
   const _PollMessage({required this.text});
@@ -141,9 +310,12 @@ class _PollMessage extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SAMPLE POLL CAROUSEL DATA
+// ═══════════════════════════════════════════════════════════════
+
 final List<PollCarouselItem> pollCarouselItems = [
   PollCarouselItem(
-    backgroundColor: Colors.orange.shade100,
     poll: PollModel(
       id: 'poll-001',
       question: 'What do you prefer to drink in the morning?',
@@ -182,7 +354,6 @@ final List<PollCarouselItem> pollCarouselItems = [
   ),
 
   PollCarouselItem(
-    backgroundColor: Colors.blue.shade100,
     poll: PollModel(
       id: 'poll-002',
       question: 'Which technologies do you enjoy working with?',
@@ -221,7 +392,6 @@ final List<PollCarouselItem> pollCarouselItems = [
   ),
 
   PollCarouselItem(
-    backgroundColor: Colors.green.shade100,
     poll: PollModel(
       id: 'poll-003',
       question: 'Where would you rather spend your next vacation?',
@@ -260,19 +430,30 @@ final List<PollCarouselItem> pollCarouselItems = [
   ),
 ];
 
-class PollCarousel extends StatefulWidget {
-  const PollCarousel({super.key, required this.polls});
+// ═══════════════════════════════════════════════════════════════
+// POLL CAROUSEL
+// ═══════════════════════════════════════════════════════════════
 
-  final List<PollModel> polls;
+class PollCarousel extends StatefulWidget {
+  const PollCarousel({super.key, required this.items});
+
+  final List<PollCarouselItem> items;
 
   @override
   State<PollCarousel> createState() => _PollCarouselState();
 }
 
 class _PollCarouselState extends State<PollCarousel> {
-  final PageController _pageController = PageController(viewportFraction: 0.90);
+  late final PageController _pageController;
 
   int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pageController = PageController(viewportFraction: 0.90);
+  }
 
   @override
   void dispose() {
@@ -282,158 +463,74 @@ class _PollCarouselState extends State<PollCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.polls.isEmpty) {
+    if (widget.items.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 380,
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: widget.polls.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              final poll = widget.polls[index];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 400;
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: pollCarouselItems[index].backgroundColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    spacing: 10,
-                    children: [
-                      Text(
-                        poll.question,
-                        textAlign: TextAlign.start,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Column(
-                        children: [
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: poll.options.length,
-                            itemBuilder: (context, optionIndex) {
-                              final option = poll.options[optionIndex];
-                              return Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      '${option.text}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.black.withOpacity(0.8),
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                              horizontal: 16,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add),
-                                const SizedBox(width: 4),
-                                Text('Add your own option'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+        final cardHeight = isCompact ? 455.0 : 470.0;
 
-                      ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                            Colors.black.withOpacity(0.8),
-                          ),
-                        ),
-                        onPressed: () {
-                          // Handle vote action
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Make it yours',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, size: 16),
-                          ],
-                        ),
-                      ),
+        return Column(
+          children: [
+            SizedBox(
+              height: cardHeight,
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.items.length,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final item = widget.items[index];
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.lock, size: 15),
-                          Text('Friends can add anonymously'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: YakkuCarouselCard(
+                      question: item.poll.question,
+                      options: [
+                        for (final option in item.poll.options)
+                          option.text?.trim().isNotEmpty == true
+                              ? option.text!.trim()
+                              : 'Option',
+                      ],
+                      category: item.poll.categoryId,
+                      voteCount: item.poll.totalVoteCount,
+                      showAddOption: item.poll.allowCustomOption,
+                      gradientIndex: index,
+                      expandOptions: true,
+                      onMakeItYours: () {
+                        showCreatePollSheet(
+                          context,
+                          draft: DraftPoll.fromPollModel(item.poll),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
 
-        const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
 
-        _CarouselIndicator(
-          count: widget.polls.length,
-          currentIndex: _currentPage,
-        ),
-      ],
+            _CarouselIndicator(
+              count: widget.items.length,
+              currentIndex: _currentPage,
+            ),
+          ],
+        );
+      },
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// CAROUSEL INDICATOR
+// ═══════════════════════════════════════════════════════════════
 
 class _CarouselIndicator extends StatelessWidget {
   const _CarouselIndicator({required this.count, required this.currentIndex});
@@ -451,7 +548,8 @@ class _CarouselIndicator extends StatelessWidget {
         final isActive = index == currentIndex;
 
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
           margin: const EdgeInsets.symmetric(horizontal: 3),
           width: isActive ? 18 : 6,
           height: 6,

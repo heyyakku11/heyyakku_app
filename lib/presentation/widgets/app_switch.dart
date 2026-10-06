@@ -9,7 +9,7 @@ class AppSwitch extends StatelessWidget {
   });
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
   final double scale;
 
   @override

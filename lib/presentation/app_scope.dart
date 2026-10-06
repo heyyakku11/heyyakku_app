@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
+import 'package:yakku/data/datasources/category_remote_data_source.dart';
+import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
@@ -20,6 +22,8 @@ class AppScope extends InheritedWidget {
     required this.activityPolls,
     required this.userRemote,
     required this.notifications,
+    required this.notificationPreferences,
+    required this.categories,
     required this.deviceRegistration,
     required this.draftPolls,
     required super.child,
@@ -32,6 +36,8 @@ class AppScope extends InheritedWidget {
   final ActivityPollRepository activityPolls;
   final UserRemoteDataSource userRemote;
   final NotificationRemoteDataSource notifications;
+  final NotificationPreferenceRemoteDataSource notificationPreferences;
+  final CategoryRemoteDataSource categories;
   final DeviceRegistrationService deviceRegistration;
   final DraftPollStore draftPolls;
 
@@ -52,6 +58,8 @@ class AppScope extends InheritedWidget {
         activityPolls != oldWidget.activityPolls ||
         userRemote != oldWidget.userRemote ||
         notifications != oldWidget.notifications ||
+        notificationPreferences != oldWidget.notificationPreferences ||
+        categories != oldWidget.categories ||
         deviceRegistration != oldWidget.deviceRegistration ||
         draftPolls != oldWidget.draftPolls;
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -22,21 +21,11 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _emailController = TextEditingController();
   String? _emailError;
-  String? _appVersion;
   bool _isSendingOtp = false;
 
   @override
   void initState() {
     super.initState();
-    _loadAppVersion();
-  }
-
-  Future<void> _loadAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (!mounted) return;
-    setState(() {
-      _appVersion = info.version;
-    });
   }
 
   @override
@@ -102,9 +91,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     try {
-      final sendOtpData = await AppScope.of(context).authController.sendOtp(
-        email,
-      );
+      final sendOtpData = await AppScope.of(
+        context,
+      ).authController.sendOtp(email);
       if (!mounted) return;
 
       showModalBottomSheet(
@@ -141,117 +130,145 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Icon(
-                  Icons.forum_rounded,
-                  size: 44,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                'Yakku',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineMedium?.copyWith(fontFamily: 'Pacifico'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Ask anonymously. Get honest opinions.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              AppInputText(
-                controller: _emailController,
-                labelText: 'Email',
-                hintText: '@',
-                errorText: _emailError,
-                enabled: !_isSendingOtp,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.done,
-                onChanged: _onEmailChanged,
-                onSubmitted: (_) => _continue(),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text.rich(
-                TextSpan(
-                  text: 'Before using Yakku, you reviewed it\'s ',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  children: [
-                    TextSpan(
-                      text: 'Privacy Policy',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const PrivacyPolicyScreen(),
-                            ),
-                          );
-                        },
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscape =
+                MediaQuery.of(context).orientation == Orientation.landscape;
+
+            final horizontalPadding = isLandscape
+                ? AppSpacing.xxl
+                : AppSpacing.xl;
+
+            final logoSize = isLandscape ? 110.0 : 180.0;
+
+            return Stack(
+              children: [
+                SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                    const TextSpan(text: ' and '),
-                    TextSpan(
-                      text: 'Terms of Service',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: AppSpacing.xl,
                       ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const TermsOfServiceScreen(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/yakku.png',
+                            width: logoSize,
+                            height: logoSize,
+                            fit: BoxFit.contain,
+                          ),
+
+                          const SizedBox(height: AppSpacing.sm),
+
+                          Text(
+                            'Anonymous Opinions',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          ),
+
+                          const SizedBox(height: AppSpacing.xs),
+
+                          Text(
+                            'Ask & Give',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          ),
+
+                          const SizedBox(height: AppSpacing.xxl),
+
+                          AppInputText(
+                            controller: _emailController,
+                            labelText: 'Email',
+                            hintText: '@',
+                            errorText: _emailError,
+                            enabled: !_isSendingOtp,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.done,
+                            onChanged: _onEmailChanged,
+                            onSubmitted: (_) => _continue(),
+                          ),
+
+                          const SizedBox(height: AppSpacing.xl),
+
+                          AppButton(
+                            label: 'Get Started',
+                            onPressed: _isSendingOtp ? null : _continue,
+                          ),
+
+                          const SizedBox(height: AppSpacing.md),
+
+                          Text.rich(
+                            TextSpan(
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: 'Privacy Policy',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PrivacyPolicyScreen(),
+                                        ),
+                                      );
+                                    },
+                                ),
+
+                                const TextSpan(text: ' | '),
+
+                                TextSpan(
+                                  text: 'Terms of Service',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const TermsOfServiceScreen(),
+                                        ),
+                                      );
+                                    },
+                                ),
+
+                                const TextSpan(text: '.'),
+                              ],
                             ),
-                          );
-                        },
+                          ),
+                        ],
+                      ),
                     ),
-                    const TextSpan(text: '.'),
-                  ],
-                ),
-              ),
-              if (_isSendingOtp)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: AppSpacing.md),
-                  child: CircularProgressIndicator(),
-                ),
-              const Spacer(),
-              AppButton(
-                label: 'Get Started',
-                onPressed: _isSendingOtp ? null : _continue,
-              ),
-              if (_appVersion != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Version $_appVersion',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (_isSendingOtp)
+                  Positioned.fill(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
               ],
-              const SizedBox(height: AppSpacing.xl),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

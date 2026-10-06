@@ -117,4 +117,28 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw StateError(apiResponse.message ?? 'Logout failed');
     }
   }
+
+  @override
+  Future<void> logoutAll({String? accessToken}) async {
+    final headers = <String, dynamic>{};
+    if (accessToken != null && accessToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $accessToken';
+    }
+
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.logoutAll,
+      options: Options(headers: headers.isEmpty ? null : headers),
+    );
+
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty logout all response');
+    }
+
+    final apiResponse = ApiResponse<void>.fromJson(body, null);
+
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Logout all failed');
+    }
+  }
 }

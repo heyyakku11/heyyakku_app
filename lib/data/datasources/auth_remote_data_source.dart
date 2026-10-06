@@ -14,4 +14,6 @@ abstract interface class AuthRemoteDataSource {
   Future<TokenResponse> refresh(RefreshTokenRequest request);
 
   Future<void> logout(LogoutRequestModel request, {String? accessToken});
+
+  Future<void> logoutAll({String? accessToken});
 }

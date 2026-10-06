@@ -19,7 +19,24 @@ class DraftPoll {
 
   bool allowComments = true;
 
+  List<String> categoryIds = [];
+
   DateTime updatedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  DraftPoll();
+
+  factory DraftPoll.fromPollModel(PollModel poll) {
+    final categoryId = poll.categoryId?.trim() ?? '';
+    return DraftPoll()
+      ..question = poll.question
+      ..options = poll.standardOptions
+          .map((option) => option.text?.trim() ?? '')
+          .where((text) => text.isNotEmpty)
+          .toList(growable: false)
+      ..allowComments = true
+      ..expiryDays = 0
+      ..categoryIds = [if (categoryId.isNotEmpty) categoryId];
+  }
 
   PollModel toPollModel() {
     final trimmedQuestion = question.trim();

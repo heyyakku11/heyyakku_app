@@ -20,6 +20,7 @@ class PollCard extends StatelessWidget {
     this.showVoteCount = false,
     this.showWhyCount = false,
     this.draftedAt,
+    this.onOwnerActions,
   });
 
   final PollModel poll;
@@ -29,6 +30,7 @@ class PollCard extends StatelessWidget {
   final bool showVoteCount;
   final bool showWhyCount;
   final DateTime? draftedAt;
+  final VoidCallback? onOwnerActions;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +45,11 @@ class PollCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. Question
-            _PollCardHeader(question: poll.question, draftedAt: draftedAt),
+            _PollCardHeader(
+              question: poll.question,
+              draftedAt: draftedAt,
+              onOwnerActions: onOwnerActions,
+            ),
 
             // 2. Poll options
             _PollOptions(options: poll.standardOptions),
@@ -72,10 +78,15 @@ class PollCard extends StatelessWidget {
 }
 
 class _PollCardHeader extends StatelessWidget {
-  const _PollCardHeader({required this.question, this.draftedAt});
+  const _PollCardHeader({
+    required this.question,
+    this.draftedAt,
+    this.onOwnerActions,
+  });
 
   final String question;
   final DateTime? draftedAt;
+  final VoidCallback? onOwnerActions;
 
   @override
   Widget build(BuildContext context) {
@@ -85,11 +96,27 @@ class _PollCardHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: AppSpacing.xs,
       children: [
-        Text(
-          question,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                question,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (onOwnerActions != null)
+              IconButton(
+                tooltip: 'Poll actions',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: onOwnerActions,
+                icon: const Icon(Icons.more_vert),
+              ),
+          ],
         ),
         if (draftedAt != null)
           Row(

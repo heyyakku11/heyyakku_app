@@ -4,17 +4,32 @@ import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/create_poll_option_request.dart';
 import 'package:yakku/data/models/poll/create_poll_request.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
+import 'package:yakku/data/models/poll/shared_poll_response.dart';
 
 class PollApiRepository {
   PollApiRepository(this._remote);
 
   final PollRemoteDataSource _remote;
 
+  Future<PollsPage> getPolls({String? cursor}) {
+    return _remote.getPolls(cursor: cursor);
+  }
+
+  Future<PollResponse> getPollById(String pollId) {
+    return _remote.getPollById(pollId);
+  }
+
+  Future<SharedPollResponse> getSharedPoll(String shareToken) {
+    return _remote.getSharedPoll(shareToken);
+  }
+
   Future<PollResponse> createTextPoll({
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    Duration expiresIn = const Duration(hours: 24),
+    Duration? expiresIn,
+    bool allowComments = true,
+    List<String> categoryIds = const [],
   }) {
     return _remote.createPoll(
       CreatePollRequest(
@@ -24,7 +39,11 @@ class PollApiRepository {
             .map((text) => CreatePollOptionRequest(text: text))
             .toList(),
         selectedOptionIndex: selectedOptionIndex,
-        expiresAt: DateTime.now().toUtc().add(expiresIn),
+        expiresAt: expiresIn == null
+            ? null
+            : DateTime.now().toUtc().add(expiresIn),
+        allowComments: allowComments,
+        categoryIds: categoryIds,
       ),
     );
   }
@@ -34,8 +53,7 @@ class PollApiRepository {
     required String optionId,
   }) {
     return _remote.castVote(
-      pollId: pollId,
-      request: CastVoteRequest(optionId: optionId),
+      CastVoteRequest(pollId: pollId, optionId: optionId),
     );
   }
 }

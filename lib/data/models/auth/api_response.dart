@@ -27,3 +27,14 @@ class ApiResponse<T> {
     );
   }
 }
+
+({String? nextCursor, bool hasMore}) cursorFromMeta(dynamic meta) {
+  String? nextCursor;
+  var hasMore = false;
+  if (meta is Map) {
+    final metaMap = Map<String, dynamic>.from(meta);
+    nextCursor = metaMap['nextCursor'] as String?;
+    hasMore = metaMap['hasMore'] as bool? ?? false;
+  }
+  return (nextCursor: nextCursor, hasMore: hasMore);
+}

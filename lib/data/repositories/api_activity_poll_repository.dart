@@ -13,15 +13,36 @@ class ApiActivityPollRepository implements ActivityPollRepository {
   final ActivityPollRemoteDataSource _remote;
 
   @override
-  Future<List<PollModel>> getCreatedPolls() async {
-    final page = await _remote.getAskedPolls();
-    return page.items.map(_toPollModel).toList(growable: false);
+  Future<List<PollModel>> getCreatedPolls() {
+    return _collect(_remote.getAskedPolls);
   }
 
   @override
-  Future<List<PollModel>> getAnsweredPolls() async {
-    final page = await _remote.getAnsweredPolls();
-    return page.items.map(_toPollModel).toList(growable: false);
+  Future<List<PollModel>> getAnsweredPolls() {
+    return _collect(_remote.getAnsweredPolls);
+  }
+
+  Future<List<PollModel>> _collect(
+    Future<UserPollsPage> Function({String? cursor}) fetch,
+  ) async {
+    final items = <PollModel>[];
+    String? cursor;
+    final seenCursors = <String>{};
+
+    while (true) {
+      final page = await fetch(cursor: cursor);
+      items.addAll(page.items.map(_toPollModel));
+      final next = page.nextCursor;
+      if (!page.hasMore ||
+          next == null ||
+          next.isEmpty ||
+          !seenCursors.add(next)) {
+        break;
+      }
+      cursor = next;
+    }
+
+    return List<PollModel>.unmodifiable(items);
   }
 
   PollModel _toPollModel(UserPollResponse poll) {

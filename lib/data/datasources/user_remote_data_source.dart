@@ -1,9 +1,16 @@
 import 'package:yakku/data/models/poll/poll_response.dart';
+import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
 import 'package:yakku/data/models/user/user_poll_detail_response.dart';
 import 'package:yakku/data/models/user/user_profile_response.dart';
 
 abstract interface class UserRemoteDataSource {
   Future<UserProfileResponse> getMe();
+
+  Future<PollsPage> getSavedPolls({String? cursor});
+
+  Future<SavedPollStateResponse> savePoll(String pollId);
+
+  Future<SavedPollStateResponse> unsavePoll(String pollId);
 
   Future<UserPollDetailResponse> getOwnedPollDetails(String pollId);
 

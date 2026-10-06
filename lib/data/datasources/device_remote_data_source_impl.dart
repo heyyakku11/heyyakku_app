@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/device_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
+import 'package:yakku/data/models/device/device_response.dart';
 import 'package:yakku/data/models/device/register_device_request.dart';
 
 class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
@@ -10,7 +11,7 @@ class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
   final Dio dio;
 
   @override
-  Future<void> registerDevice(RegisterDeviceRequest request) async {
+  Future<DeviceResponse> registerDevice(RegisterDeviceRequest request) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.registerDevice,
       data: request.toJson(),
@@ -21,10 +22,15 @@ class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
       throw StateError('Empty device registration response');
     }
 
-    final apiResponse = ApiResponse<void>.fromJson(body, null);
+    final apiResponse = ApiResponse<DeviceResponse>.fromJson(
+      body,
+      (json) => DeviceResponse.fromJson(json as Map<String, dynamic>),
+    );
 
-    if (!apiResponse.success) {
+    if (!apiResponse.success || apiResponse.data == null) {
       throw StateError(apiResponse.message ?? 'Device registration failed');
     }
+
+    return apiResponse.data!;
   }
 }
