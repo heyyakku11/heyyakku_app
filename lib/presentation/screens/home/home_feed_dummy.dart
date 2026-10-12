@@ -1,133 +1,72 @@
-import 'package:flutter/material.dart';
-import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/home/home_feed_card.dart';
+import 'package:yakku/data/models/home/home_feed_response.dart';
 
-const homeFeedDummy = HomeFeed(
-  weeklyDrop: HomeFeedCard(
-    title: 'Mirror Check',
-    question: 'Do people like me, or just like having me around?',
-    backgroundColor: Color(0xFFFFE0E8),
-    foregroundColor: YakkuPalette.textPrimary,
-    chipColor: Color(0xFFF6F1F3),
-    accentColor: YakkuPalette.primary,
-    eyebrow: "THIS WEEK'S DROP",
-    meta: 'Ends Sunday',
-    sticker: 'No filters.\nJust truth.',
-    layout: HomeFeedOptionLayout.lettered,
-    actions: HomeFeedCardActions.askOnly,
-    options: [
-      HomeFeedOption(letter: 'A', label: 'Genuinely like you', trailing: '???'),
-      HomeFeedOption(
-        letter: 'B',
-        label: 'Like having you around',
-        trailing: '???',
-      ),
-      HomeFeedOption(letter: 'C', label: 'Both', trailing: '???'),
-      HomeFeedOption(letter: 'D', label: 'Friends add one', outlined: true),
-    ],
-  ),
-  moreChecks: HomeFeedSection(
-    title: 'More checks',
-    trailing: 'New every Monday',
-    cards: [
-      HomeFeedCard(
-        title: 'Trust Check',
-        question: 'If I told you a secret, how long before someone else knows?',
-        backgroundColor: YakkuPalette.accentGreen,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Colors.white,
-        accentColor: YakkuPalette.primary,
-        sticker: 'Keep it real.',
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.askOnly,
-        options: [
-          HomeFeedOption(label: 'Never'),
-          HomeFeedOption(label: 'A week'),
-          HomeFeedOption(label: 'Already told'),
-        ],
-      ),
-      HomeFeedCard(
-        title: 'Vibe Check',
-        question: 'When I walk in, does the energy go up?',
-        backgroundColor: YakkuPalette.accentPurple,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Colors.white,
-        accentColor: YakkuPalette.primary,
-        sticker: 'Read the room.',
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.askOnly,
-        options: [
-          HomeFeedOption(label: 'Up'),
-          HomeFeedOption(label: 'Down'),
-          HomeFeedOption(label: 'Same'),
-        ],
-      ),
-      HomeFeedCard(
-        title: 'Loyalty Check',
-        question: 'Would you still pick me if it got awkward?',
-        backgroundColor: YakkuPalette.accentYellow,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Colors.white,
-        accentColor: YakkuPalette.primary,
-        sticker: 'Say it plain.',
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.askOnly,
-        options: [
-          HomeFeedOption(label: 'Always'),
-          HomeFeedOption(label: 'Depends'),
-          HomeFeedOption(label: 'Probably not'),
-        ],
-      ),
-    ],
-  ),
-  questions: HomeFeedSection(
-    title: 'Questions worth asking',
-    cards: [
-      HomeFeedCard(
-        title: 'Honestly, am I hard to be close to?',
-        question: 'Honestly, am I hard to be close to?',
-        backgroundColor: Colors.white,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Color(0xFFF4EBE6),
-        accentColor: YakkuPalette.primary,
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.editAndShare,
-        options: [
-          HomeFeedOption(label: 'Not at all'),
-          HomeFeedOption(label: 'A little'),
-          HomeFeedOption(label: 'Yes, but worth it'),
-        ],
-      ),
-      HomeFeedCard(
-        title: 'If we stopped talking tomorrow, would you notice?',
-        question: 'If we stopped talking tomorrow, would you notice?',
-        backgroundColor: Colors.white,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Color(0xFFF4EBE6),
-        accentColor: YakkuPalette.primary,
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.editAndShare,
-        options: [
-          HomeFeedOption(label: 'Instantly'),
-          HomeFeedOption(label: 'In a week'),
-          HomeFeedOption(label: 'Honestly, no'),
-        ],
-      ),
-      HomeFeedCard(
-        title: 'Would you tell me if I hurt you?',
-        question: 'Would you tell me if I hurt you?',
-        backgroundColor: Colors.white,
-        foregroundColor: YakkuPalette.textPrimary,
-        chipColor: Color(0xFFF4EBE6),
-        accentColor: YakkuPalette.primary,
-        layout: HomeFeedOptionLayout.chips,
-        actions: HomeFeedCardActions.editAndShare,
-        options: [
-          HomeFeedOption(label: 'Right away'),
-          HomeFeedOption(label: 'Eventually'),
-          HomeFeedOption(label: "I'd stay quiet"),
-        ],
-      ),
-    ],
-  ),
-);
+/// Dummy home feed — same shape as the API JSON response.
+final homeFeedResponse = HomeFeedResponse.fromJson(const {
+  'mirrorChecks': [
+    {
+      'title': 'Mirror Check',
+      'question': 'Do people like me, or just like having me around?',
+      'backgroundColor': '#FFE0E8',
+      'foregroundColor': '#21191D',
+      'chipColor': '#F6F1F3',
+      'accentColor': '#D02E62',
+      'sticker': 'No filters.\nJust truth.',
+      'options': [
+        'Genuinely like you',
+        'Like having you around',
+        'Both',
+      ],
+    },
+    {
+      'title': 'Trust Check',
+      'question': 'If I told you a secret, how long before someone else knows?',
+      'backgroundColor': '#DDF3E4',
+      'foregroundColor': '#21191D',
+      'chipColor': '#FFFFFF',
+      'accentColor': '#D02E62',
+      'sticker': 'Keep it real.',
+      'options': [
+        'Never',
+        'A week',
+        'Already told',
+      ],
+    },
+    {
+      'title': 'Vibe Check',
+      'question': 'When I walk in, does the energy go up?',
+      'backgroundColor': '#ECE3FF',
+      'foregroundColor': '#21191D',
+      'chipColor': '#FFFFFF',
+      'accentColor': '#D02E62',
+      'sticker': 'Read the room.',
+      'options': ['Up', 'Down', 'Same'],
+    },
+    {
+      'title': 'Loyalty Check',
+      'question': 'Would you still pick me if it got awkward?',
+      'backgroundColor': '#FFEFC2',
+      'foregroundColor': '#21191D',
+      'chipColor': '#FFFFFF',
+      'accentColor': '#D02E62',
+      'sticker': 'Say it plain.',
+      'options': ['Always', 'Depends', 'Probably not'],
+    },
+  ],
+  'questionsWorthAsking': [
+    {
+      'question': 'Honestly, am I hard to be close to?',
+      'options': ['Not at all', 'A little', 'Yes, but worth it'],
+    },
+    {
+      'question': 'If we stopped talking tomorrow, would you notice?',
+      'options': ['Instantly', 'In a week', 'Honestly, no'],
+    },
+    {
+      'question': 'Would you tell me if I hurt you?',
+      'options': ['Right away', 'Eventually', "I'd stay quiet"],
+    },
+  ],
+});
+
+final mirrorChecks = homeFeedResponse.mirrorChecks;
+final questionsWorthAsking = homeFeedResponse.questionsWorthAsking;

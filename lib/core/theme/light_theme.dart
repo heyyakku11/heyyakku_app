@@ -42,8 +42,11 @@ ThemeData buildLightTheme() {
     dividerColor: const Color(0xFFE6E1D8),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: YakkuPalette.inkDeep,
-      contentTextStyle: const TextStyle(color: Colors.white),
+      backgroundColor: YakkuPalette.primary,
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),

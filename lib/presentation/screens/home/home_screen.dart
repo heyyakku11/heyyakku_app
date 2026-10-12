@@ -7,8 +7,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: SafeArea(child: HomeFeedBody(feed: homeFeedDummy)),
+    return Scaffold(
+      body: SafeArea(
+        child: HomeFeedBody(
+          mirrorChecks: mirrorChecks,
+          questionsWorthAsking: questionsWorthAsking,
+        ),
+      ),
     );
   }
 }

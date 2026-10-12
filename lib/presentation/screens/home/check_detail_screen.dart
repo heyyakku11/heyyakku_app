@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/home/home_feed_card.dart';
+import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
+import 'package:yakku/presentation/widgets/app_alert.dart';
 
 class CheckDetailScreen extends StatefulWidget {
-  const CheckDetailScreen({super.key, required this.card});
+  const CheckDetailScreen({super.key, required this.check});
 
-  final HomeFeedCard card;
+  final AskFriendsCheck check;
 
   @override
   State<CheckDetailScreen> createState() => _CheckDetailScreenState();
@@ -18,28 +19,26 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
   int? _selectedIndex;
   bool _sending = false;
 
-  HomeFeedCard get card => widget.card;
+  AskFriendsCheck get check => widget.check;
 
-  List<int> get _answerIndexes {
-    return [
-      for (var index = 0; index < card.options.length; index++)
-        if (!card.options[index].outlined) index,
-    ];
-  }
+  /// Real poll answers only — "Friends add one" is UI chrome, not an option.
+  List<AskFriendsOption> get _answerOptions => [
+    for (final option in check.options)
+      if (!option.outlined && option.label.trim().isNotEmpty) option,
+  ];
 
   Future<void> _send() async {
     final selected = _selectedIndex;
     if (selected == null || _sending) return;
 
-    final answers = _answerIndexes;
-    final selectedOptionIndex = answers.indexOf(selected);
-    if (selectedOptionIndex < 0) return;
+    final answers = _answerOptions;
+    if (selected < 0 || selected >= answers.length) return;
 
-    final question = card.question.trim().isNotEmpty
-        ? card.question.trim()
-        : card.title.trim();
+    final question = check.question.trim().isNotEmpty
+        ? check.question.trim()
+        : check.title.trim();
     final options = [
-      for (final index in answers) card.options[index].label.trim(),
+      for (final option in answers) option.label.trim(),
     ];
 
     setState(() => _sending = true);
@@ -47,7 +46,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
       final poll = await AppScope.of(context).pollApi.createTextPoll(
         question: question,
         options: options,
-        selectedOptionIndex: selectedOptionIndex,
+        selectedOptionIndex: selected,
       );
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -61,9 +60,11 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
         error,
         fallback: 'Could not send this check. Please try again.',
       ).message;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      await showAppAlert(
+        context,
+        title: "Couldn't send",
+        message: message,
+      );
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -71,10 +72,10 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canSend = _selectedIndex != null && !_sending;
+    final hasSelection = _selectedIndex != null;
 
     return Scaffold(
-      backgroundColor: card.backgroundColor,
+      backgroundColor: check.backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -82,33 +83,37 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
               alignment: Alignment.centerLeft,
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(Icons.arrow_back, color: card.foregroundColor),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: check.foregroundColor,
+                  size: 20,
+                ),
               ),
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
                 children: [
-                  _Header(card: card),
+                  _Header(check: check),
                   const SizedBox(height: 22),
                   Text(
-                    card.title,
+                    check.title,
                     style: TextStyle(
-                      color: card.foregroundColor,
-                      fontSize: 34,
+                      color: check.foregroundColor,
+                      fontSize: 36,
                       height: 1.05,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.8,
                     ),
                   ),
-                  if (card.question.isNotEmpty &&
-                      card.question != card.title) ...[
+                  if (check.question.isNotEmpty &&
+                      check.question != check.title) ...[
                     const SizedBox(height: 10),
                     Text(
-                      card.question,
+                      check.question,
                       style: TextStyle(
-                        color: card.foregroundColor,
-                        fontSize: 22,
+                        color: check.foregroundColor,
+                        fontSize: 26,
                         height: 1.25,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.3,
@@ -116,86 +121,29 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 28),
-                  Row(
-                    children: [
-                      Text(
-                        'TAP YOUR ANSWER',
-                        style: TextStyle(
-                          color: card.foregroundColor.withValues(alpha: 0.45),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.lock_outline,
-                        size: 14,
-                        color: card.foregroundColor.withValues(alpha: 0.45),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Only you see it',
-                        style: TextStyle(
-                          color: card.foregroundColor.withValues(alpha: 0.45),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  for (var index = 0; index < card.options.length; index++) ...[
+                  for (var index = 0; index < _answerOptions.length; index++) ...[
                     _AnswerRow(
-                      card: card,
-                      option: card.options[index],
-                      letter: _letterFor(index),
+                      check: check,
+                      option: _answerOptions[index],
+                      letter: _letterFor(_answerOptions[index], index),
                       selected: _selectedIndex == index,
-                      onTap: card.options[index].outlined
-                          ? null
-                          : () => setState(() => _selectedIndex = index),
+                      onTap: () => setState(() => _selectedIndex = index),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                   ],
+                  // Default for every check — not a poll option.
+                  _FriendsCanAddOwnButton(check: check),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton.icon(
-                  onPressed: canSend ? _send : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B1418),
-                    disabledBackgroundColor: const Color(
-                      0xFF1B1418,
-                    ).withValues(alpha: 0.35),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white.withValues(
-                      alpha: 0.7,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  icon: _sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.ios_share, size: 18),
-                  label: const Text(
-                    'Send to friends',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+              child: hasSelection
+                  ? _AskMyFriendsFooter(
+                      sending: _sending,
+                      onTap: _sending ? null : _send,
+                    )
+                  : const _PickYourAnswerFooter(),
             ),
           ],
         ),
@@ -203,17 +151,207 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
     );
   }
 
-  String _letterFor(int index) {
-    final letter = card.options[index].letter;
+  String _letterFor(AskFriendsOption option, int index) {
+    final letter = option.letter;
     if (letter != null && letter.isNotEmpty) return letter;
     return String.fromCharCode(65 + index);
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.card});
+/// Shown when no answer is selected.
+class _PickYourAnswerFooter extends StatefulWidget {
+  const _PickYourAnswerFooter();
 
-  final HomeFeedCard card;
+  @override
+  State<_PickYourAnswerFooter> createState() => _PickYourAnswerFooterState();
+}
+
+class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
+    with SingleTickerProviderStateMixin {
+  static const _ink = Color(0xFF1B1418);
+
+  late final AnimationController _bounce;
+  late final Animation<double> _offsetY;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _offsetY = Tween<double>(begin: 0, end: -5).animate(
+      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _ink, width: 1.6),
+            boxShadow: const [
+              BoxShadow(
+                color: _ink,
+                offset: Offset(0, 4),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _offsetY,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(0, _offsetY.value),
+                      child: child,
+                    );
+                  },
+                  child: const Icon(
+                    Icons.arrow_upward_rounded,
+                    size: 18,
+                    color: _ink,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Pick your answer',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const _PrivacyCaption(label: 'Your pick stays secret'),
+      ],
+    );
+  }
+}
+
+/// Shown after an answer is selected.
+class _AskMyFriendsFooter extends StatelessWidget {
+  const _AskMyFriendsFooter({required this.sending, required this.onTap});
+
+  final bool sending;
+  final VoidCallback? onTap;
+
+  static const _ink = Color(0xFF1B1418);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(28),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: _ink,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (sending)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    else ...[
+                      const Icon(
+                        Icons.ios_share,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Ask my friends',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const _PrivacyCaption(label: 'Only you know your pick'),
+      ],
+    );
+  }
+}
+
+class _PrivacyCaption extends StatelessWidget {
+  const _PrivacyCaption({required this.label});
+
+  final String label;
+
+  static const _ink = Color(0xFF1B1418);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.lock_outline_rounded,
+          size: 14,
+          color: _ink.withValues(alpha: 0.75),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: _ink.withValues(alpha: 0.75),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.check});
+
+  final AskFriendsCheck check;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +362,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (card.eyebrow != null)
+              if (check.eyebrow != null)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.black,
@@ -241,14 +379,14 @@ class _Header extends StatelessWidget {
                         width: 7,
                         height: 7,
                         decoration: BoxDecoration(
-                          color: card.accentColor,
+                          color: check.accentColor,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          card.eyebrow!,
+                          check.eyebrow!,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -259,12 +397,12 @@ class _Header extends StatelessWidget {
                     ],
                   ),
                 ),
-              if (card.meta != null) ...[
+              if (check.meta != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  card.meta!,
+                  check.meta!,
                   style: TextStyle(
-                    color: card.foregroundColor.withValues(alpha: 0.55),
+                    color: check.foregroundColor.withValues(alpha: 0.55),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -273,7 +411,7 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        if (card.sticker != null)
+        if (check.sticker != null)
           Transform.rotate(
             angle: -0.08,
             child: DecoratedBox(
@@ -288,12 +426,12 @@ class _Header extends StatelessWidget {
                   vertical: 6,
                 ),
                 child: Text(
-                  card.sticker!,
+                  check.sticker!,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'Pacifico',
-                    color: card.accentColor,
-                    fontSize: 15,
+                    color: check.accentColor,
+                    fontSize: 20,
                     height: 1.15,
                   ),
                 ),
@@ -307,100 +445,156 @@ class _Header extends StatelessWidget {
 
 class _AnswerRow extends StatelessWidget {
   const _AnswerRow({
-    required this.card,
+    required this.check,
     required this.option,
     required this.letter,
     required this.selected,
     required this.onTap,
   });
 
-  final HomeFeedCard card;
-  final HomeFeedOption option;
+  final AskFriendsCheck check;
+  final AskFriendsOption option;
   final String letter;
   final bool selected;
   final VoidCallback? onTap;
 
+  static const _radius = 18.0;
+  static const _ink = Color(0xFF1B1418);
+
   @override
   Widget build(BuildContext context) {
-    final outlined = option.outlined;
-    final background = selected
-        ? const Color(0xFF1B1418)
-        : outlined
-        ? Colors.transparent
-        : Colors.white;
-    final foreground = selected ? Colors.white : card.foregroundColor;
+    final accent = check.accentColor;
+    final background = selected ? _ink : Colors.white;
+    final foreground = selected ? Colors.white : _ink;
     final badgeColor = selected
         ? YakkuPalette.primary
-        : card.accentColor.withValues(alpha: 0.18);
-
-    final row = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: outlined ? Colors.transparent : badgeColor,
-              shape: BoxShape.circle,
-              border: outlined
-                  ? Border.all(
-                      color: card.foregroundColor.withValues(alpha: 0.35),
-                    )
-                  : null,
-            ),
-            child: Text(
-              letter,
-              style: TextStyle(
-                color: selected
-                    ? Colors.white
-                    : outlined
-                    ? card.foregroundColor.withValues(alpha: 0.7)
-                    : card.foregroundColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              option.label,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (selected) const Icon(Icons.check, color: Colors.white, size: 20),
-        ],
-      ),
-    );
+        : accent.withValues(alpha: 0.22);
+    final shadowColor = selected ? YakkuPalette.primary : _ink;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: outlined
-            ? CustomPaint(
-                painter: _DashedBorderPainter(
-                  color: card.foregroundColor.withValues(alpha: 0.35),
-                  radius: 16,
-                ),
-                child: row,
-              )
-            : DecoratedBox(
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: row,
+        borderRadius: BorderRadius.circular(_radius),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(_radius),
+            border: Border.all(color: _ink, width: 1.6),
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                offset: const Offset(3, 3),
+                blurRadius: 0,
               ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      color: selected ? Colors.white : _ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    option.label,
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  const Icon(Icons.check, color: Colors.white, size: 20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
+  }
+}
+
+/// Default chrome on every check detail — not part of poll options.
+class _FriendsCanAddOwnButton extends StatelessWidget {
+  const _FriendsCanAddOwnButton({required this.check});
+
+  final AskFriendsCheck check;
+
+  static const _radius = 18.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = _tonesFromBackground(check.backgroundColor);
+
+    return CustomPaint(
+      painter: _DashedBorderPainter(color: tones.border, radius: _radius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tones.fill,
+          borderRadius: BorderRadius.circular(_radius),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tones.border,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, size: 16, color: Colors.white),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Friends can add their own',
+                  style: TextStyle(
+                    color: tones.border,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Fill / border / text follow the check card background family.
+  static ({Color fill, Color border}) _tonesFromBackground(Color background) {
+    final hsl = HSLColor.fromColor(background);
+    final fill = hsl
+        .withLightness((hsl.lightness - 0.04).clamp(0.0, 1.0))
+        .toColor();
+    final border = hsl
+        .withSaturation((hsl.saturation + 0.10).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness - 0.04).clamp(0.5, 0.7))
+        .toColor();
+    return (fill: fill, border: border);
   }
 }
 

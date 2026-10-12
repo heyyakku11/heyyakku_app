@@ -46,8 +46,11 @@ ThemeData buildDarkTheme() {
     dividerColor: YakkuPalette.nightMist,
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: YakkuPalette.nightElevated,
-      contentTextStyle: const TextStyle(color: YakkuPalette.nightText),
+      backgroundColor: YakkuPalette.primary,
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
