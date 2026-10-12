@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
+import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_email_login.dart';
 import 'package:yakku/presentation/screens/profile/answered_polls_screen.dart';
@@ -114,8 +115,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
             final email = _email ?? _nonEmpty(auth.email);
-            final name = loggedIn ? (displayName ?? 'You') : 'Guest';
-            final initial = _initial(loggedIn ? displayName : 'G');
+            final name = displayName ?? 'You';
+            final initial = _initial(displayName);
 
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -130,53 +131,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: const Icon(Icons.settings_outlined),
                     ),
                   ),
-                  CircleAvatar(
-                    radius: 48,
-                    backgroundColor: const Color(0xFFF4A8C4),
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        color: Color(0xFF21191D),
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
+                  if (loggedIn) ...[
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: const Color(0xFFF4A8C4),
+                      child: Text(
+                        initial,
+                        style: const TextStyle(
+                          color: Color(0xFF21191D),
+                          fontSize: 34,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    name,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  if (loggedIn && email != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 14),
                     Text(
-                      email,
+                      name,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                  ],
-                  if (!loggedIn) ...[
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => openEmailLogin(context),
-                        child: const Text('Log in'),
+                    if (email != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
-                  if (loggedIn) ...[
+                    ],
                     const SizedBox(height: 18),
                     _StatsCard(asks: _asks, votes: _votes),
+                  ] else ...[
+                    const _GuestLoginPrompt(),
                   ],
                   const SizedBox(height: 16),
                   Material(
@@ -189,7 +181,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.format_list_bulleted,
                           label: 'My asks',
                           showDivider: true,
-                          onTap: () => _openWhenLoggedIn(const MyAsksScreen()),
+                          onTap: () =>
+                              _openWhenLoggedIn(const MyAsksScreen()),
                         ),
                         ProfileOptionTile(
                           icon: Icons.check,
@@ -225,6 +218,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _GuestLoginPrompt extends StatelessWidget {
+  const _GuestLoginPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      child: Column(
+        children: [
+          // Text(
+          //   'Log in to see your profile',
+          //   textAlign: TextAlign.center,
+          //   style: theme.textTheme.titleMedium?.copyWith(
+          //     fontWeight: FontWeight.w700,
+          //     color: theme.colorScheme.onSurface,
+          //   ),
+          // ),
+          // const SizedBox(height: 8),
+          Text(
+            'Your asks, votes, and saved polls will show up here once you\'re signed in.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: () => openEmailLogin(context),
+              child: const Text('Log in'),
+            ),
+          ),
+        ],
       ),
     );
   }

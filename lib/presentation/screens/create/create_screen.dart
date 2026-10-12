@@ -52,7 +52,8 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     with TickerProviderStateMixin {
   static const _duplicateMessage = 'This option is already used';
   static const _friendsTooltip = "This spot is for your friends' own options.";
-  static const _examplePhrases = <String>[
+  /// Auto-typing question placeholders (loop). Defined only on create screen.
+  static const _questionPlaceholderPhrases = <String>[
     'Would you trust me with a secret?',
     'Should I text them first?',
     'Main group mein funny wala hoon ya serious?',
@@ -618,7 +619,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                 controller: _questionController,
                                 focusNode: _questionFocus,
                                 stopPlaceholder: _stopPlaceholder,
-                                examples: _examplePhrases,
+                                examples: _questionPlaceholderPhrases,
                                 onSubmitted: _moveFocusFromQuestion,
                               ),
                               ClipRect(
@@ -813,23 +814,8 @@ class _QuestionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
+            alignment: Alignment.topLeft,
             children: [
-              if (showPlaceholder)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: _TypingPlaceholder(
-                        phrases: examples,
-                        style: textTheme.titleLarge?.copyWith(
-                          color: const Color(0xFFB0A4A7),
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               TextField(
                 controller: controller,
                 focusNode: focusNode,
@@ -867,6 +853,9 @@ class _QuestionCard extends StatelessWidget {
                 },
                 decoration: const InputDecoration(
                   isDense: true,
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  hintText: '',
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -874,6 +863,17 @@ class _QuestionCard extends StatelessWidget {
                   counterText: '',
                 ),
               ),
+              if (showPlaceholder)
+                IgnorePointer(
+                  child: _TypingPlaceholder(
+                    phrases: examples,
+                    style: textTheme.titleLarge?.copyWith(
+                      color: const Color(0xFFB0A4A7),
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),

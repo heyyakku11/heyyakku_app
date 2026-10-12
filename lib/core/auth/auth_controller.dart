@@ -47,13 +47,17 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<SendOtpData> sendOtp(String email) {
-    return _authRemote.sendOtp(SendOtpRequestModel(email: email));
+  Future<SendOtpData> sendOtp(String phone) {
+    return _authRemote.sendOtp(SendOtpRequestModel(phone: phone));
   }
 
-  Future<void> verifyOtp({required String email, required String otp}) async {
+  Future<void> verifyOtp({
+    required String phone,
+    required String otp,
+    String? firstName,
+  }) async {
     final data = await _authRemote.verifyOtp(
-      VerifyOtpRequestModel(email: email, otp: otp),
+      VerifyOtpRequestModel(phone: phone, otp: otp),
     );
 
     await _tokenStore.saveTokens(
@@ -61,13 +65,18 @@ class AuthController extends ChangeNotifier {
       refreshToken: data.refreshToken,
     );
 
-    await userPreferences.setEmail(email);
-    await userPreferences.setDisplayName(data.displayName);
+    final trimmedName = firstName?.trim() ?? '';
+    final displayName =
+        trimmedName.isNotEmpty ? trimmedName : data.displayName;
+
+    // Reuse local contact storage for the signed-in phone number.
+    await userPreferences.setEmail(phone);
+    await userPreferences.setDisplayName(displayName);
     await userPreferences.setIsUserLogged(true);
 
     _isLoggedIn = true;
-    _email = email;
-    _displayName = data.displayName;
+    _email = phone;
+    _displayName = displayName;
     notifyListeners();
   }
 

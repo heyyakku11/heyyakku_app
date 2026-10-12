@@ -1,9 +1,9 @@
 class SendOtpRequestModel {
-  final String email;
+  final String phone;
 
-  const SendOtpRequestModel({required this.email});
+  const SendOtpRequestModel({required this.phone});
 
   Map<String, dynamic> toJson() {
-    return {'email': email};
+    return {'phone': phone};
   }
 }

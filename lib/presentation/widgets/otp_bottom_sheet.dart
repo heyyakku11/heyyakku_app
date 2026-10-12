@@ -7,12 +7,14 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
 class OtpBottomSheet extends StatefulWidget {
-  final String email;
+  final String phone;
+  final String firstName;
   final int expiresInMinutes;
 
   const OtpBottomSheet({
     super.key,
-    required this.email,
+    required this.phone,
+    required this.firstName,
     required this.expiresInMinutes,
   });
 
@@ -156,7 +158,11 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     final authController = AppScope.of(context).authController;
 
     try {
-      await authController.verifyOtp(email: widget.email, otp: _otp);
+      await authController.verifyOtp(
+        phone: widget.phone,
+        otp: _otp,
+        firstName: widget.firstName,
+      );
       if (!mounted) return;
       _closeSheet();
     } catch (e) {
@@ -188,7 +194,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
             Row(
               children: [
                 const Text(
-                  'Verify your email',
+                  'Verify your number',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
@@ -218,7 +224,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
             const SizedBox(height: 10),
 
             Text(
-              'We sent a 6-digit verification code to ${widget.email}. This code will expire in ${widget.expiresInMinutes} minutes.',
+              'We sent a 6-digit verification code to ${widget.phone}. This code will expire in ${widget.expiresInMinutes} minutes.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -251,7 +257,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text(
-                            'Verify Email',
+                            'Verify OTP',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
