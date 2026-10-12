@@ -31,13 +31,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             children: [
               const _Wordmark(),
               const SizedBox(height: 28),
-              const Expanded(child: _PreviewStack()),
+              const SizedBox(height: 340, child: _PreviewStack()),
               const SizedBox(height: 28),
               const Text(
                 "Ask what you're really thinking.",
                 style: TextStyle(
                   color: YakkuPalette.textPrimary,
-                  fontSize: 32,
+                  fontSize: 38,
                   height: 1.05,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.8,
@@ -48,12 +48,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 'Your friends answer honestly. Nobody knows who said what.',
                 style: TextStyle(
                   color: YakkuPalette.textSecondary,
-                  fontSize: 14,
+                  fontSize: 16,
                   height: 1.35,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 22),
+              const Spacer(),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -87,6 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -139,7 +140,7 @@ class _PreviewStackState extends State<_PreviewStack>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 3000),
     );
 
     // Staggered intervals: card 1 → 2 → 3, top-to-bottom fall.
@@ -164,7 +165,15 @@ class _PreviewStackState extends State<_PreviewStack>
         ),
     ];
 
-    _controller.forward();
+    _runLoop();
+  }
+
+  Future<void> _runLoop() async {
+    while (mounted) {
+      await _controller.forward(from: 0);
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
   }
 
   @override
@@ -189,7 +198,7 @@ class _PreviewStackState extends State<_PreviewStack>
               children: [
                 Positioned(
                   left: 0,
-                  top: height * 0.02,
+                  top: height * 0.03,
                   child: _FallIn(
                     progress: _falls[0].value,
                     opacity: _fades[0].value,
@@ -207,12 +216,12 @@ class _PreviewStackState extends State<_PreviewStack>
                 ),
                 Positioned(
                   right: 0,
-                  top: height * 0.18,
+                  top: height * 0.28,
                   child: _FallIn(
                     progress: _falls[1].value,
                     opacity: _fades[1].value,
                     child: Transform.rotate(
-                      angle: 0.06,
+                      angle: 0.09,
                       child: _PreviewCard(
                         width: cardWidth,
                         color: YakkuPalette.accentYellow,
@@ -224,13 +233,13 @@ class _PreviewStackState extends State<_PreviewStack>
                   ),
                 ),
                 Positioned(
-                  left: width * 0.10,
-                  top: height * 0.36,
+                  left: width * 0.05,
+                  top: height * 0.56,
                   child: _FallIn(
                     progress: _falls[2].value,
                     opacity: _fades[2].value,
                     child: Transform.rotate(
-                      angle: -0.04,
+                      angle: -0.07,
                       child: _PreviewCard(
                         width: cardWidth,
                         color: YakkuPalette.primary,
