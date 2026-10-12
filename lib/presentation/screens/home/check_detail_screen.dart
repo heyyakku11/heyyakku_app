@@ -15,9 +15,12 @@ class CheckDetailScreen extends StatefulWidget {
   State<CheckDetailScreen> createState() => _CheckDetailScreenState();
 }
 
-class _CheckDetailScreenState extends State<CheckDetailScreen> {
+class _CheckDetailScreenState extends State<CheckDetailScreen>
+    with TickerProviderStateMixin {
   int? _selectedIndex;
   bool _sending = false;
+
+  late final AnimationController _optionsEntrance;
 
   AskFriendsCheck get check => widget.check;
 
@@ -26,6 +29,32 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
     for (final option in check.options)
       if (!option.outlined && option.label.trim().isNotEmpty) option,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _optionsEntrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _optionsEntrance.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _stagger(int index, int count) {
+    final safeCount = count < 1 ? 1 : count;
+    final slot = 0.55;
+    final start = (index / safeCount) * (1 - slot);
+    final end = (start + slot).clamp(0.0, 1.0);
+    return CurvedAnimation(
+      parent: _optionsEntrance,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+  }
 
   Future<void> _send() async {
     final selected = _selectedIndex;
@@ -121,18 +150,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: 28),
-                  for (var index = 0; index < _answerOptions.length; index++) ...[
-                    _AnswerRow(
-                      check: check,
-                      option: _answerOptions[index],
-                      letter: _letterFor(_answerOptions[index], index),
-                      selected: _selectedIndex == index,
-                      onTap: () => setState(() => _selectedIndex = index),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  // Default for every check — not a poll option.
-                  _FriendsCanAddOwnButton(check: check),
+                  ..._buildAnimatedOptions(),
                 ],
               ),
             ),
@@ -155,6 +173,63 @@ class _CheckDetailScreenState extends State<CheckDetailScreen> {
     final letter = option.letter;
     if (letter != null && letter.isNotEmpty) return letter;
     return String.fromCharCode(65 + index);
+  }
+
+  List<Widget> _buildAnimatedOptions() {
+    final answers = _answerOptions;
+    // Answers + friends-add row, staggered over 1800ms.
+    final itemCount = answers.length + 1;
+
+    return [
+      for (var index = 0; index < answers.length; index++) ...[
+        _OptionEntranceSlide(
+          animation: _stagger(index, itemCount),
+          child: _AnswerRow(
+            check: check,
+            option: answers[index],
+            letter: _letterFor(answers[index], index),
+            selected: _selectedIndex == index,
+            onTap: () => setState(() => _selectedIndex = index),
+          ),
+        ),
+        const SizedBox(height: 14),
+      ],
+      _OptionEntranceSlide(
+        animation: _stagger(answers.length, itemCount),
+        child: _FriendsCanAddOwnButton(check: check),
+      ),
+    ];
+  }
+}
+
+/// Starts hidden, then slides in top-to-bottom as [animation] progresses.
+class _OptionEntranceSlide extends StatelessWidget {
+  const _OptionEntranceSlide({
+    required this.animation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Widget child;
+
+  static const _slideDistance = 48.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final t = animation.value;
+        return Opacity(
+          opacity: t.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * -_slideDistance),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 }
 
