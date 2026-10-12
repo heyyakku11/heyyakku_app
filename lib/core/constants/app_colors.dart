@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
 abstract final class AppColors {
-  static const Color primary = YakkuPalette.ink;
+  static const Color primary = YakkuPalette.primary;
   static const Color primaryDark = YakkuPalette.tealSoft;
   static const Color accent = YakkuPalette.coral;
   static const Color success = YakkuPalette.teal;

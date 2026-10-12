@@ -8,7 +8,7 @@ class AnsweredPollsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Answered')),
+      appBar: AppBar(title: const Text('Votes cast'), centerTitle: true),
       body: RemotePollList(
         emptyMessage: 'No polls answered yet',
         errorFallback: 'Could not load answered polls',

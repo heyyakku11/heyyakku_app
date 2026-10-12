@@ -73,6 +73,13 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    // Guest requests have no session to refresh. Surface the 401 instead of
+    // clearing the guest entry and sending the user back to onboarding.
+    if (!_tokenStore.hasAccessToken && !_tokenStore.hasRefreshToken) {
+      handler.next(err);
+      return;
+    }
+
     if (kDebugMode) {
       debugPrint('[AUTH] Access token rejected');
     }

@@ -22,7 +22,6 @@ class _DashboardState extends State<Dashboard> {
   late final PageController _pageController;
   late final List<BottomNavigationBarItem> _navItems;
   bool _notificationPromptStarted = false;
-  bool _notificationsReady = false;
 
   @override
   void initState() {
@@ -43,14 +42,14 @@ class _DashboardState extends State<Dashboard> {
         label: 'Create',
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.inbox_outlined),
-        activeIcon: Icon(Icons.inbox),
-        label: 'Inbox',
+        icon: Icon(Icons.notifications),
+        activeIcon: Icon(Icons.notifications),
+        label: 'Activity',
       ),
       BottomNavigationBarItem(
         icon: Icon(Icons.person_outline_rounded),
         activeIcon: Icon(Icons.person_rounded),
-        label: 'Profile',
+        label: 'You',
       ),
     ];
   }
@@ -92,10 +91,6 @@ class _DashboardState extends State<Dashboard> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) {
-        setState(() => _notificationsReady = true);
-      }
     }
   }
 
@@ -137,10 +132,7 @@ class _DashboardState extends State<Dashboard> {
         physics: const ClampingScrollPhysics(),
         onPageChanged: _onPageChanged,
         children: [
-          HomeScreen(
-            onAskAnything: _openCreateSheet,
-            notificationsReady: _notificationsReady,
-          ),
+          const HomeScreen(),
           const InboxScreen(),
           const ProfileScreen(),
         ],

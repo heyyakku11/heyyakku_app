@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:yakku/core/constants/app_spacing.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
+import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/auth/open_email_login.dart';
 import 'package:yakku/presentation/screens/profile/answered_polls_screen.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
+import 'package:yakku/presentation/screens/profile/my_asks_screen.dart';
 import 'package:yakku/presentation/screens/profile/saved_polls_screen.dart';
-import 'package:yakku/presentation/screens/privacy_policy_screen.dart';
-import 'package:yakku/presentation/widgets/app_switch.dart';
+import 'package:yakku/presentation/screens/profile/settings_screen.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
-import 'package:yakku/presentation/widgets/review_feedback_sheet.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,389 +17,287 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool notificationsEnabled = false;
-  bool _preferencesReady = false;
-  bool _updatingNotifications = false;
-  String? _appVersion;
+  String? _name;
+  String? _email;
+  int _asks = 0;
+  int _votes = 0;
+  AuthController? _authController;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadNotificationPreference();
-      _loadAppVersion();
+      if (!mounted) return;
+      _authController = AppScope.of(context).authController;
+      _authController!.addListener(_onAuthChanged);
+      _loadProfile();
     });
   }
 
-  Future<void> _loadAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
+  @override
+  void dispose() {
+    _authController?.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
     if (!mounted) return;
-    setState(() {
-      _appVersion = info.version;
-    });
-  }
-
-  Future<void> _loadNotificationPreference() async {
-    try {
-      final preferences = await AppScope.of(
-        context,
-      ).notificationPreferences.getPreferences();
-      if (!mounted) return;
+    final loggedIn = AppScope.of(context).authController.isLoggedIn;
+    if (!loggedIn) {
       setState(() {
-        notificationsEnabled = preferences.pushEnabled;
-        _preferencesReady = true;
+        _name = null;
+        _email = null;
+        _asks = 0;
+        _votes = 0;
       });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _preferencesReady = true);
-      _showPreferenceError(
-        error,
-        fallback: 'Could not load notification preference',
-      );
+      return;
     }
+    _loadProfile();
   }
 
-  Future<void> _onNotificationChanged(bool value) async {
-    if (!_preferencesReady || _updatingNotifications) return;
+  Future<void> _loadProfile() async {
+    final scope = AppScope.of(context);
+    if (!scope.authController.isLoggedIn) return;
 
-    final previous = notificationsEnabled;
     setState(() {
-      notificationsEnabled = value;
-      _updatingNotifications = true;
+      _name = _nonEmpty(scope.authController.displayName);
+      _email = _nonEmpty(scope.authController.email);
     });
 
-    final scope = AppScope.of(context);
     try {
-      var enabled = value;
-      if (value) {
-        enabled = await scope.deviceRegistration.applyAllowChoice();
-        if (!mounted) return;
-        if (!enabled) {
-          setState(() => notificationsEnabled = false);
-          _showMessage('Notifications are blocked in system settings');
-        }
-      } else {
-        await scope.deviceRegistration.applySkipChoice();
-        if (!mounted) return;
-      }
+      final me = await scope.userRemote.getMe();
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+      setState(() {
+        final name = _nonEmpty(me.displayName);
+        final email = _nonEmpty(me.email);
+        if (name != null) _name = name;
+        if (email != null) _email = email;
+      });
+    } catch (_) {}
 
-      await scope.notificationPreferences.updatePreferences(
-        UpdateNotificationPreferenceRequest(pushEnabled: enabled),
-      );
-      if (!mounted) return;
-      setState(() => notificationsEnabled = enabled);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => notificationsEnabled = previous);
-      _showPreferenceError(
-        error,
-        fallback: 'Could not update notification preference',
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _updatingNotifications = false);
-      }
+    try {
+      final results = await Future.wait([
+        scope.activityPolls.getCreatedPolls(),
+        scope.activityPolls.getAnsweredPolls(),
+      ]);
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+      setState(() {
+        _asks = results[0].length;
+        _votes = results[1].length;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _openWhenLoggedIn(Widget screen) async {
+    final loggedIn = AppScope.of(context).authController.isLoggedIn;
+    if (!loggedIn) {
+      await openEmailLogin(context);
+      return;
     }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showPreferenceError(Object error, {required String fallback}) {
-    _showMessage(DioErrorMapper.map(error, fallback: fallback).message);
-  }
-
-  Future<void> _logOut() async {
-    final response = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to log out from Yakku?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Logout'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (response != true || !mounted) return;
-
-    await AppScope.of(context).authController.logout();
+    if (!mounted) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (context) => screen));
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = AppScope.of(context).authController;
+    final drafts = AppScope.of(context).draftPolls;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      body: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.screen),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 16,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsetsGeometry.all(10),
-                    child: Column(
-                      spacing: 10,
-                      children: [
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {},
-                              child: CircleAvatar(
-                                radius: 25,
-                                child: Icon(Icons.person),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'yakku@1232',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.normal,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          spacing: 10,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: YakkuPalette.cream,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10.0),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        '10',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Asked',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: YakkuPalette.cream,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10.0),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        '8',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Answered',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: Listenable.merge([auth, drafts]),
+          builder: (context, _) {
+            final loggedIn = auth.isLoggedIn;
+            final displayName = _name ?? _nonEmpty(auth.displayName);
+            final email = _email ?? _nonEmpty(auth.email);
+            final name = loggedIn ? (displayName ?? 'You') : 'Guest';
+            final initial = _initial(loggedIn ? displayName : 'G');
+
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      onPressed: () =>
+                          _openWhenLoggedIn(const SettingsScreen()),
+                      icon: const Icon(Icons.settings_outlined),
                     ),
                   ),
-                ),
-
-                Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      ProfileOptionTile(
-                        icon: Icons.card_membership,
-                        iconColor: Colors.black87,
-                        label: 'Your Draft',
-                        showDivider: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const DraftScreen(),
-                            ),
-                          );
-                        },
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: const Color(0xFFF4A8C4),
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: Color(0xFF21191D),
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
                       ),
-                      ProfileOptionTile(
-                        icon: Icons.bookmark_border,
-                        iconColor: Colors.black87,
-                        label: 'Saved',
-                        showDivider: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SavedPollsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      ProfileOptionTile(
-                        icon: Icons.check_circle_outline,
-                        iconColor: Colors.black87,
-                        label: 'Answered',
-                        showDivider: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const AnsweredPollsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      ProfileOptionTile(
-                        icon: Icons.notifications_active_outlined,
-                        label: 'Notification',
-                        showChevron: false,
-                        trailing: AppSwitch(
-                          value: notificationsEnabled,
-                          onChanged:
-                              _preferencesReady && !_updatingNotifications
-                              ? _onNotificationChanged
-                              : null,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-
-                Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
+                  const SizedBox(height: 14),
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (loggedIn && email != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (!loggedIn) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () => openEmailLogin(context),
+                        child: const Text('Log in'),
+                      ),
+                    ),
+                  ],
+                  if (loggedIn) ...[
+                    const SizedBox(height: 18),
+                    _StatsCard(asks: _asks, votes: _votes),
+                  ],
+                  const SizedBox(height: 16),
+                  Material(
+                    color: theme.cardTheme.color ?? Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
                         ProfileOptionTile(
-                          icon: Icons.policy_outlined,
-                          label: 'Privacy Policy',
+                          icon: Icons.format_list_bulleted,
+                          label: 'My asks',
+                          showDivider: true,
+                          onTap: () => _openWhenLoggedIn(const MyAsksScreen()),
+                        ),
+                        ProfileOptionTile(
+                          icon: Icons.check,
+                          label: 'Votes cast',
+                          showDivider: true,
+                          onTap: () =>
+                              _openWhenLoggedIn(const AnsweredPollsScreen()),
+                        ),
+                        ProfileOptionTile(
+                          icon: Icons.edit_outlined,
+                          label: 'Drafts',
+                          badgeCount: drafts.drafts.length,
                           showDivider: true,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const PrivacyPolicyScreen(),
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (context) => const DraftScreen(),
                               ),
                             );
                           },
                         ),
                         ProfileOptionTile(
-                          icon: Icons.star_border,
-                          label: 'Review & Feedback',
-                          showChevron: false,
-                          onTap: () => showReviewFeedbackSheet(context),
+                          icon: Icons.bookmark_border,
+                          label: 'Saved',
+                          onTap: () =>
+                              _openWhenLoggedIn(const SavedPollsScreen()),
                         ),
                       ],
                     ),
                   ),
-                ),
-
-                // AppOutlinedButton(label: 'Log out', onPressed: _logOut),
-                OutlinedButton(
-                  onPressed: _logOut,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red.shade700,
-                    backgroundColor: Colors.red.shade100,
-                    side: BorderSide(color: Colors.red.shade300),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: 20,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.logout, size: 20),
-                      SizedBox(width: 10),
-                      Text(
-                        'Log out',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (_appVersion != null) ...[
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Version $_appVersion',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
                 ],
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
+}
+
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.asks, required this.votes});
+
+  final int asks;
+  final int votes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.cardTheme.color ?? Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        child: Row(
+          children: [
+            _Stat(value: '$asks', label: 'Asks'),
+            _Stat(value: '$votes', label: 'Votes'),
+            const _Stat(value: '0', label: 'Day streak'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String? _nonEmpty(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
+}
+
+String _initial(String? name) {
+  final trimmed = name?.trim();
+  if (trimmed == null || trimmed.isEmpty) return 'Y';
+  return trimmed[0].toUpperCase();
 }

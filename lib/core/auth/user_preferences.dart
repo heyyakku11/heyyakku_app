@@ -17,6 +17,14 @@ class UserPreferences {
     await _storage.updateBool(StorageKeys.isUserLogged, value);
   }
 
+  Future<bool> getHasEnteredAsGuest() async {
+    return await _storage.readBool(StorageKeys.hasEnteredAsGuest) ?? false;
+  }
+
+  Future<void> setHasEnteredAsGuest(bool value) async {
+    await _storage.updateBool(StorageKeys.hasEnteredAsGuest, value);
+  }
+
   Future<String?> getEmail() async {
     return _storage.read(StorageKeys.email);
   }
@@ -37,5 +45,6 @@ class UserPreferences {
     await _storage.delete(StorageKeys.email);
     await _storage.delete(StorageKeys.displayName);
     await _storage.updateBool(StorageKeys.isUserLogged, false);
+    await _storage.updateBool(StorageKeys.hasEnteredAsGuest, false);
   }
 }

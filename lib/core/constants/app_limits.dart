@@ -6,6 +6,4 @@ abstract final class AppLimits {
   static const int maxOptionLength = 100;
   static const String somethingElseHint = 'something else';
   static const String somethingElseLabel = 'Something else';
-  static const int minPollExpiryDays = 1;
-  static const int maxPollExpiryDays = 6;
 }

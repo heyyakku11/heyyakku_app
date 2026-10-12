@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/data/models/category/category_response.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
@@ -57,12 +57,8 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
   int? _selectedOptionIndex;
   bool _showOptions = false;
   bool _showExtras = false;
-  int? _expiryDays;
   bool _allowComments = true;
-  final Set<String> _selectedCategoryIds = {};
-  List<CategoryResponse> _categories = const [];
-  bool _loadingCategories = true;
-  String? _categoriesError;
+  int _step = 0;
   Timer? _collapseTimer;
 
   bool get _hasQuestion => _questionController.text.trim().isNotEmpty;
@@ -107,12 +103,10 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     return null;
   }
 
-  bool get _canCreate =>
-      _hasQuestion &&
-      _optionsFilled &&
-      _selectedOptionIndex != null &&
-      !_hasDuplicateOptions &&
-      !_isCreating;
+  bool get _canGoNext =>
+      _hasQuestion && _optionsFilled && !_hasDuplicateOptions && !_isCreating;
+
+  bool get _canCreate => _canGoNext && _selectedOptionIndex != null;
 
   bool get _hasSavableContent {
     if (_questionController.text.trim().isNotEmpty) return true;
@@ -121,9 +115,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     )) {
       return true;
     }
-    if (_expiryDays != null) return true;
     if (!_allowComments) return true;
-    if (_selectedCategoryIds.isNotEmpty) return true;
     return false;
   }
 
@@ -133,9 +125,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     final draft = widget.draft;
     if (draft != null) {
       _questionController.text = draft.question;
-      _expiryDays = _expiryFromDraft(draft.expiryDays);
       _allowComments = draft.allowComments;
-      _selectedCategoryIds.addAll(draft.categoryIds);
     }
 
     final optionTexts = draft?.options ?? const <String>[];
@@ -150,41 +140,10 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _loadCategories();
       if (draft == null) {
         _questionFocus.requestFocus();
       }
     });
-  }
-
-  Future<void> _loadCategories() async {
-    setState(() {
-      _loadingCategories = true;
-      _categoriesError = null;
-    });
-    try {
-      final items = await AppScope.of(context).categories.getCategories();
-      if (!mounted) return;
-      final active = items
-          .where((category) => category.isActive && category.id.isNotEmpty)
-          .toList(growable: false);
-      setState(() {
-        _categories = active;
-        _loadingCategories = false;
-        _selectedCategoryIds.removeWhere(
-          (id) => active.every((category) => category.id != id),
-        );
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _loadingCategories = false;
-        _categoriesError = DioErrorMapper.map(
-          error,
-          fallback: 'Could not load categories',
-        ).message;
-      });
-    }
   }
 
   @override
@@ -205,12 +164,6 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     if (filled <= AppLimits.minOptions) return AppLimits.minOptions;
     if (filled >= AppLimits.maxOptions) return AppLimits.maxOptions;
     return filled;
-  }
-
-  int? _expiryFromDraft(int days) {
-    if (days <= 0) return null;
-    if (days > AppLimits.maxPollExpiryDays) return AppLimits.maxPollExpiryDays;
-    return days;
   }
 
   Future<void> _onClose() async {
@@ -247,9 +200,9 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
             .map((controller) => controller.text.trim())
             .where((option) => option.isNotEmpty)
             .toList(growable: false),
-        expiryDays: _expiryDays ?? 0,
+        expiryDays: 0,
         allowComments: _allowComments,
-        categoryIds: _selectedCategoryIds.toList(growable: false),
+        categoryIds: const [],
       );
     }
     if (!mounted) return;
@@ -390,10 +343,21 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     setState(() {
       _showOptions = false;
       _showExtras = false;
-      _expiryDays = null;
       _allowComments = true;
-      _selectedCategoryIds.clear();
+      _step = 0;
     });
+  }
+
+  void _goToOpinion() {
+    if (!_canGoNext) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _step = 1);
+  }
+
+  void _backToForm() {
+    if (_isCreating) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _step = 0);
   }
 
   Future<void> _onCreate() async {
@@ -434,9 +398,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
       question: question,
       options: options,
       selectedOptionIndex: selectedIndex,
-      expiryDays: _expiryDays,
       allowComments: _allowComments,
-      categoryIds: _selectedCategoryIds.toList(growable: false),
     );
   }
 
@@ -444,9 +406,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    required int? expiryDays,
     required bool allowComments,
-    required List<String> categoryIds,
   }) async {
     if (_isCreating) return;
 
@@ -471,25 +431,14 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
         question: question,
         options: filled,
         selectedOptionIndex: apiSelectedIndex,
-        expiresIn: expiryDays == null ? null : Duration(days: expiryDays),
         allowComments: allowComments,
-        categoryIds: categoryIds,
       );
       if (!mounted) return;
-      final categoryNames = [
-        for (final category in _categories)
-          if (categoryIds.contains(category.id) &&
-              category.name.trim().isNotEmpty)
-            category.name.trim(),
-      ];
       setState(() => _isCreating = false);
       _resetForm();
       await Navigator.of(context, rootNavigator: true).push<void>(
         MaterialPageRoute<void>(
-          builder: (context) => CreatedPollScreen(
-            poll: poll,
-            categories: categoryNames,
-          ),
+          builder: (context) => CreatedPollScreen(poll: poll),
         ),
       );
     } catch (error) {
@@ -517,7 +466,7 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: BorderSide(color: colors.secondary, width: 1.5),
+          borderSide: const BorderSide(color: YakkuPalette.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -535,6 +484,10 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || _isClosing) return;
+        if (_step == 1) {
+          _backToForm();
+          return;
+        }
         _onClose();
       },
       child: Theme(
@@ -564,13 +517,26 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
                         ),
                         child: Row(
                           children: [
-                            _CloseButton(onPressed: () => _onClose()),
+                            _step == 0
+                                ? _CloseButton(onPressed: () => _onClose())
+                                : _CloseButton(
+                                    icon: Icons.arrow_back,
+                                    onPressed: _backToForm,
+                                  ),
                             const Spacer(),
-                            _CreateButton(
-                              enabled: _canCreate,
-                              isLoading: _isCreating,
-                              onPressed: _onCreate,
-                            ),
+                            _step == 0
+                                ? _CreateButton(
+                                    label: 'Next',
+                                    enabled: _canGoNext,
+                                    isLoading: false,
+                                    onPressed: _goToOpinion,
+                                  )
+                                : _CreateButton(
+                                    label: 'Create',
+                                    enabled: _canCreate,
+                                    isLoading: _isCreating,
+                                    onPressed: _onCreate,
+                                  ),
                           ],
                         ),
                       ),
@@ -584,159 +550,133 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
                             AppSpacing.screen,
                             AppSpacing.lg,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppTextField(
-                                controller: _questionController,
-                                focusNode: _questionFocus,
-                                hintText: "What's on your mind?",
-                                maxLines: 4,
-                                maxLength: AppLimits.maxQuestionLength,
-                                showCounter: true,
-                                keyboardType: TextInputType.text,
-                                textInputAction: TextInputAction.next,
-                                style: textTheme.titleLarge?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  height: 1.35,
-                                ),
-                                onChanged: (_) => _onQuestionChanged(),
-                              ),
-                              _SlideReveal(
-                                visible: _showOptions,
-                                duration: _revealDuration,
-                                curve: _revealCurve,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: AppSpacing.lg,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      for (
-                                        var i = 0;
-                                        i < _optionControllers.length;
-                                        i++
-                                      )
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: AppSpacing.md,
-                                          ),
-                                          child: _OptionTile(
-                                            index: i,
-                                            controller: _optionControllers[i],
-                                            focusNode: _optionFocusNodes[i],
-                                            errorText: _duplicateErrorFor(i),
-                                            onChanged: (_) =>
-                                                _onOptionChanged(),
-                                            onRemove: i >= AppLimits.minOptions
-                                                ? () => _removeOption(i)
-                                                : null,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              _SlideReveal(
-                                visible: _showExtras,
-                                duration: _revealDuration,
-                                curve: _revealCurve,
-                                child: Column(
+                          child: _step == 0
+                              ? Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (_optionControllers.length <
-                                        AppLimits.maxOptions)
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: OutlinedButton.icon(
-                                          onPressed: _addOption,
-                                          icon: const Icon(Icons.add),
-                                          label: Text(
-                                            'Add another option',
-                                            style: textTheme.titleMedium
-                                                ?.copyWith(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurface,
+                                    AppTextField(
+                                      controller: _questionController,
+                                      focusNode: _questionFocus,
+                                      hintText: "What's on your mind?",
+                                      maxLines: 4,
+                                      maxLength: AppLimits.maxQuestionLength,
+                                      showCounter: true,
+                                      keyboardType: TextInputType.text,
+                                      textInputAction: TextInputAction.next,
+                                      style: textTheme.titleLarge?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                        height: 1.35,
+                                      ),
+                                      onChanged: (_) => _onQuestionChanged(),
+                                    ),
+                                    _SlideReveal(
+                                      visible: _showOptions,
+                                      duration: _revealDuration,
+                                      curve: _revealCurve,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: AppSpacing.lg,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            for (
+                                              var i = 0;
+                                              i < _optionControllers.length;
+                                              i++
+                                            )
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: AppSpacing.md,
                                                 ),
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurface,
-                                            side: BorderSide(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.outline,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 14,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    AppRadii.lg,
+                                                child: _OptionTile(
+                                                  index: i,
+                                                  controller:
+                                                      _optionControllers[i],
+                                                  focusNode:
+                                                      _optionFocusNodes[i],
+                                                  errorText: _duplicateErrorFor(
+                                                    i,
                                                   ),
-                                            ),
-                                          ),
+                                                  onChanged: (_) =>
+                                                      _onOptionChanged(),
+                                                  onRemove:
+                                                      i >= AppLimits.minOptions
+                                                      ? () => _removeOption(i)
+                                                      : null,
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    const _VotersCanAddCard(),
-                                    const SizedBox(height: AppSpacing.md),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: _ExpiryDropdown(
-                                            days: _expiryDays,
-                                            onChanged: (days) => setState(
-                                              () => _expiryDays = days,
+                                    ),
+                                    _SlideReveal(
+                                      visible: _showExtras,
+                                      duration: _revealDuration,
+                                      curve: _revealCurve,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (_optionControllers.length <
+                                              AppLimits.maxOptions)
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: OutlinedButton.icon(
+                                                onPressed: _addOption,
+                                                icon: const Icon(Icons.add),
+                                                label: Text(
+                                                  'Add another option',
+                                                  style: textTheme.titleMedium
+                                                      ?.copyWith(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.onSurface,
+                                                      ),
+                                                ),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
+                                                  side: BorderSide(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.outline,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 14,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          AppRadii.lg,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: AppSpacing.md),
-                                        Expanded(
-                                          child: _AllowCommentsToggle(
+                                          const SizedBox(height: AppSpacing.md),
+                                          const _VotersCanAddCard(),
+                                          const SizedBox(height: AppSpacing.md),
+                                          _AllowCommentsToggle(
                                             value: _allowComments,
                                             onChanged: (value) => setState(
                                               () => _allowComments = value,
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    _CategoryPicker(
-                                      categories: _categories,
-                                      selectedIds: _selectedCategoryIds,
-                                      isLoading: _loadingCategories,
-                                      error: _categoriesError,
-                                      onToggle: (id) {
-                                        setState(() {
-                                          if (!_selectedCategoryIds.add(id)) {
-                                            _selectedCategoryIds.remove(id);
-                                          }
-                                        });
-                                      },
-                                      onRetry: _loadCategories,
-                                    ),
-                                    const SizedBox(height: AppSpacing.lg),
-                                    if (_filledOptions.length >=
-                                        AppLimits.minOptions)
-                                      _OpinionGrid(
-                                        options: _filledOptions,
-                                        selectedIndex: _selectedOptionIndex,
-                                        onSelected: _selectOpinion,
+                                        ],
                                       ),
+                                    ),
                                   ],
+                                )
+                              : _OpinionStep(
+                                  question: _questionController.text.trim(),
+                                  options: _filledOptions,
+                                  selectedIndex: _selectedOptionIndex,
+                                  onSelected: _selectOpinion,
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ],
@@ -752,9 +692,10 @@ class _CreatePollSheetState extends State<CreatePollSheet> {
 }
 
 class _CloseButton extends StatelessWidget {
-  const _CloseButton({required this.onPressed});
+  const _CloseButton({required this.onPressed, this.icon = Icons.close});
 
   final VoidCallback onPressed;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -770,7 +711,7 @@ class _CloseButton extends StatelessWidget {
           width: 40,
           height: 40,
           child: Icon(
-            Icons.close,
+            icon,
             size: 20,
             color: Theme.of(context).colorScheme.onSurface,
           ),
@@ -782,11 +723,13 @@ class _CloseButton extends StatelessWidget {
 
 class _CreateButton extends StatelessWidget {
   const _CreateButton({
+    required this.label,
     required this.enabled,
     required this.isLoading,
     required this.onPressed,
   });
 
+  final String label;
   final bool enabled;
   final bool isLoading;
   final VoidCallback onPressed;
@@ -800,14 +743,10 @@ class _CreateButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: enabled ? onPressed : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-          foregroundColor: Theme.of(context).colorScheme.onSecondary,
-          disabledBackgroundColor: Theme.of(
-            context,
-          ).colorScheme.secondary.withValues(alpha: 0.5),
-          disabledForegroundColor: Theme.of(
-            context,
-          ).colorScheme.onSecondary.withValues(alpha: 0.5),
+          backgroundColor: YakkuPalette.primary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: YakkuPalette.primary.withValues(alpha: 0.4),
+          disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           minimumSize: const Size(0, 40),
@@ -817,18 +756,20 @@ class _CreateButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Theme.of(context).colorScheme.onSecondary,
+                  color: Colors.white,
                 ),
               )
             : Text(
-                'Create',
+                label,
                 style: textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSecondary,
+                  color: enabled
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
@@ -950,194 +891,6 @@ class _VotersCanAddCard extends StatelessWidget {
   }
 }
 
-class _ExpiryDropdown extends StatelessWidget {
-  const _ExpiryDropdown({required this.days, required this.onChanged});
-
-  final int? days;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final labelStyle = textTheme.titleMedium?.copyWith(
-      color: Theme.of(context).colorScheme.onSurface,
-      fontWeight: FontWeight.w700,
-      fontSize: 14,
-    );
-    final labels = [
-      'No expiry',
-      for (var day = 1; day <= AppLimits.maxPollExpiryDays; day++)
-        day == 1 ? '1 day' : '$day days',
-    ];
-    return _SettingCard(
-      child: Row(
-        children: [
-          Icon(
-            Icons.schedule,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                value: days ?? 0,
-                isDense: true,
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                style: labelStyle,
-                selectedItemBuilder: (context) => [
-                  for (final label in labels)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: labelStyle,
-                      ),
-                    ),
-                ],
-                items: [
-                  for (var i = 0; i < labels.length; i++)
-                    DropdownMenuItem(value: i, child: Text(labels[i])),
-                ],
-                onChanged: (value) =>
-                    onChanged(value == null || value == 0 ? null : value),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryPicker extends StatelessWidget {
-  const _CategoryPicker({
-    required this.categories,
-    required this.selectedIds,
-    required this.isLoading,
-    required this.error,
-    required this.onToggle,
-    required this.onRetry,
-  });
-
-  final List<CategoryResponse> categories;
-  final Set<String> selectedIds;
-  final bool isLoading;
-  final String? error;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return _SettingCard(
-      child: Row(
-        children: [
-          Icon(
-            Icons.sell_outlined,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _buildOptions(context, textTheme)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptions(BuildContext context, TextTheme textTheme) {
-    if (isLoading) {
-      return const Align(
-        alignment: Alignment.centerRight,
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-
-    if (error != null) {
-      return Row(
-        children: [
-          Expanded(
-            child: Text(
-              error!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      );
-    }
-
-    if (categories.isEmpty) {
-      return Text(
-        'No categories available',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Categories',
-                style: textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-            );
-          }
-          final category = categories[index - 1];
-          final selected = selectedIds.contains(category.id);
-          return FilterChip(
-            label: Text(category.name),
-            selected: selected,
-            showCheckmark: false,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            selectedColor: Theme.of(
-              context,
-            ).colorScheme.secondary.withValues(alpha: 0.18),
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            side: BorderSide(
-              color: selected
-                  ? Theme.of(context).colorScheme.secondary
-                  : Theme.of(context).colorScheme.outline,
-            ),
-            labelStyle: textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-            onSelected: (_) => onToggle(category.id),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _AllowCommentsToggle extends StatelessWidget {
   const _AllowCommentsToggle({required this.value, required this.onChanged});
 
@@ -1171,13 +924,13 @@ class _AllowCommentsToggle extends StatelessWidget {
               switchTheme: SwitchThemeData(
                 thumbColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return Theme.of(context).colorScheme.onSecondary;
+                    return Colors.white;
                   }
                   return Theme.of(context).colorScheme.surface;
                 }),
                 trackColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return Theme.of(context).colorScheme.secondary;
+                    return YakkuPalette.primary;
                   }
                   return Theme.of(context).colorScheme.outline;
                 }),
@@ -1214,46 +967,83 @@ class _SettingCard extends StatelessWidget {
   }
 }
 
-class _OpinionGrid extends StatelessWidget {
-  const _OpinionGrid({
+class _OpinionStep extends StatelessWidget {
+  const _OpinionStep({
+    required this.question,
     required this.options,
     required this.selectedIndex,
     required this.onSelected,
   });
 
+  final String question;
   final List<({int index, String text})> options;
   final int? selectedIndex;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'What\'s your opinion?',
-          style: textTheme.titleMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
+          'Your question',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: YakkuPalette.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 6),
+        Text(
+          question,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: YakkuPalette.textPrimary,
+            fontWeight: FontWeight.w800,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          "What's your answer?",
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: YakkuPalette.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (var i = 0; i < options.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _OpinionChoice(
-                  letter: String.fromCharCode(65 + i),
-                  selected: selectedIndex == options[i].index,
-                  onTap: () => onSelected(options[i].index),
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.lock_outline,
+                size: 16,
+                color: YakkuPalette.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Hidden until 5 friends answer. Then see yours vs theirs.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: YakkuPalette.textSecondary,
+                  height: 1.35,
                 ),
               ),
-            ],
+            ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+        for (var i = 0; i < options.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          _OpinionChoice(
+            letter: String.fromCharCode(65 + i),
+            label: options[i].text,
+            selected: selectedIndex == options[i].index,
+            onTap: () => onSelected(options[i].index),
+          ),
+        ],
       ],
     );
   }
@@ -1262,50 +1052,71 @@ class _OpinionGrid extends StatelessWidget {
 class _OpinionChoice extends StatelessWidget {
   const _OpinionChoice({
     required this.letter,
+    required this.label,
     required this.selected,
     required this.onTap,
   });
 
   final String letter;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final borderColor = selected
+        ? YakkuPalette.primary
+        : theme.colorScheme.outline;
     return Material(
       color: selected
-          ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12)
-          : Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppRadii.md),
+          ? YakkuPalette.primary.withValues(alpha: 0.08)
+          : theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+            vertical: 14,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(
-              color: selected
-                  ? Theme.of(context).colorScheme.secondary
-                  : Theme.of(context).colorScheme.outline,
-              width: selected ? 2 : 1,
-            ),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: borderColor, width: selected ? 1.5 : 1),
           ),
-          alignment: Alignment.center,
-          child: Text(
-            'Option $letter',
-            style: textTheme.labelMedium?.copyWith(
-              color: selected
-                  ? Theme.of(context).colorScheme.secondary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected
+                      ? YakkuPalette.primary.withValues(alpha: 0.12)
+                      : const Color(0xFFF8D3E0),
+                ),
+                child: Text(
+                  letter,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: YakkuPalette.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: YakkuPalette.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

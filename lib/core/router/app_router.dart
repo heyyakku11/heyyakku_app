@@ -11,27 +11,19 @@ import 'package:yakku/presentation/screens/view_poll_screen.dart';
 abstract final class AppRouter {
   static GoRouter create(AuthController authController) {
     return GoRouter(
-      initialLocation: authController.isLoggedIn
+      initialLocation: authController.canEnterApp
           ? AppRoutes.main
           : AppRoutes.onboarding,
       refreshListenable: authController,
       redirect: (context, state) {
-        final loggedIn = authController.isLoggedIn;
+        final canEnter = authController.canEnterApp;
         final onOnboarding = state.matchedLocation == AppRoutes.onboarding;
-        final location = state.matchedLocation;
-        final isPollFlow =
-            location == AppRoutes.pollAnswer ||
-            location == AppRoutes.pollResults ||
-            location == AppRoutes.pollView;
 
-        if (!loggedIn && !onOnboarding) {
+        if (!canEnter && !onOnboarding) {
           return AppRoutes.onboarding;
         }
-        if (loggedIn && onOnboarding) {
+        if (canEnter && onOnboarding) {
           return AppRoutes.main;
-        }
-        if (!loggedIn && isPollFlow) {
-          return AppRoutes.onboarding;
         }
         return null;
       },

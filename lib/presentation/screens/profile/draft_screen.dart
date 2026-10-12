@@ -33,7 +33,7 @@ class DraftScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Draft')),
+      appBar: AppBar(title: const Text('Drafts'), centerTitle: true),
       body: ListenableBuilder(
         listenable: store,
         builder: (context, _) {

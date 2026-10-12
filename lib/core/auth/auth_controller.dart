@@ -17,6 +17,7 @@ class AuthController extends ChangeNotifier {
     required AuthRemoteDataSource authRemote,
     this._draftPolls,
     bool isUserLogged = false,
+    this._hasEnteredAsGuest = false,
     String? this._email,
     String? this._displayName,
   }) : _tokenStore = tokenStore,
@@ -29,12 +30,22 @@ class AuthController extends ChangeNotifier {
   final DraftPollStore? _draftPolls;
 
   bool _isLoggedIn;
+  bool _hasEnteredAsGuest;
   String? _email;
   String? _displayName;
 
   bool get isLoggedIn => _isLoggedIn;
+  bool get hasEnteredAsGuest => _hasEnteredAsGuest;
+  bool get canEnterApp => _isLoggedIn || _hasEnteredAsGuest;
   String? get email => _email;
   String? get displayName => _displayName;
+
+  Future<void> enterAsGuest() async {
+    if (_hasEnteredAsGuest) return;
+    await userPreferences.setHasEnteredAsGuest(true);
+    _hasEnteredAsGuest = true;
+    notifyListeners();
+  }
 
   Future<SendOtpData> sendOtp(String email) {
     return _authRemote.sendOtp(SendOtpRequestModel(email: email));
@@ -100,6 +111,7 @@ class AuthController extends ChangeNotifier {
     await userPreferences.clearAuth();
 
     _isLoggedIn = false;
+    _hasEnteredAsGuest = false;
     _email = null;
     _displayName = null;
     notifyListeners();
@@ -115,10 +127,12 @@ class AuthController extends ChangeNotifier {
 
     final isUserLogged = await userPreferences.getIsUserLogged();
     final hasTokens = tokenStore.hasSessionTokens;
+    final hasEnteredAsGuest = await userPreferences.getHasEnteredAsGuest();
 
     if (isUserLogged && hasTokens) {
       return AuthSessionBootstrap(
         isUserLogged: true,
+        hasEnteredAsGuest: hasEnteredAsGuest,
         email: await userPreferences.getEmail(),
         displayName: await userPreferences.getDisplayName(),
       );
@@ -129,20 +143,26 @@ class AuthController extends ChangeNotifier {
         tokenStore.hasRefreshToken) {
       await tokenStore.clear();
       await userPreferences.clearAuth();
+      return const AuthSessionBootstrap(isUserLogged: false);
     }
 
-    return const AuthSessionBootstrap(isUserLogged: false);
+    return AuthSessionBootstrap(
+      isUserLogged: false,
+      hasEnteredAsGuest: hasEnteredAsGuest,
+    );
   }
 }
 
 class AuthSessionBootstrap {
   const AuthSessionBootstrap({
     required this.isUserLogged,
+    this.hasEnteredAsGuest = false,
     this.email,
     this.displayName,
   });
 
   final bool isUserLogged;
+  final bool hasEnteredAsGuest;
   final String? email;
   final String? displayName;
 }

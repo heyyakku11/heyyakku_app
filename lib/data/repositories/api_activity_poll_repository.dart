@@ -68,6 +68,7 @@ class ApiActivityPollRepository implements ActivityPollRepository {
       status: _mapStatus(poll.status),
       options: List<PollOptionModel>.unmodifiable(options),
       totalVoteCount: poll.totalVoteCount,
+      expiresAt: poll.expiresAt,
     );
   }
 

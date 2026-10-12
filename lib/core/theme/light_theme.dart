@@ -4,7 +4,7 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 
 ThemeData buildLightTheme() {
   final colorScheme = ColorScheme.light(
-    primary: YakkuPalette.ink,
+    primary: YakkuPalette.primary,
     onPrimary: Colors.white,
     secondary: YakkuPalette.coral,
     onSecondary: Colors.white,
@@ -50,7 +50,7 @@ ThemeData buildLightTheme() {
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: YakkuPalette.cream,
-      selectedItemColor: YakkuPalette.ink,
+      selectedItemColor: YakkuPalette.primary,
       unselectedItemColor: YakkuPalette.muted,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
@@ -74,12 +74,12 @@ ThemeData buildLightTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
-        borderSide: const BorderSide(color: YakkuPalette.ink, width: 1.5),
+        borderSide: const BorderSide(color: YakkuPalette.primary, width: 1.5),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: YakkuPalette.ink,
+        backgroundColor: YakkuPalette.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         minimumSize: const Size.fromHeight(52),

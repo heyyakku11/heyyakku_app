@@ -19,7 +19,7 @@ enum _PollDetailTab { summary, whys, somethingElse }
 const _optionAccents = <Color>[
   YakkuPalette.coral,
   YakkuPalette.teal,
-  YakkuPalette.ink,
+  YakkuPalette.primary,
   YakkuPalette.tealSoft,
 ];
 

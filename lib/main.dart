@@ -23,13 +23,9 @@ import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/activity_poll_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source_impl.dart';
-import 'package:yakku/data/datasources/category_remote_data_source.dart';
-import 'package:yakku/data/datasources/category_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/device_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source_impl.dart';
-import 'package:yakku/data/datasources/notification_remote_data_source.dart';
-import 'package:yakku/data/datasources/notification_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source_impl.dart';
@@ -67,6 +63,7 @@ Future<void> main() async {
   runApp(
     MyApp(
       isUserLogged: session.isUserLogged,
+      hasEnteredAsGuest: session.hasEnteredAsGuest,
       email: session.email,
       displayName: session.displayName,
       userPreferences: userPreferences,
@@ -82,13 +79,13 @@ class MyApp extends StatefulWidget {
   const MyApp({
     super.key,
     this.isUserLogged = false,
+    this.hasEnteredAsGuest = false,
     this.email,
     this.displayName,
     this.authRemoteDataSource,
     this.pollApiRepository,
     this.activityPollRepository,
     this.userRemoteDataSource,
-    this.notificationRemoteDataSource,
     this.userPreferences,
     this.preferenceStorage,
     this.secureStorage,
@@ -99,13 +96,13 @@ class MyApp extends StatefulWidget {
   });
 
   final bool isUserLogged;
+  final bool hasEnteredAsGuest;
   final String? email;
   final String? displayName;
   final AuthRemoteDataSource? authRemoteDataSource;
   final PollApiRepository? pollApiRepository;
   final ActivityPollRepository? activityPollRepository;
   final UserRemoteDataSource? userRemoteDataSource;
-  final NotificationRemoteDataSource? notificationRemoteDataSource;
   final UserPreferences? userPreferences;
   final PreferenceStorageService? preferenceStorage;
   final SecureStorageService? secureStorage;
@@ -125,9 +122,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final PollApiRepository _pollApi;
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
-  late final NotificationRemoteDataSource _notifications;
   late final NotificationPreferenceRemoteDataSource _notificationPreferences;
-  late final CategoryRemoteDataSource _categories;
   late final DeviceRegistrationService _deviceRegistration;
   late final GoRouter _router;
   late final InternetCubit _internetCubit;
@@ -162,6 +157,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       authRemote: authRemote,
       draftPolls: widget.draftPolls,
       isUserLogged: widget.isUserLogged,
+      hasEnteredAsGuest: widget.hasEnteredAsGuest,
       email: widget.email,
       displayName: widget.displayName,
     );
@@ -186,14 +182,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         widget.userRemoteDataSource ??
         UserRemoteDataSourceImpl(authenticatedDio);
 
-    _notifications =
-        widget.notificationRemoteDataSource ??
-        NotificationRemoteDataSourceImpl(authenticatedDio);
-
     _notificationPreferences = NotificationPreferenceRemoteDataSourceImpl(
       authenticatedDio,
     );
-    _categories = CategoryRemoteDataSourceImpl(ApiClient.create());
 
     _deviceRegistration =
         widget.deviceRegistrationService ??
@@ -246,9 +237,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         pollApi: _pollApi,
         activityPolls: _activityPolls,
         userRemote: _userRemote,
-        notifications: _notifications,
         notificationPreferences: _notificationPreferences,
-        categories: _categories,
         deviceRegistration: _deviceRegistration,
         draftPolls: widget.draftPolls,
         child: ListenableBuilder(

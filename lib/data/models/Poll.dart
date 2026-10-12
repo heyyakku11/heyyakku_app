@@ -13,6 +13,7 @@ class PollModel {
   final List<PollOptionModel> options;
   final int totalVoteCount;
   final List<PollWhy> whys;
+  final DateTime? expiresAt;
 
   const PollModel({
     required this.id,
@@ -24,6 +25,7 @@ class PollModel {
     required this.options,
     this.totalVoteCount = 0,
     this.whys = const [],
+    this.expiresAt,
   });
 
   int get totalWhyCount => whys.length;
@@ -68,6 +70,7 @@ class PollModel {
       options: List<PollOptionModel>.unmodifiable(options),
       totalVoteCount: _asInt(json['totalVoteCount']),
       whys: List<PollWhy>.unmodifiable(PollWhy.listFromJson(json['whys'])),
+      expiresAt: _parseDate(json['expiresAt']),
     );
   }
 
@@ -99,6 +102,11 @@ bool _asBool(dynamic value, {bool fallback = false}) {
     }
   }
   return fallback;
+}
+
+DateTime? _parseDate(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 String? _asNullableString(dynamic value) {

@@ -15,7 +15,7 @@ class SavedPollsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saved')),
+      appBar: AppBar(title: const Text('Saved'), centerTitle: true),
       body: RemotePollList(
         emptyMessage: 'No saved polls yet',
         errorFallback: 'Could not load saved polls',

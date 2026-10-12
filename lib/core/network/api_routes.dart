@@ -35,16 +35,7 @@ abstract final class ApiRoutes {
 
   static String savePoll(String pollId) => '/api/v1/users/save-poll/$pollId';
 
-  // Notifications
-  static const String notifications = '/api/v1/users/notifications';
-
-  static String markNotificationRead(String id) =>
-      '/api/v1/users/notifications/$id/read';
-
   // Notification preferences
   static const String notificationPreferences =
       '/api/v1/notification-preferences';
-
-  // Categories (public; no auth header)
-  static const String categories = '/api/v1/yakku/categories';
 }
