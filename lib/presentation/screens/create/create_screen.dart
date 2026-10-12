@@ -553,6 +553,11 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final ready = _canCreate;
+    // Extra gap above the sheet so the close control clears the status bar.
+    const extraTopGap = 24.0;
+    final topPadding = media.viewPadding.top + extraTopGap;
+    final bottomInset = media.viewInsets.bottom;
+    final sheetHeight = media.size.height - topPadding - bottomInset;
 
     return PopScope(
       canPop: _allowPop,
@@ -564,9 +569,9 @@ class _CreatePollSheetState extends State<CreatePollSheet>
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: Padding(
-          padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+          padding: EdgeInsets.only(top: topPadding, bottom: bottomInset),
           child: SizedBox(
-            height: media.size.height - media.viewInsets.bottom,
+            height: sheetHeight,
             child: AnimatedBuilder(
               animation: _screenShakeController,
               builder: (context, child) {
@@ -581,12 +586,13 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: SafeArea(
+                  top: false,
                   child: Column(
                     children: [
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                           AppSpacing.screen,
-                          20,
+                          12,
                           AppSpacing.screen,
                           AppSpacing.sm,
                         ),
@@ -1164,12 +1170,14 @@ class _OptionRowState extends State<_OptionRow>
     final textTheme = Theme.of(context).textTheme;
     final focused = widget.focusNode.hasFocus;
     final selected = widget.selected;
+    const ink = Color(0xFF1B1418);
     final borderColor = selected
-        ? Colors.transparent
+        ? ink
         : focused
             ? YakkuPalette.primary
             : const Color(0xFFE5DCDF);
-    final fill = selected ? const Color(0xFF1C1A1B) : Colors.white;
+    final fill = selected ? ink : Colors.white;
+    final shadowColor = selected ? YakkuPalette.primary : ink;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1191,8 +1199,19 @@ class _OptionRowState extends State<_OptionRow>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: borderColor,
-                width: focused && !selected ? 1.5 : 1,
+                width: selected
+                    ? 1.6
+                    : (focused ? 1.5 : 1),
               ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: shadowColor,
+                        offset: const Offset(3, 3),
+                        blurRadius: 0,
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               children: [
