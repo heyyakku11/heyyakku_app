@@ -8,6 +8,9 @@ const _sheetShape = RoundedRectangleBorder(
 );
 
 /// Mobile (+91) then OTP sheets used by Activity, You tab, and guest login.
+///
+/// Credentials sheet enqueues send-OTP on the background worker and returns
+/// immediately; [OtpBottomSheet] observes the in-flight send.
 Future<void> openMobileLogin(BuildContext context) async {
   final sent = await showModalBottomSheet<MobileLoginResult>(
     context: context,
@@ -29,7 +32,6 @@ Future<void> openMobileLogin(BuildContext context) async {
       return OtpBottomSheet(
         phone: sent.phone,
         firstName: sent.firstName,
-        expiresInMinutes: sent.expiresInMinutes,
       );
     },
   );

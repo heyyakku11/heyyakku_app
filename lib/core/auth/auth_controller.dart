@@ -6,7 +6,6 @@ import 'package:yakku/core/auth/user_preferences.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
-import 'package:yakku/data/models/auth/resend_otp_request_model.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
@@ -59,12 +58,6 @@ class AuthController extends ChangeNotifier {
   Future<SendOtpData> sendOtp(String phoneNumber, {String? name}) {
     return _authRemote.sendOtp(
       SendOtpRequestModel(phoneNumber: phoneNumber, name: name),
-    );
-  }
-
-  Future<SendOtpData> resendOtp(String phoneNumber) {
-    return _authRemote.resendOtp(
-      ResendOtpRequestModel(phoneNumber: phoneNumber),
     );
   }
 

@@ -1,11 +1,9 @@
 abstract final class ApiRoutes {
   // Auth
   static const String sendOtp = '/api/v1/auth/send';
-  static const String resendOtp = '/api/v1/auth/resend';
   static const String verifyOtp = '/api/v1/auth/verify';
   static const String refresh = '/api/v1/auth/refresh';
   static const String logout = '/api/v1/auth/logout';
-  static const String logoutAll = '/api/v1/auth/logout-all';
 
   // Guests
   static const String guests = '/api/v1/guests';
@@ -43,4 +41,16 @@ abstract final class ApiRoutes {
   // Notification preferences
   static const String notificationPreferences =
       '/api/v1/notification-preferences';
+
+  // Media upload sessions
+  static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
+
+  static String mediaUploadSessionById(String sessionId) =>
+      '$mediaUploadSessions/$sessionId';
+
+  static String mediaUploadSessionComplete(String sessionId) =>
+      '$mediaUploadSessions/$sessionId/complete';
+
+  static String mediaUploadSessionCancel(String sessionId) =>
+      '$mediaUploadSessions/$sessionId/cancel';
 }

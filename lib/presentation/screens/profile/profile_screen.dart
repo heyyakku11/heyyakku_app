@@ -114,8 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, _) {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
-            final phoneNumber =
-                _phoneNumber ?? _nonEmpty(auth.phoneNumber);
+            final phoneNumber = _phoneNumber ?? _nonEmpty(auth.phoneNumber);
             final name = displayName ?? 'You';
             final initial = _initial(displayName);
 
@@ -155,17 +154,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    if (phoneNumber != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        phoneNumber,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    // if (phoneNumber != null) ...[
+                    //   const SizedBox(height: 4),
+                    //   Text(
+                    //     phoneNumber,
+                    //     textAlign: TextAlign.center,
+                    //     style: TextStyle(
+                    //       fontSize: 14,
+                    //       color: theme.colorScheme.onSurfaceVariant,
+                    //     ),
+                    //   ),
+                    // ],
                     const SizedBox(height: 18),
                     _StatsCard(asks: _asks, votes: _votes),
                   ] else ...[
@@ -182,8 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.format_list_bulleted,
                           label: 'My asks',
                           showDivider: true,
-                          onTap: () =>
-                              _openWhenLoggedIn(const MyAsksScreen()),
+                          onTap: () => _openWhenLoggedIn(const MyAsksScreen()),
                         ),
                         ProfileOptionTile(
                           icon: Icons.check,

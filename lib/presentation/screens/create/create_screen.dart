@@ -1,15 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
+import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
@@ -76,6 +80,12 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _stopPlaceholder = false;
   Timer? _pickHintTimer;
 
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _photoFile;
+  String? _mediaSessionId;
+  bool _isUploadingPhoto = false;
+  int _mediaSelectionVersion = 0;
+
   late final AnimationController _buttonShakeController;
   late final AnimationController _radioPulseController;
   late final AnimationController _screenShakeController;
@@ -124,9 +134,16 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   }
 
   bool get _formReady =>
-      _hasQuestion && _optionsFilled && !_hasDuplicateOptions && !_isCreating;
+      _hasQuestion &&
+      _optionsFilled &&
+      !_hasDuplicateOptions &&
+      !_isCreating &&
+      !_isUploadingPhoto;
 
-  bool get _canCreate => _formReady && _selectedOptionIndex != null;
+  bool get _canCreate =>
+      _formReady &&
+      _selectedOptionIndex != null &&
+      (_photoFile == null || _mediaSessionId != null);
 
   bool get _hasSavableContent {
     if (_questionController.text.trim().isNotEmpty) return true;
@@ -401,6 +418,111 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       _showPickHint = false;
       _allowComments = true;
       _stopPlaceholder = false;
+      _photoFile = null;
+      _mediaSessionId = null;
+      _isUploadingPhoto = false;
+    });
+  }
+
+  Future<void> _onPhotoChipTap() async {
+    final auth = AppScope.of(context).authController;
+    if (!auth.isLoggedIn) {
+      await openMobileLogin(context);
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+    }
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !mounted) return;
+    await _pickAndUploadPhoto(source);
+  }
+
+  Future<void> _pickAndUploadPhoto(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+      );
+      if (picked == null || !mounted) return;
+
+      final file = File(picked.path);
+      final length = await file.length();
+      if (length > MediaUploadRepository.maxImageBytes) {
+        _showMessage('Photo must be 10 MB or smaller');
+        return;
+      }
+
+      final selectionVersion = ++_mediaSelectionVersion;
+      setState(() {
+        _photoFile = file;
+        _mediaSessionId = null;
+        _isUploadingPhoto = true;
+      });
+
+      final session = await AppScope.of(context).mediaUploads.uploadImageFile(
+        file: file,
+        selectionVersion: selectionVersion,
+        mimeType: picked.mimeType,
+      );
+
+      if (!mounted) return;
+      if (selectionVersion != _mediaSelectionVersion) return;
+
+      setState(() {
+        _mediaSessionId = session.sessionId;
+        _isUploadingPhoto = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isUploadingPhoto = false;
+        if (_mediaSessionId == null) {
+          _photoFile = null;
+        }
+      });
+      _showMessage(
+        DioErrorMapper.map(error, fallback: 'Could not upload photo').message,
+      );
+    }
+  }
+
+  void _clearPhoto() {
+    _mediaSelectionVersion++;
+    setState(() {
+      _photoFile = null;
+      _mediaSessionId = null;
+      _isUploadingPhoto = false;
     });
   }
 
@@ -507,13 +629,28 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       return;
     }
 
+    if (_photoFile != null &&
+        (_mediaSessionId == null || _isUploadingPhoto)) {
+      _showMessage('Wait for the photo to finish uploading');
+      return;
+    }
+
     setState(() => _isCreating = true);
     try {
-      final poll = await AppScope.of(context).pollApi.createTextPoll(
-        question: question,
-        options: filled,
-        selectedOptionIndex: apiSelectedIndex,
-      );
+      final scope = AppScope.of(context);
+      final sessionId = _mediaSessionId;
+      final poll = sessionId == null
+          ? await scope.pollApi.createTextPoll(
+              question: question,
+              options: filled,
+              selectedOptionIndex: apiSelectedIndex,
+            )
+          : await scope.pollApi.createImagePoll(
+              question: question,
+              options: filled,
+              selectedOptionIndex: apiSelectedIndex,
+              mediaUploadSessionId: sessionId,
+            );
       if (!mounted) return;
       setState(() => _isCreating = false);
       _resetForm();
@@ -618,6 +755,10 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                 stopPlaceholder: _stopPlaceholder,
                                 examples: _questionPlaceholderPhrases,
                                 onSubmitted: _moveFocusFromQuestion,
+                                photoFile: _photoFile,
+                                isUploadingPhoto: _isUploadingPhoto,
+                                onPhotoTap: _onPhotoChipTap,
+                                onClearPhoto: _clearPhoto,
                               ),
                               ClipRect(
                                 child: AnimatedSize(
@@ -740,7 +881,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                       ),
                       _AskFooter(
                         ready: ready,
-                        isLoading: _isCreating,
+                        isLoading: _isCreating || _isUploadingPhoto,
                         showPickHint: _showPickHint,
                         showPrivacy: _optionsFilled,
                         picked: _selectedOptionIndex != null,
@@ -783,6 +924,10 @@ class _QuestionCard extends StatelessWidget {
     required this.stopPlaceholder,
     required this.examples,
     required this.onSubmitted,
+    required this.onPhotoTap,
+    required this.onClearPhoto,
+    this.photoFile,
+    this.isUploadingPhoto = false,
   });
 
   final TextEditingController controller;
@@ -790,6 +935,10 @@ class _QuestionCard extends StatelessWidget {
   final bool stopPlaceholder;
   final List<String> examples;
   final VoidCallback onSubmitted;
+  final VoidCallback onPhotoTap;
+  final VoidCallback onClearPhoto;
+  final File? photoFile;
+  final bool isUploadingPhoto;
 
   bool get _nearLimit =>
       controller.text.length >= (AppLimits.maxQuestionLength * 0.85).floor();
@@ -873,14 +1022,70 @@ class _QuestionCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (photoFile != null) ...[
+            const SizedBox(height: 12),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.file(
+                      photoFile!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+                if (isUploadingPhoto)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: isUploadingPhoto ? null : onClearPhoto,
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(Icons.close, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
-          const Wrap(
+          Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _MediaChip(icon: Icons.image_outlined, label: 'Photo'),
-              _MediaChip(icon: Icons.videocam_outlined, label: 'Video'),
-              _MediaChip(icon: Icons.mic_none_rounded, label: 'Voice'),
+              _MediaChip(
+                icon: Icons.image_outlined,
+                label: 'Photo',
+                selected: photoFile != null,
+                onTap: onPhotoTap,
+              ),
+              // Future: Video / Voice media chips.
+              // _MediaChip(icon: Icons.videocam_outlined, label: 'Video'),
+              // _MediaChip(icon: Icons.mic_none_rounded, label: 'Voice'),
             ],
           ),
         ],
@@ -890,21 +1095,31 @@ class _QuestionCard extends StatelessWidget {
 }
 
 class _MediaChip extends StatelessWidget {
-  const _MediaChip({required this.icon, required this.label});
+  const _MediaChip({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.selected = false,
+  });
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
+    final borderColor =
+        selected ? YakkuPalette.primary : Colors.grey.shade300;
     return Material(
-      color: Colors.white,
-      shape: StadiumBorder(
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
+      color: selected ? YakkuPalette.primary.withValues(alpha: 0.08) : Colors.white,
+      shape: StadiumBorder(side: BorderSide(color: borderColor)),
       child: InkWell(
         customBorder: const StadiumBorder(),
-        onTap: () => HapticFeedback.selectionClick(),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap?.call();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(

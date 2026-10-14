@@ -7,7 +7,6 @@ import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
 import 'package:yakku/data/models/auth/refresh_token_request.dart';
-import 'package:yakku/data/models/auth/resend_otp_request_model.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/token_response.dart';
@@ -64,30 +63,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
       rethrow;
     }
-  }
-
-  @override
-  Future<SendOtpData> resendOtp(ResendOtpRequestModel request) async {
-    final response = await dio.post<Map<String, dynamic>>(
-      ApiRoutes.resendOtp,
-      data: request.toJson(),
-    );
-
-    final body = response.data;
-    if (body == null) {
-      throw StateError('Empty resend OTP response');
-    }
-
-    final apiResponse = ApiResponse<SendOtpData>.fromJson(
-      body,
-      (json) => SendOtpData.fromJson(json as Map<String, dynamic>),
-    );
-
-    if (!apiResponse.success || apiResponse.data == null) {
-      throw StateError(apiResponse.message ?? 'Resend OTP failed');
-    }
-
-    return apiResponse.data!;
   }
 
   @override
@@ -173,30 +148,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
     if (!apiResponse.success) {
       throw StateError(apiResponse.message ?? 'Logout failed');
-    }
-  }
-
-  @override
-  Future<void> logoutAll({String? accessToken}) async {
-    final headers = <String, dynamic>{};
-    if (accessToken != null && accessToken.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $accessToken';
-    }
-
-    final response = await dio.post<Map<String, dynamic>>(
-      ApiRoutes.logoutAll,
-      options: Options(headers: headers.isEmpty ? null : headers),
-    );
-
-    final body = response.data;
-    if (body == null) {
-      throw StateError('Empty logout all response');
-    }
-
-    final apiResponse = ApiResponse<void>.fromJson(body, null);
-
-    if (!apiResponse.success) {
-      throw StateError(apiResponse.message ?? 'Logout all failed');
     }
   }
 }

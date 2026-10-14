@@ -1,21 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:yakku/core/auth/otp_error_codes.dart';
 import 'package:yakku/core/network/api_exception.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
+import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
 class OtpBottomSheet extends StatefulWidget {
   final String phone;
   final String firstName;
-  final int expiresInMinutes;
 
   const OtpBottomSheet({
     super.key,
     required this.phone,
     required this.firstName,
-    required this.expiresInMinutes,
   });
 
   @override
@@ -31,6 +32,18 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   bool _isVerifying = false;
+  bool _isWaitingForSend = true;
+  bool _sendFailed = false;
+  int _expiresInMinutes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_awaitPendingSend());
+    });
+  }
 
   @override
   void dispose() {
@@ -43,6 +56,56 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     }
 
     super.dispose();
+  }
+
+  Future<void> _awaitPendingSend() async {
+    final pending = AppScope.of(context).loginAuth.pendingSend;
+    if (pending == null) {
+      if (!mounted) return;
+      setState(() {
+        _isWaitingForSend = false;
+        _sendFailed = false;
+      });
+      return;
+    }
+
+    try {
+      final SendOtpData data = await pending;
+      if (!mounted) return;
+      setState(() {
+        _isWaitingForSend = false;
+        _sendFailed = false;
+        _expiresInMinutes = data.expiresInMinutes;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isWaitingForSend = false;
+        _sendFailed = true;
+      });
+      final message = DioErrorMapper.map(
+        error,
+        fallback: 'Failed to send OTP. Please try again.',
+      ).message;
+      await _showError(message, title: 'Could not send OTP');
+      if (!mounted) return;
+      _closeSheet();
+    }
+  }
+
+  Future<void> _retrySend() async {
+    if (_isWaitingForSend) return;
+    setState(() {
+      _isWaitingForSend = true;
+      _sendFailed = false;
+    });
+
+    final scope = AppScope.of(context);
+    scope.loginAuth.sendOtpInBackground(
+      phone: widget.phone,
+      name: widget.firstName,
+    );
+    await _awaitPendingSend();
   }
 
   void _onOtpChanged(String value, int index) {
@@ -147,7 +210,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
   }
 
   Future<void> _verifyOtp() async {
-    if (!_isOtpComplete || _isVerifying) {
+    if (!_isOtpComplete || _isVerifying || _isWaitingForSend || _sendFailed) {
       return;
     }
 
@@ -177,6 +240,20 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
         });
       }
     }
+  }
+
+  String get _statusText {
+    if (_isWaitingForSend) {
+      return 'Sending a 6-digit verification code to ${widget.phone}…';
+    }
+    if (_sendFailed) {
+      return 'We could not send a code to ${widget.phone}. Try again.';
+    }
+    if (_expiresInMinutes > 0) {
+      return 'We sent a 6-digit verification code to ${widget.phone}. '
+          'This code will expire in $_expiresInMinutes minutes.';
+    }
+    return 'We sent a 6-digit verification code to ${widget.phone}.';
   }
 
   @override
@@ -226,13 +303,18 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
             const SizedBox(height: 10),
 
             Text(
-              'We sent a 6-digit verification code to ${widget.phone}. This code will expire in ${widget.expiresInMinutes} minutes.',
+              _statusText,
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
                 color: Colors.grey.shade600,
               ),
             ),
+
+            if (_isWaitingForSend) ...[
+              const SizedBox(height: 16),
+              const LinearProgressIndicator(minHeight: 2),
+            ],
 
             const SizedBox(height: 28),
 
@@ -249,7 +331,22 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
               child: ListenableBuilder(
                 listenable: Listenable.merge(_controllers),
                 builder: (context, _) {
-                  final canVerify = _isOtpComplete && !_isVerifying;
+                  if (_sendFailed) {
+                    return ElevatedButton(
+                      onPressed: _isWaitingForSend ? null : _retrySend,
+                      child: const Text(
+                        'Resend code',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final canVerify = _isOtpComplete &&
+                      !_isVerifying &&
+                      !_isWaitingForSend;
                   return ElevatedButton(
                     onPressed: canVerify ? _verifyOtp : null,
                     child: _isVerifying
@@ -287,7 +384,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
         child: TextField(
           controller: _controllers[index],
           focusNode: _focusNodes[index],
-          enabled: !_isVerifying,
+          enabled: !_isVerifying && !_isWaitingForSend && !_sendFailed,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: 1,

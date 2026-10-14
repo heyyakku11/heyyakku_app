@@ -5,7 +5,6 @@ import 'package:yakku/data/models/notification/notification_preference_response.
 import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
-import 'package:yakku/presentation/screens/profile/you_settings_store.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,11 +14,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final YouSettingsStore _privacyStore = YouSettingsStore();
-  YouSettings _privacy = YouSettings.defaults;
   NotificationPreferenceResponse _notifications =
       NotificationPreferenceResponse.defaults;
-  bool _privacyReady = false;
   bool _notificationsReady = false;
   bool _updatingNotifications = false;
 
@@ -27,17 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPrivacy();
       _loadNotifications();
-    });
-  }
-
-  Future<void> _loadPrivacy() async {
-    final privacy = await _privacyStore.load();
-    if (!mounted) return;
-    setState(() {
-      _privacy = privacy;
-      _privacyReady = true;
     });
   }
 
@@ -55,11 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _notificationsReady = true);
       _showError(error, fallback: 'Could not load notification preferences');
     }
-  }
-
-  Future<void> _updatePrivacy(YouSettings next) async {
-    setState(() => _privacy = next);
-    await _privacyStore.save(next);
   }
 
   Future<void> _updateNotification(
@@ -186,19 +167,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 22),
             const _SectionLabel('PRIVACY AND SAFETY'),
-            _SwitchRow(
-              title: 'Kind mode',
-              subtitle: 'Only show reasons our filter rates as kind',
-              value: _privacy.kindMode,
-              onChanged: _privacyReady
-                  ? (value) =>
-                        _updatePrivacy(_privacy.copyWith(kindMode: value))
-                  : null,
-            ),
-            const _ChevronRow(
-              title: 'Blocked words',
-              subtitle: 'Reasons with these words never reach you',
-            ),
             const _ChevronRow(title: 'Help and safety'),
             const SizedBox(height: 22),
             const _SectionLabel('ACCOUNT'),

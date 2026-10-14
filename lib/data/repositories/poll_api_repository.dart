@@ -28,8 +28,41 @@ class PollApiRepository {
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    Duration? expiresIn,
     String visibility = 'public',
+  }) {
+    return _createPoll(
+      question: question,
+      options: options,
+      selectedOptionIndex: selectedOptionIndex,
+      contentType: 'question',
+      visibility: visibility,
+    );
+  }
+
+  Future<PollResponse> createImagePoll({
+    required String question,
+    required List<String> options,
+    required int selectedOptionIndex,
+    required String mediaUploadSessionId,
+    String visibility = 'public',
+  }) {
+    return _createPoll(
+      question: question,
+      options: options,
+      selectedOptionIndex: selectedOptionIndex,
+      contentType: 'image',
+      mediaUploadSessionId: mediaUploadSessionId,
+      visibility: visibility,
+    );
+  }
+
+  Future<PollResponse> _createPoll({
+    required String question,
+    required List<String> options,
+    required int selectedOptionIndex,
+    required String contentType,
+    String visibility = 'public',
+    String? mediaUploadSessionId,
   }) async {
     if (selectedOptionIndex < 0 || selectedOptionIndex >= options.length) {
       throw ArgumentError.value(
@@ -42,15 +75,14 @@ class PollApiRepository {
     final poll = await _remote.createPoll(
       CreatePollRequest(
         question: question,
-        contentType: 'question',
+        contentType: contentType,
         visibility: visibility,
+        mediaUploadSessionId: mediaUploadSessionId,
         options: [
           for (var i = 0; i < options.length; i++)
             CreatePollOptionRequest(text: options[i], displayOrder: i + 1),
         ],
-        expiresAt: expiresIn == null
-            ? null
-            : DateTime.now().toUtc().add(expiresIn),
+        expiresAt: DateTime.now().toUtc().add(const Duration(hours: 24)),
       ),
     );
 

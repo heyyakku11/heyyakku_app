@@ -1,12 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:yakku/core/auth/login_auth_service.dart';
-import 'package:yakku/core/background/background_job.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
@@ -15,16 +9,17 @@ class MobileLoginResult {
   const MobileLoginResult({
     required this.phone,
     required this.firstName,
-    required this.expiresInMinutes,
   });
 
   /// Full E.164 phone, e.g. +919876543210.
   final String phone;
   final String firstName;
-  final int expiresInMinutes;
 }
 
 /// Login sheet: first name + +91 phone, rounded borderless inputs.
+///
+/// Send OTP is enqueued on [BackgroundApiWorker]; this sheet pops immediately
+/// so the OTP sheet can open without waiting for the API.
 class MobileLoginBottomSheet extends StatefulWidget {
   const MobileLoginBottomSheet({super.key});
 
@@ -43,25 +38,10 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
   String? _nameError;
   String? _phoneError;
   bool _isAdult = true;
-  bool _isSendingOtp = false;
-  StreamSubscription<BackgroundJobResult>? _jobSubscription;
-  String? _pendingPhone;
-  String? _pendingName;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final worker = AppScope.of(context).backgroundApiWorker;
-      _jobSubscription = worker.results.listen(_onSendOtpResult);
-    });
-  }
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
-    unawaited(_jobSubscription?.cancel());
-    _jobSubscription = null;
     _nameController.dispose();
     _phoneController.dispose();
     _nameFocus.dispose();
@@ -97,38 +77,8 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
     return showAppAlert(context, title: 'Could not send OTP', message: message);
   }
 
-  Future<void> _onSendOtpResult(BackgroundJobResult result) async {
-    if (result.type != LoginAuthService.jobType) return;
-    if (!_isSendingOtp || !mounted) return;
-
-    if (result.success) {
-      final data = result.data;
-      final expiresInMinutes =
-          data is SendOtpData ? data.expiresInMinutes : 0;
-      final phone = _pendingPhone ?? _fullPhone;
-      final firstName = _pendingName ?? _name;
-      if (!mounted) return;
-      Navigator.of(context).pop(
-        MobileLoginResult(
-          phone: phone,
-          firstName: firstName,
-          expiresInMinutes: expiresInMinutes,
-        ),
-      );
-      return;
-    }
-
-    final message = DioErrorMapper.map(
-      result.error ?? 'Failed to send OTP. Please try again.',
-      fallback: 'Failed to send OTP. Please try again.',
-    ).message;
-    if (!mounted) return;
-    setState(() => _isSendingOtp = false);
-    await _showError(message);
-  }
-
   Future<void> _sendOtp() async {
-    if (_isSendingOtp) return;
+    if (_isSubmitting) return;
 
     final nameError = _validateName(_name);
     final phoneError = _validatePhone(_digits);
@@ -144,14 +94,17 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
 
     final phone = _fullPhone;
     final name = _name;
-    _pendingPhone = phone;
-    _pendingName = name;
 
-    setState(() => _isSendingOtp = true);
+    setState(() => _isSubmitting = true);
 
     AppScope.of(context).loginAuth.sendOtpInBackground(
       phone: phone,
       name: name,
+    );
+
+    if (!mounted) return;
+    Navigator.of(context).pop(
+      MobileLoginResult(phone: phone, firstName: name),
     );
   }
 
@@ -175,9 +128,8 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  onPressed: _isSendingOtp
-                      ? null
-                      : () => Navigator.of(context).pop(),
+                  onPressed:
+                      _isSubmitting ? null : () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, size: 22),
                   color: YakkuPalette.textPrimary,
                 ),
@@ -198,7 +150,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                 child: TextField(
                   controller: _nameController,
                   focusNode: _nameFocus,
-                  enabled: !_isSendingOtp,
+                  enabled: !_isSubmitting,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
                   cursorColor: YakkuPalette.primary,
@@ -238,7 +190,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                 child: TextField(
                   controller: _phoneController,
                   focusNode: _phoneFocus,
-                  enabled: !_isSendingOtp,
+                  enabled: !_isSubmitting,
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   maxLength: 10,
@@ -320,7 +272,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
               ),
               const SizedBox(height: 22),
               InkWell(
-                onTap: _isSendingOtp
+                onTap: _isSubmitting
                     ? null
                     : () => setState(() => _isAdult = !_isAdult),
                 borderRadius: BorderRadius.circular(8),
@@ -364,8 +316,8 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
               ),
               const SizedBox(height: 28),
               AppButton(
-                label: _isSendingOtp ? 'Sending...' : 'Send',
-                onPressed: _isSendingOtp ? null : _sendOtp,
+                label: _isSubmitting ? 'Sending...' : 'Send',
+                onPressed: _isSubmitting ? null : _sendOtp,
               ),
             ],
           ),
