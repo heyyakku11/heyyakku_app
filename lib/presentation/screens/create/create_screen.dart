@@ -635,6 +635,15 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       return;
     }
 
+    // Check authentication state before creating poll
+    final auth = AppScope.of(context).authController;
+    if (!auth.isLoggedIn) {
+      await openMobileLogin(context);
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) {
+        return;
+      }
+    }
+
     setState(() => _isCreating = true);
     try {
       final scope = AppScope.of(context);
