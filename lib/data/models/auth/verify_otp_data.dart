@@ -1,5 +1,7 @@
 class VerifyOtpData {
-  final String displayName;
+  final String userId;
+  final String name;
+  final String anonymousName;
   final String purpose;
   final String accessToken;
   final String refreshToken;
@@ -7,7 +9,9 @@ class VerifyOtpData {
   final int refreshTokenExpiresInSeconds;
 
   const VerifyOtpData({
-    required this.displayName,
+    required this.userId,
+    required this.name,
+    required this.anonymousName,
     required this.purpose,
     required this.accessToken,
     required this.refreshToken,
@@ -17,10 +21,12 @@ class VerifyOtpData {
 
   factory VerifyOtpData.fromJson(Map<String, dynamic> json) {
     return VerifyOtpData(
-      displayName: json['displayName'] as String,
+      userId: json['userId']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      anonymousName: json['anonymousName'] as String? ?? '',
       purpose: json['purpose'] as String? ?? '',
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
+      accessToken: json['accessToken'] as String? ?? '',
+      refreshToken: json['refreshToken'] as String? ?? '',
       accessTokenExpiresInSeconds:
           json['accessTokenExpiresInSeconds'] as int? ?? 0,
       refreshTokenExpiresInSeconds:

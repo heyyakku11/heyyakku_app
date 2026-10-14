@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/router/app_routes.dart';
@@ -9,8 +10,12 @@ import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/screens/view_poll_screen.dart';
 
 abstract final class AppRouter {
-  static GoRouter create(AuthController authController) {
+  static GoRouter create(
+    AuthController authController, {
+    GlobalKey<NavigatorState>? navigatorKey,
+  }) {
     return GoRouter(
+      navigatorKey: navigatorKey,
       initialLocation: authController.canEnterApp
           ? AppRoutes.main
           : AppRoutes.onboarding,

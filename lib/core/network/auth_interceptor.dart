@@ -33,8 +33,10 @@ class AuthInterceptor extends Interceptor {
 
   static final _skipAuthPaths = <String>{
     ApiRoutes.sendOtp,
+    ApiRoutes.resendOtp,
     ApiRoutes.verifyOtp,
     ApiRoutes.refresh,
+    ApiRoutes.guests,
   };
 
   bool _shouldSkipAuth(RequestOptions options) {

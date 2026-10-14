@@ -47,16 +47,14 @@ Future<List<PollModel>> _loadAllSavedPolls(UserRemoteDataSource remote) async {
 }
 
 PollModel _pollModelFromSavedResponse(PollResponse poll) {
-  final isImagePoll = poll.optionType.toLowerCase() == 'image';
+  final isImagePoll = poll.contentType.toLowerCase() == 'image';
   final options = <PollOptionModel>[
     for (final option in poll.options)
       PollOptionModel(
         id: option.id,
-        type: isImagePoll || (option.secureUrl?.isNotEmpty ?? false)
-            ? PollOptionType.image
-            : PollOptionType.text,
+        type: isImagePoll ? PollOptionType.image : PollOptionType.text,
         text: option.text,
-        imageUrl: option.secureUrl,
+        imageUrl: poll.media?.url,
         sortOrder: option.sortOrder,
         isCustom: false,
       ),
@@ -67,8 +65,19 @@ PollModel _pollModelFromSavedResponse(PollResponse poll) {
     question: poll.question,
     answerType: PollAnswerType.singleChoice,
     allowCustomOption: false,
-    status: PollStatus.active,
+    status: _mapStatus(poll.status),
     options: List<PollOptionModel>.unmodifiable(options),
     totalVoteCount: poll.totalVoteCount,
+    expiresAt: poll.expiresAt,
   );
+}
+
+PollStatus _mapStatus(String status) {
+  switch (status.toLowerCase()) {
+    case 'active':
+    case 'published':
+      return PollStatus.active;
+    default:
+      return PollStatus.inactive;
+  }
 }

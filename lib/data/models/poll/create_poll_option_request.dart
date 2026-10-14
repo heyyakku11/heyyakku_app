@@ -1,13 +1,13 @@
 class CreatePollOptionRequest {
   final String? text;
-  final String? imageId;
+  final int? displayOrder;
 
-  const CreatePollOptionRequest({this.text, this.imageId});
+  const CreatePollOptionRequest({this.text, this.displayOrder});
 
   Map<String, dynamic> toJson() {
     return {
       if (text != null) 'text': text,
-      if (imageId != null) 'imageId': imageId,
+      if (displayOrder != null) 'displayOrder': displayOrder,
     };
   }
 }

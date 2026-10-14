@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:yakku/core/auth/login_auth_service.dart';
+import 'package:yakku/core/background/background_job.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
 
-class EmailLoginResult {
-  const EmailLoginResult({
+class MobileLoginResult {
+  const MobileLoginResult({
     required this.phone,
     required this.firstName,
     required this.expiresInMinutes,
@@ -20,16 +25,16 @@ class EmailLoginResult {
 }
 
 /// Login sheet: first name + +91 phone, rounded borderless inputs.
-class EmailLoginBottomSheet extends StatefulWidget {
-  const EmailLoginBottomSheet({super.key});
+class MobileLoginBottomSheet extends StatefulWidget {
+  const MobileLoginBottomSheet({super.key});
 
   static const countryCode = '+91';
 
   @override
-  State<EmailLoginBottomSheet> createState() => _EmailLoginBottomSheetState();
+  State<MobileLoginBottomSheet> createState() => _MobileLoginBottomSheetState();
 }
 
-class _EmailLoginBottomSheetState extends State<EmailLoginBottomSheet> {
+class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nameFocus = FocusNode();
@@ -39,9 +44,24 @@ class _EmailLoginBottomSheetState extends State<EmailLoginBottomSheet> {
   String? _phoneError;
   bool _isAdult = true;
   bool _isSendingOtp = false;
+  StreamSubscription<BackgroundJobResult>? _jobSubscription;
+  String? _pendingPhone;
+  String? _pendingName;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final worker = AppScope.of(context).backgroundApiWorker;
+      _jobSubscription = worker.results.listen(_onSendOtpResult);
+    });
+  }
 
   @override
   void dispose() {
+    unawaited(_jobSubscription?.cancel());
+    _jobSubscription = null;
     _nameController.dispose();
     _phoneController.dispose();
     _nameFocus.dispose();
@@ -51,7 +71,7 @@ class _EmailLoginBottomSheetState extends State<EmailLoginBottomSheet> {
 
   String get _name => _nameController.text.trim();
   String get _digits => _phoneController.text.trim();
-  String get _fullPhone => '${EmailLoginBottomSheet.countryCode}$_digits';
+  String get _fullPhone => '${MobileLoginBottomSheet.countryCode}$_digits';
 
   bool _isValidIndianMobile(String value) {
     return RegExp(r'^[6-9]\d{9}$').hasMatch(value);
@@ -77,6 +97,36 @@ class _EmailLoginBottomSheetState extends State<EmailLoginBottomSheet> {
     return showAppAlert(context, title: 'Could not send OTP', message: message);
   }
 
+  Future<void> _onSendOtpResult(BackgroundJobResult result) async {
+    if (result.type != LoginAuthService.jobType) return;
+    if (!_isSendingOtp || !mounted) return;
+
+    if (result.success) {
+      final data = result.data;
+      final expiresInMinutes =
+          data is SendOtpData ? data.expiresInMinutes : 0;
+      final phone = _pendingPhone ?? _fullPhone;
+      final firstName = _pendingName ?? _name;
+      if (!mounted) return;
+      Navigator.of(context).pop(
+        MobileLoginResult(
+          phone: phone,
+          firstName: firstName,
+          expiresInMinutes: expiresInMinutes,
+        ),
+      );
+      return;
+    }
+
+    final message = DioErrorMapper.map(
+      result.error ?? 'Failed to send OTP. Please try again.',
+      fallback: 'Failed to send OTP. Please try again.',
+    ).message;
+    if (!mounted) return;
+    setState(() => _isSendingOtp = false);
+    await _showError(message);
+  }
+
   Future<void> _sendOtp() async {
     if (_isSendingOtp) return;
 
@@ -92,30 +142,17 @@ class _EmailLoginBottomSheetState extends State<EmailLoginBottomSheet> {
       return;
     }
 
+    final phone = _fullPhone;
+    final name = _name;
+    _pendingPhone = phone;
+    _pendingName = name;
+
     setState(() => _isSendingOtp = true);
 
-    try {
-      final sendOtpData = await AppScope.of(
-        context,
-      ).authController.sendOtp(_fullPhone);
-      if (!mounted) return;
-      Navigator.of(context).pop(
-        EmailLoginResult(
-          phone: _fullPhone,
-          firstName: _name,
-          expiresInMinutes: sendOtpData.expiresInMinutes,
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      final message = DioErrorMapper.map(
-        error,
-        fallback: 'Failed to send OTP. Please try again.',
-      ).message;
-      await _showError(message);
-    } finally {
-      if (mounted) setState(() => _isSendingOtp = false);
-    }
+    AppScope.of(context).loginAuth.sendOtpInBackground(
+      phone: phone,
+      name: name,
+    );
   }
 
   @override

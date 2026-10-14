@@ -1,17 +1,19 @@
 class UserProfileResponse {
   final String id;
   final String status;
-  final String email;
-  final String displayName;
-  final DateTime? lastLoginAt;
+  final String phoneNumber;
+  final String name;
+  final String anonymousName;
+  final DateTime? loginAt;
   final String? avatarUrl;
 
   const UserProfileResponse({
     required this.id,
     required this.status,
-    required this.email,
-    required this.displayName,
-    this.lastLoginAt,
+    required this.phoneNumber,
+    required this.name,
+    required this.anonymousName,
+    this.loginAt,
     this.avatarUrl,
   });
 
@@ -19,9 +21,10 @@ class UserProfileResponse {
     return UserProfileResponse(
       id: json['id']?.toString() ?? '',
       status: json['status'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      displayName: json['displayName'] as String? ?? '',
-      lastLoginAt: _parseDate(json['lastLoginAt']),
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      anonymousName: json['anonymousName'] as String? ?? '',
+      loginAt: _parseDate(json['loginAt']),
       avatarUrl: json['avatarUrl'] as String?,
     );
   }

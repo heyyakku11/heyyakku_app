@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_email_login.dart';
+import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/widgets/remote_poll_list.dart';
 
 class InboxScreen extends StatelessWidget {
@@ -67,7 +67,7 @@ class _LoggedOutActivity extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => openEmailLogin(context),
+                onPressed: () => openMobileLogin(context),
                 child: const Text('Log in'),
               ),
             ),

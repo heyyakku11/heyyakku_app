@@ -1,8 +1,6 @@
 class PollOptionResponse {
   final String id;
   final String? text;
-  final String? imageId;
-  final String? secureUrl;
   final int sortOrder;
   final int voteCount;
   final double percentage;
@@ -11,8 +9,6 @@ class PollOptionResponse {
     required this.id,
     required this.sortOrder,
     this.text,
-    this.imageId,
-    this.secureUrl,
     this.voteCount = 0,
     this.percentage = 0,
   });
@@ -21,8 +17,6 @@ class PollOptionResponse {
     return PollOptionResponse(
       id: json['id']?.toString() ?? '',
       text: json['text'] as String?,
-      imageId: json['imageId']?.toString(),
-      secureUrl: json['secureUrl'] as String?,
       sortOrder: _asInt(json['sortOrder']),
       voteCount: _asInt(json['voteCount']),
       percentage: _asDouble(json['percentage']),

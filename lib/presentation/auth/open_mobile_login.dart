@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/presentation/widgets/email_login_bottom_sheet.dart';
+import 'package:yakku/presentation/widgets/mobile_login_bottom_sheet.dart';
 import 'package:yakku/presentation/widgets/otp_bottom_sheet.dart';
 
 const _sheetShape = RoundedRectangleBorder(
@@ -8,13 +8,13 @@ const _sheetShape = RoundedRectangleBorder(
 );
 
 /// Mobile (+91) then OTP sheets used by Activity, You tab, and guest login.
-Future<void> openEmailLogin(BuildContext context) async {
-  final sent = await showModalBottomSheet<EmailLoginResult>(
+Future<void> openMobileLogin(BuildContext context) async {
+  final sent = await showModalBottomSheet<MobileLoginResult>(
     context: context,
     isScrollControlled: true,
     backgroundColor: YakkuPalette.cream,
     shape: _sheetShape,
-    builder: (context) => const EmailLoginBottomSheet(),
+    builder: (context) => const MobileLoginBottomSheet(),
   );
   if (!context.mounted || sent == null) return;
 

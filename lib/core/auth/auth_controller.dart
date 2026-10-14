@@ -6,6 +6,7 @@ import 'package:yakku/core/auth/user_preferences.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
+import 'package:yakku/data/models/auth/resend_otp_request_model.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
@@ -18,7 +19,7 @@ class AuthController extends ChangeNotifier {
     this._draftPolls,
     bool isUserLogged = false,
     this._hasEnteredAsGuest = false,
-    String? this._email,
+    String? this._phoneNumber,
     String? this._displayName,
   }) : _tokenStore = tokenStore,
        _authRemote = authRemote,
@@ -31,13 +32,13 @@ class AuthController extends ChangeNotifier {
 
   bool _isLoggedIn;
   bool _hasEnteredAsGuest;
-  String? _email;
+  String? _phoneNumber;
   String? _displayName;
 
   bool get isLoggedIn => _isLoggedIn;
   bool get hasEnteredAsGuest => _hasEnteredAsGuest;
   bool get canEnterApp => _isLoggedIn || _hasEnteredAsGuest;
-  String? get email => _email;
+  String? get phoneNumber => _phoneNumber;
   String? get displayName => _displayName;
 
   Future<void> enterAsGuest() async {
@@ -47,17 +48,35 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<SendOtpData> sendOtp(String phone) {
-    return _authRemote.sendOtp(SendOtpRequestModel(phone: phone));
+  /// Clears local guest entry so GoRouter returns the user to onboarding.
+  Future<void> revokeGuestEntry() async {
+    if (!_hasEnteredAsGuest) return;
+    await userPreferences.setHasEnteredAsGuest(false);
+    _hasEnteredAsGuest = false;
+    notifyListeners();
+  }
+
+  Future<SendOtpData> sendOtp(String phoneNumber, {String? name}) {
+    return _authRemote.sendOtp(
+      SendOtpRequestModel(phoneNumber: phoneNumber, name: name),
+    );
+  }
+
+  Future<SendOtpData> resendOtp(String phoneNumber) {
+    return _authRemote.resendOtp(
+      ResendOtpRequestModel(phoneNumber: phoneNumber),
+    );
   }
 
   Future<void> verifyOtp({
     required String phone,
     required String otp,
     String? firstName,
+    String? guestToken,
   }) async {
     final data = await _authRemote.verifyOtp(
-      VerifyOtpRequestModel(phone: phone, otp: otp),
+      VerifyOtpRequestModel(phoneNumber: phone, otp: otp),
+      guestToken: guestToken,
     );
 
     await _tokenStore.saveTokens(
@@ -67,15 +86,16 @@ class AuthController extends ChangeNotifier {
 
     final trimmedName = firstName?.trim() ?? '';
     final displayName =
-        trimmedName.isNotEmpty ? trimmedName : data.displayName;
+        trimmedName.isNotEmpty
+            ? trimmedName
+            : (data.name.isNotEmpty ? data.name : data.anonymousName);
 
-    // Reuse local contact storage for the signed-in phone number.
-    await userPreferences.setEmail(phone);
+    await userPreferences.setPhoneNumber(phone);
     await userPreferences.setDisplayName(displayName);
     await userPreferences.setIsUserLogged(true);
 
     _isLoggedIn = true;
-    _email = phone;
+    _phoneNumber = phone;
     _displayName = displayName;
     notifyListeners();
   }
@@ -121,7 +141,7 @@ class AuthController extends ChangeNotifier {
 
     _isLoggedIn = false;
     _hasEnteredAsGuest = false;
-    _email = null;
+    _phoneNumber = null;
     _displayName = null;
     notifyListeners();
   }
@@ -142,7 +162,7 @@ class AuthController extends ChangeNotifier {
       return AuthSessionBootstrap(
         isUserLogged: true,
         hasEnteredAsGuest: hasEnteredAsGuest,
-        email: await userPreferences.getEmail(),
+        phoneNumber: await userPreferences.getPhoneNumber(),
         displayName: await userPreferences.getDisplayName(),
       );
     }
@@ -166,12 +186,12 @@ class AuthSessionBootstrap {
   const AuthSessionBootstrap({
     required this.isUserLogged,
     this.hasEnteredAsGuest = false,
-    this.email,
+    this.phoneNumber,
     this.displayName,
   });
 
   final bool isUserLogged;
   final bool hasEnteredAsGuest;
-  final String? email;
+  final String? phoneNumber;
   final String? displayName;
 }

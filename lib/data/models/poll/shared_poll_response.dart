@@ -1,44 +1,30 @@
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 
-class SharedPollCategoryResponse {
-  final String id;
-  final String name;
-
-  const SharedPollCategoryResponse({required this.id, required this.name});
-
-  factory SharedPollCategoryResponse.fromJson(Map<String, dynamic> json) {
-    return SharedPollCategoryResponse(
-      id: json['id']?.toString() ?? '',
-      name: json['name'] as String? ?? '',
-    );
-  }
-}
-
+/// Placeholder model for a future share-token poll endpoint.
 class SharedPollResponse {
   final String question;
-  final String optionType;
+  final String contentType;
   final List<PollOptionResponse> options;
-  final SharedPollCategoryResponse? category;
   final DateTime? expiresAt;
   final String status;
+  final String visibility;
   final bool isAcceptingVotes;
 
   const SharedPollResponse({
     required this.question,
-    required this.optionType,
+    required this.contentType,
     required this.options,
     required this.status,
+    required this.visibility,
     required this.isAcceptingVotes,
-    this.category,
     this.expiresAt,
   });
 
   factory SharedPollResponse.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['options'] as List<dynamic>? ?? const [];
-    final rawCategory = json['category'];
     return SharedPollResponse(
       question: json['question'] as String? ?? '',
-      optionType: json['optionType'] as String? ?? '',
+      contentType: json['contentType'] as String? ?? 'question',
       options: rawOptions
           .whereType<Map>()
           .map(
@@ -46,13 +32,9 @@ class SharedPollResponse {
                 PollOptionResponse.fromJson(Map<String, dynamic>.from(item)),
           )
           .toList(growable: false),
-      category: rawCategory is Map
-          ? SharedPollCategoryResponse.fromJson(
-              Map<String, dynamic>.from(rawCategory),
-            )
-          : null,
       expiresAt: _parseDate(json['expiresAt']),
       status: json['status'] as String? ?? '',
+      visibility: json['visibility'] as String? ?? '',
       isAcceptingVotes: json['isAcceptingVotes'] as bool? ?? false,
     );
   }

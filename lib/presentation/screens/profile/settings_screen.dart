@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/notification/notification_preference_response.dart';
+import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
 import 'package:yakku/presentation/screens/profile/you_settings_store.dart';
@@ -12,28 +15,89 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final YouSettingsStore _store = YouSettingsStore();
-  YouSettings _settings = YouSettings.defaults;
-  bool _ready = false;
+  final YouSettingsStore _privacyStore = YouSettingsStore();
+  YouSettings _privacy = YouSettings.defaults;
+  NotificationPreferenceResponse _notifications =
+      NotificationPreferenceResponse.defaults;
+  bool _privacyReady = false;
+  bool _notificationsReady = false;
+  bool _updatingNotifications = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    final settings = await _store.load();
-    if (!mounted) return;
-    setState(() {
-      _settings = settings;
-      _ready = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrivacy();
+      _loadNotifications();
     });
   }
 
-  Future<void> _update(YouSettings next) async {
-    setState(() => _settings = next);
-    await _store.save(next);
+  Future<void> _loadPrivacy() async {
+    final privacy = await _privacyStore.load();
+    if (!mounted) return;
+    setState(() {
+      _privacy = privacy;
+      _privacyReady = true;
+    });
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final prefs =
+          await AppScope.of(context).notificationPreferences.getPreferences();
+      if (!mounted) return;
+      setState(() {
+        _notifications = prefs;
+        _notificationsReady = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _notificationsReady = true);
+      _showError(error, fallback: 'Could not load notification preferences');
+    }
+  }
+
+  Future<void> _updatePrivacy(YouSettings next) async {
+    setState(() => _privacy = next);
+    await _privacyStore.save(next);
+  }
+
+  Future<void> _updateNotification(
+    NotificationPreferenceResponse optimistic,
+    UpdateNotificationPreferenceRequest request,
+  ) async {
+    if (_updatingNotifications) return;
+
+    final previous = _notifications;
+    setState(() {
+      _notifications = optimistic;
+      _updatingNotifications = true;
+    });
+
+    try {
+      final updated = await AppScope.of(
+        context,
+      ).notificationPreferences.updatePreferences(request);
+      if (!mounted) return;
+      setState(() {
+        _notifications = updated;
+        _updatingNotifications = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _notifications = previous;
+        _updatingNotifications = false;
+      });
+      _showError(error, fallback: 'Could not update notification preference');
+    }
+  }
+
+  void _showError(Object error, {required String fallback}) {
+    final message = DioErrorMapper.map(error, fallback: fallback).message;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _logOut() async {
@@ -63,68 +127,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await auth.logout();
   }
 
+  ValueChanged<bool>? _notificationToggle(
+    NotificationPreferenceResponse Function(bool value) applyOptimistic,
+    UpdateNotificationPreferenceRequest Function(bool value) request,
+  ) {
+    if (!_notificationsReady || _updatingNotifications) return null;
+    return (value) {
+      _updateNotification(applyOptimistic(value), request(value));
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final email = AppScope.of(context).authController.email;
+    final phoneNumber = AppScope.of(context).authController.phoneNumber;
+    final maskedPhone = _maskPhoneNumber(phoneNumber);
+    final dividerColor = theme.dividerColor.withValues(alpha: 0.55);
+    final n = _notifications;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: true),
       body: Theme(
         data: theme.copyWith(switchTheme: _pinkSwitchTheme),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
           children: [
             const _SectionLabel('NOTIFICATIONS'),
             _SwitchRow(
-              title: 'Votes and reasons',
-              subtitle: 'When friends answer your asks',
-              value: _settings.votesAndReasons,
-              onChanged: _ready
-                  ? (value) =>
-                        _update(_settings.copyWith(votesAndReasons: value))
-                  : null,
+              title: 'Push notifications',
+              subtitle: 'Allow Yakku to send push alerts on this device',
+              value: n.pushEnabled,
+              onChanged: _notificationToggle(
+                (value) => n.copyWith(pushEnabled: value),
+                (value) =>
+                    UpdateNotificationPreferenceRequest(pushEnabled: value),
+              ),
             ),
             _SwitchRow(
-              title: 'Your result is ready',
-              subtitle: 'The moment your You vs Crowd unlocks',
-              value: _settings.resultReady,
-              onChanged: _ready
-                  ? (value) => _update(_settings.copyWith(resultReady: value))
-                  : null,
+              title: 'Poll activity',
+              subtitle: 'Votes, reasons, and updates on your polls',
+              value: n.pollActivityEnabled,
+              onChanged: _notificationToggle(
+                (value) => n.copyWith(pollActivityEnabled: value),
+                (value) => UpdateNotificationPreferenceRequest(
+                  pollActivityEnabled: value,
+                ),
+              ),
             ),
             _SwitchRow(
-              title: 'Friends asked you',
-              subtitle: 'When someone you know asks something',
-              value: _settings.friendsAsked,
-              onChanged: _ready
-                  ? (value) => _update(_settings.copyWith(friendsAsked: value))
-                  : null,
+              title: 'Offers',
+              subtitle: 'Promotions and special offers from Yakku',
+              value: n.offersEnabled,
+              onChanged: _notificationToggle(
+                (value) => n.copyWith(offersEnabled: value),
+                (value) =>
+                    UpdateNotificationPreferenceRequest(offersEnabled: value),
+              ),
             ),
-            _SwitchRow(
-              title: 'Weekly drop',
-              subtitle: 'A new check every Monday evening',
-              value: _settings.weeklyDrop,
-              onChanged: _ready
-                  ? (value) => _update(_settings.copyWith(weeklyDrop: value))
-                  : null,
-            ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 22),
             const _SectionLabel('PRIVACY AND SAFETY'),
-            _SwitchRow(
-              title: 'Tell voters if they read me right',
-              subtitle: 'They never see your full result',
-              value: _settings.tellVoters,
-              onChanged: _ready
-                  ? (value) => _update(_settings.copyWith(tellVoters: value))
-                  : null,
-            ),
             _SwitchRow(
               title: 'Kind mode',
               subtitle: 'Only show reasons our filter rates as kind',
-              value: _settings.kindMode,
-              onChanged: _ready
-                  ? (value) => _update(_settings.copyWith(kindMode: value))
+              value: _privacy.kindMode,
+              onChanged: _privacyReady
+                  ? (value) =>
+                        _updatePrivacy(_privacy.copyWith(kindMode: value))
                   : null,
             ),
             const _ChevronRow(
@@ -132,26 +200,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: 'Reasons with these words never reach you',
             ),
             const _ChevronRow(title: 'Help and safety'),
-            const SizedBox(height: 18),
+            const SizedBox(height: 22),
             const _SectionLabel('ACCOUNT'),
-            _ChevronRow(
-              title: 'Email',
-              subtitle: email == null || email.isEmpty ? 'Signed in' : email,
-              showChevron: false,
+            _AccountGroup(
+              dividerColor: dividerColor,
+              children: [
+                _PlanRow(
+                  planLabel: 'Free',
+                  actionLabel: 'See Yakku Love',
+                  onActionTap: () {},
+                ),
+                _ChevronRow(
+                  title: 'Phone number',
+                  subtitle: maskedPhone ?? 'Signed in',
+                ),
+                const _ChevronRow(title: 'Terms and privacy'),
+                _ChevronRow(title: 'Log out', onTap: _logOut),
+                _ChevronRow(
+                  title: 'Delete account',
+                  titleColor: YakkuPalette.primary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const DeleteAccountScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            _ChevronRow(title: 'Log out', onTap: _logOut),
-            _ChevronRow(
-              title: 'Delete account',
-              titleColor: YakkuPalette.primary,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (context) => const DeleteAccountScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
             Text(
               'Yakku is for people 18 and over.',
               textAlign: TextAlign.center,
@@ -184,12 +262,12 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 8),
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
-          letterSpacing: 0.6,
+          letterSpacing: 0.7,
           fontWeight: FontWeight.w700,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -215,7 +293,7 @@ class _SwitchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -231,7 +309,7 @@ class _SwitchRow extends StatelessWidget {
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -243,7 +321,90 @@ class _SwitchRow extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 12),
           Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountGroup extends StatelessWidget {
+  const _AccountGroup({required this.children, required this.dividerColor});
+
+  final List<Widget> children;
+  final Color dividerColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      items.add(children[i]);
+      if (i < children.length - 1) {
+        items.add(Divider(height: 1, thickness: 1, color: dividerColor));
+      }
+    }
+    return Column(children: items);
+  }
+}
+
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({
+    required this.planLabel,
+    required this.actionLabel,
+    this.onActionTap,
+  });
+
+  final String planLabel;
+  final String actionLabel;
+  final VoidCallback? onActionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your plan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  planLabel,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onActionTap,
+            style: TextButton.styleFrom(
+              foregroundColor: YakkuPalette.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              actionLabel,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -287,7 +448,7 @@ class _ChevronRow extends StatelessWidget {
                     ),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       subtitle!,
                       style: TextStyle(
@@ -309,4 +470,26 @@ class _ChevronRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Masks a phone like `+91 98xxx xx210` for the account row.
+String? _maskPhoneNumber(String? phone) {
+  if (phone == null) return null;
+  final trimmed = phone.trim();
+  if (trimmed.isEmpty) return null;
+
+  final digits = trimmed.replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 10) return trimmed;
+
+  final hasCountry91 =
+      (digits.length >= 12 && digits.startsWith('91')) ||
+      trimmed.startsWith('+91');
+  final local =
+      hasCountry91 && digits.length >= 12
+          ? digits.substring(digits.length - 10)
+          : digits.substring(digits.length - 10);
+
+  final masked =
+      '${local.substring(0, 2)}xxx xx${local.substring(local.length - 3)}';
+  return '+91 $masked';
 }

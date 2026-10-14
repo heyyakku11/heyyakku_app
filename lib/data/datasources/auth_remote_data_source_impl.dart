@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:yakku/core/network/api_exception.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
@@ -6,6 +7,7 @@ import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
 import 'package:yakku/data/models/auth/logout_request.dart';
 import 'package:yakku/data/models/auth/refresh_token_request.dart';
+import 'package:yakku/data/models/auth/resend_otp_request_model.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/token_response.dart';
@@ -19,14 +21,61 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<SendOtpData> sendOtp(SendOtpRequestModel request) async {
+    final payload = request.toJson();
+    final url = '${dio.options.baseUrl}${ApiRoutes.sendOtp}';
+    if (kDebugMode) {
+      debugPrint('[AUTH] sendOtp REQUEST url=$url body=$payload');
+    }
+
+    try {
+      final response = await dio.post<Map<String, dynamic>>(
+        ApiRoutes.sendOtp,
+        data: payload,
+      );
+
+      final body = response.data;
+      if (kDebugMode) {
+        debugPrint(
+          '[AUTH] sendOtp RESPONSE status=${response.statusCode} '
+          'url=${response.requestOptions.uri} body=$body',
+        );
+      }
+
+      if (body == null) {
+        throw StateError('Empty send OTP response');
+      }
+
+      final apiResponse = ApiResponse<SendOtpData>.fromJson(
+        body,
+        (json) => SendOtpData.fromJson(json as Map<String, dynamic>),
+      );
+
+      if (!apiResponse.success || apiResponse.data == null) {
+        throw StateError(apiResponse.message ?? 'Send OTP failed');
+      }
+
+      return apiResponse.data!;
+    } on DioException catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AUTH] sendOtp ERROR status=${error.response?.statusCode} '
+          'url=${error.requestOptions.uri} body=${error.response?.data}',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<SendOtpData> resendOtp(ResendOtpRequestModel request) async {
     final response = await dio.post<Map<String, dynamic>>(
-      ApiRoutes.sendOtp,
+      ApiRoutes.resendOtp,
       data: request.toJson(),
     );
 
     final body = response.data;
     if (body == null) {
-      throw StateError('Empty send OTP response');
+      throw StateError('Empty resend OTP response');
     }
 
     final apiResponse = ApiResponse<SendOtpData>.fromJson(
@@ -35,17 +84,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     );
 
     if (!apiResponse.success || apiResponse.data == null) {
-      throw StateError(apiResponse.message ?? 'Send OTP failed');
+      throw StateError(apiResponse.message ?? 'Resend OTP failed');
     }
 
     return apiResponse.data!;
   }
 
   @override
-  Future<VerifyOtpData> verifyOtp(VerifyOtpRequestModel request) async {
+  Future<VerifyOtpData> verifyOtp(
+    VerifyOtpRequestModel request, {
+    String? guestToken,
+  }) async {
+    final headers = <String, dynamic>{};
+    if (guestToken != null && guestToken.isNotEmpty) {
+      headers['X-Guest-Token'] = guestToken;
+    }
+
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.verifyOtp,
       data: request.toJson(),
+      options: Options(headers: headers.isEmpty ? null : headers),
     );
 
     final body = response.data;

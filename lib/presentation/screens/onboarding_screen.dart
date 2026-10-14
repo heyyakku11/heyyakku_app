@@ -15,7 +15,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _continueAsGuest() async {
     if (_entering) return;
     setState(() => _entering = true);
-    await AppScope.of(context).authController.enterAsGuest();
+    final scope = AppScope.of(context);
+    await scope.authController.enterAsGuest();
+    scope.guestSession.ensureGuestProfileInBackground();
     if (mounted) setState(() => _entering = false);
   }
 

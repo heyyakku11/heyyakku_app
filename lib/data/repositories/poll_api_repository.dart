@@ -19,6 +19,7 @@ class PollApiRepository {
     return _remote.getPollById(pollId);
   }
 
+  /// Backend currently has no share-token poll endpoint.
   Future<SharedPollResponse> getSharedPoll(String shareToken) {
     return _remote.getSharedPoll(shareToken);
   }
@@ -28,24 +29,43 @@ class PollApiRepository {
     required List<String> options,
     required int selectedOptionIndex,
     Duration? expiresIn,
-    bool allowComments = true,
-    List<String> categoryIds = const [],
-  }) {
-    return _remote.createPoll(
+    String visibility = 'public',
+  }) async {
+    if (selectedOptionIndex < 0 || selectedOptionIndex >= options.length) {
+      throw ArgumentError.value(
+        selectedOptionIndex,
+        'selectedOptionIndex',
+        'Must point at an option',
+      );
+    }
+
+    final poll = await _remote.createPoll(
       CreatePollRequest(
         question: question,
-        optionType: 'text',
-        options: options
-            .map((text) => CreatePollOptionRequest(text: text))
-            .toList(),
-        selectedOptionIndex: selectedOptionIndex,
+        contentType: 'question',
+        visibility: visibility,
+        options: [
+          for (var i = 0; i < options.length; i++)
+            CreatePollOptionRequest(text: options[i], displayOrder: i + 1),
+        ],
         expiresAt: expiresIn == null
             ? null
             : DateTime.now().toUtc().add(expiresIn),
-        allowComments: allowComments,
-        categoryIds: categoryIds,
       ),
     );
+
+    final sortedOptions = [...poll.options]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    if (selectedOptionIndex < sortedOptions.length) {
+      await _remote.castVote(
+        CastVoteRequest(
+          pollId: poll.id,
+          pollOptionId: sortedOptions[selectedOptionIndex].id,
+        ),
+      );
+    }
+
+    return poll;
   }
 
   Future<CastVoteResponse> castVote({
@@ -53,7 +73,7 @@ class PollApiRepository {
     required String optionId,
   }) {
     return _remote.castVote(
-      CastVoteRequest(pollId: pollId, optionId: optionId),
+      CastVoteRequest(pollId: pollId, pollOptionId: optionId),
     );
   }
 }

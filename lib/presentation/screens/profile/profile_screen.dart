@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_email_login.dart';
+import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/screens/profile/answered_polls_screen.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
 import 'package:yakku/presentation/screens/profile/my_asks_screen.dart';
@@ -19,7 +19,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
-  String? _email;
+  String? _phoneNumber;
   int _asks = 0;
   int _votes = 0;
   AuthController? _authController;
@@ -47,7 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!loggedIn) {
       setState(() {
         _name = null;
-        _email = null;
+        _phoneNumber = null;
         _asks = 0;
         _votes = 0;
       });
@@ -62,17 +62,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _name = _nonEmpty(scope.authController.displayName);
-      _email = _nonEmpty(scope.authController.email);
+      _phoneNumber = _nonEmpty(scope.authController.phoneNumber);
     });
 
     try {
       final me = await scope.userRemote.getMe();
       if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
       setState(() {
-        final name = _nonEmpty(me.displayName);
-        final email = _nonEmpty(me.email);
+        final name = _nonEmpty(me.name) ?? _nonEmpty(me.anonymousName);
+        final phone = _nonEmpty(me.phoneNumber);
         if (name != null) _name = name;
-        if (email != null) _email = email;
+        if (phone != null) _phoneNumber = phone;
       });
     } catch (_) {}
 
@@ -92,7 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openWhenLoggedIn(Widget screen) async {
     final loggedIn = AppScope.of(context).authController.isLoggedIn;
     if (!loggedIn) {
-      await openEmailLogin(context);
+      await openMobileLogin(context);
       return;
     }
     if (!mounted) return;
@@ -114,7 +114,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, _) {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
-            final email = _email ?? _nonEmpty(auth.email);
+            final phoneNumber =
+                _phoneNumber ?? _nonEmpty(auth.phoneNumber);
             final name = displayName ?? 'You';
             final initial = _initial(displayName);
 
@@ -154,10 +155,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    if (email != null) ...[
+                    if (phoneNumber != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        email,
+                        phoneNumber,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -260,7 +261,7 @@ class _GuestLoginPrompt extends StatelessWidget {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () => openEmailLogin(context),
+              onPressed: () => openMobileLogin(context),
               child: const Text('Log in'),
             ),
           ),

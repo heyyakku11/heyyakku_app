@@ -25,12 +25,20 @@ class UserPreferences {
     await _storage.updateBool(StorageKeys.hasEnteredAsGuest, value);
   }
 
-  Future<String?> getEmail() async {
-    return _storage.read(StorageKeys.email);
+  Future<String?> getPhoneNumber() async {
+    final phone = await _storage.read(StorageKeys.phoneNumber);
+    if (phone != null && phone.isNotEmpty) return phone;
+
+    // Migrate values previously stored under the email key.
+    final legacy = await _storage.read(StorageKeys.legacyEmail);
+    if (legacy == null || legacy.isEmpty) return null;
+    await setPhoneNumber(legacy);
+    await _storage.delete(StorageKeys.legacyEmail);
+    return legacy;
   }
 
-  Future<void> setEmail(String email) async {
-    await _storage.update(StorageKeys.email, email);
+  Future<void> setPhoneNumber(String phoneNumber) async {
+    await _storage.update(StorageKeys.phoneNumber, phoneNumber);
   }
 
   Future<String?> getDisplayName() async {
@@ -42,7 +50,8 @@ class UserPreferences {
   }
 
   Future<void> clearAuth() async {
-    await _storage.delete(StorageKeys.email);
+    await _storage.delete(StorageKeys.phoneNumber);
+    await _storage.delete(StorageKeys.legacyEmail);
     await _storage.delete(StorageKeys.displayName);
     await _storage.updateBool(StorageKeys.isUserLogged, false);
     await _storage.updateBool(StorageKeys.hasEnteredAsGuest, false);

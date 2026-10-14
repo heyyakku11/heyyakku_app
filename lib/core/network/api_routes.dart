@@ -1,10 +1,14 @@
 abstract final class ApiRoutes {
   // Auth
-  static const String sendOtp = '/api/v1/auth/send-otp';
-  static const String verifyOtp = '/api/v1/auth/verify-otp';
+  static const String sendOtp = '/api/v1/auth/send';
+  static const String resendOtp = '/api/v1/auth/resend';
+  static const String verifyOtp = '/api/v1/auth/verify';
   static const String refresh = '/api/v1/auth/refresh';
   static const String logout = '/api/v1/auth/logout';
   static const String logoutAll = '/api/v1/auth/logout-all';
+
+  // Guests
+  static const String guests = '/api/v1/guests';
 
   // Devices
   static const String registerDevice = '/api/v1/devices/register';
@@ -16,6 +20,7 @@ abstract final class ApiRoutes {
 
   static String pollById(String pollId) => '/api/v1/polls/$pollId';
 
+  /// Not implemented on the current backend; kept for a future share endpoint.
   static String pollByShareToken(String shareToken) =>
       '/api/v1/polls/share/$shareToken';
 

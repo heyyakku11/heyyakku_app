@@ -155,13 +155,15 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
       _isVerifying = true;
     });
 
-    final authController = AppScope.of(context).authController;
+    final scope = AppScope.of(context);
+    final authController = scope.authController;
 
     try {
       await authController.verifyOtp(
         phone: widget.phone,
         otp: _otp,
         firstName: widget.firstName,
+        guestToken: scope.guestTokenStore.guestToken,
       );
       if (!mounted) return;
       _closeSheet();

@@ -1,20 +1,20 @@
 class UserPollOptionResponse {
   final String id;
-  final String? text;
+  final String text;
   final int voteCount;
   final double percentage;
 
   const UserPollOptionResponse({
     required this.id,
+    required this.text,
     required this.voteCount,
     required this.percentage,
-    this.text,
   });
 
   factory UserPollOptionResponse.fromJson(Map<String, dynamic> json) {
     return UserPollOptionResponse(
       id: json['id']?.toString() ?? '',
-      text: json['text'] as String?,
+      text: json['text'] as String? ?? '',
       voteCount: _asInt(json['voteCount']),
       percentage: _asDouble(json['percentage']),
     );
@@ -24,20 +24,26 @@ class UserPollOptionResponse {
 class UserPollResponse {
   final String pollId;
   final String question;
+  final String contentType;
   final String status;
-  final DateTime? expiresAt;
+  final String visibility;
   final DateTime createdAt;
   final int totalVoteCount;
+  final int customAnswerCount;
+  final int totalWhyCount;
   final List<UserPollOptionResponse> pollOptions;
 
   const UserPollResponse({
     required this.pollId,
     required this.question,
+    required this.contentType,
     required this.status,
+    required this.visibility,
     required this.createdAt,
     required this.totalVoteCount,
     required this.pollOptions,
-    this.expiresAt,
+    this.customAnswerCount = 0,
+    this.totalWhyCount = 0,
   });
 
   factory UserPollResponse.fromJson(Map<String, dynamic> json) {
@@ -45,10 +51,13 @@ class UserPollResponse {
     return UserPollResponse(
       pollId: json['pollId']?.toString() ?? '',
       question: json['question'] as String? ?? '',
+      contentType: json['contentType'] as String? ?? 'question',
       status: json['status'] as String? ?? '',
-      expiresAt: _parseDate(json['expiresAt']),
+      visibility: json['visibility'] as String? ?? '',
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now().toUtc(),
       totalVoteCount: _asInt(json['totalVoteCount']),
+      customAnswerCount: _asInt(json['customAnswerCount']),
+      totalWhyCount: _asInt(json['totalWhyCount']),
       pollOptions: rawOptions
           .whereType<Map>()
           .map(
@@ -58,11 +67,6 @@ class UserPollResponse {
           )
           .toList(growable: false),
     );
-  }
-
-  static DateTime? _parseDate(Object? value) {
-    if (value is! String || value.isEmpty) return null;
-    return DateTime.tryParse(value);
   }
 }
 
@@ -76,6 +80,11 @@ class UserPollsPage {
     this.nextCursor,
     this.hasMore = false,
   });
+}
+
+DateTime? _parseDate(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 int _asInt(dynamic value, {int fallback = 0}) {

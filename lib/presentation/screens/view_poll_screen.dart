@@ -244,11 +244,12 @@ _PollDetailDummy _dummyPollDetail(String pollId) {
       poll: UserPollDetailResponse(
         pollId: pollId,
         question: source!.question,
+        contentType: 'question',
         status: 'active',
-        shareToken: 'local-share',
-        optionType: 'text',
+        visibility: 'public',
         createdAt: DateTime.utc(2026, 1, 1),
         totalVoteCount: totalVotes,
+        totalWhyCount: source.whys.length,
         pollOptions: pollOptions,
         whys: [
           for (final why in source.whys)
@@ -279,11 +280,12 @@ _PollDetailDummy _dummyPollDetail(String pollId) {
     poll: UserPollDetailResponse(
       pollId: pollId,
       question: source?.question ?? 'Which dress should I wear?',
+      contentType: 'question',
       status: 'active',
-      shareToken: 'local-share',
-      optionType: 'text',
+      visibility: 'public',
       createdAt: DateTime.utc(2026, 1, 1),
       totalVoteCount: 100,
+      totalWhyCount: 3,
       pollOptions: const [
         UserPollDetailOptionResponse(
           id: 'asked_opt_1',

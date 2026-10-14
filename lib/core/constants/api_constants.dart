@@ -3,7 +3,7 @@ abstract final class ApiConstants {
 
   static const String webBaseUrl = 'https://heyyakku-web.vercel.app';
   static const String stagingBaseUrl = 'https://heyyakku-backend.onrender.com';
-  static const String liveBasebaseUrl = '';
+  static const String liveBasebaseUrl = 'https://heyyakku-backend.onrender.com';
 
   static const String baseUrl = isAppLive ? liveBasebaseUrl : stagingBaseUrl;
 

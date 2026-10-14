@@ -3,8 +3,6 @@ import 'package:yakku/data/models/poll/poll_why.dart';
 class UserPollDetailOptionResponse {
   final String id;
   final String? text;
-  final String? imageId;
-  final String? secureUrl;
   final int sortOrder;
   final int voteCount;
   final double percentage;
@@ -15,16 +13,12 @@ class UserPollDetailOptionResponse {
     required this.voteCount,
     required this.percentage,
     this.text,
-    this.imageId,
-    this.secureUrl,
   });
 
   factory UserPollDetailOptionResponse.fromJson(Map<String, dynamic> json) {
     return UserPollDetailOptionResponse(
       id: json['id']?.toString() ?? '',
       text: json['text'] as String?,
-      imageId: json['imageId']?.toString(),
-      secureUrl: json['secureUrl'] as String?,
       sortOrder: _asInt(json['sortOrder']),
       voteCount: _asInt(json['voteCount']),
       percentage: _asDouble(json['percentage']),
@@ -67,31 +61,35 @@ class YouVsCrowdResponse {
 class UserPollDetailResponse {
   final String pollId;
   final String question;
+  final String contentType;
   final String status;
-  final String shareToken;
-  final String optionType;
+  final String visibility;
   final DateTime? expiresAt;
   final DateTime createdAt;
   final int totalVoteCount;
+  final int customAnswerCount;
+  final int totalWhyCount;
   final List<UserPollDetailOptionResponse> pollOptions;
-  final List<PollWhy> whys;
   final YouVsCrowdResponse youVsCrowd;
+
+  /// Client-only preview data (not returned by the API).
+  final List<PollWhy> whys;
 
   const UserPollDetailResponse({
     required this.pollId,
     required this.question,
+    required this.contentType,
     required this.status,
-    required this.shareToken,
-    required this.optionType,
+    required this.visibility,
     required this.createdAt,
     required this.totalVoteCount,
     required this.pollOptions,
     required this.youVsCrowd,
-    this.whys = const [],
     this.expiresAt,
+    this.customAnswerCount = 0,
+    this.totalWhyCount = 0,
+    this.whys = const [],
   });
-
-  int get totalWhyCount => whys.length;
 
   factory UserPollDetailResponse.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['pollOptions'] as List<dynamic>? ?? const [];
@@ -99,12 +97,14 @@ class UserPollDetailResponse {
     return UserPollDetailResponse(
       pollId: json['pollId']?.toString() ?? '',
       question: json['question'] as String? ?? '',
+      contentType: json['contentType'] as String? ?? 'question',
       status: json['status'] as String? ?? '',
-      shareToken: json['shareToken'] as String? ?? '',
-      optionType: json['optionType'] as String? ?? 'text',
+      visibility: json['visibility'] as String? ?? '',
       expiresAt: _parseDate(json['expiresAt']),
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now().toUtc(),
       totalVoteCount: _asInt(json['totalVoteCount']),
+      customAnswerCount: _asInt(json['customAnswerCount']),
+      totalWhyCount: _asInt(json['totalWhyCount']),
       pollOptions: rawOptions
           .whereType<Map>()
           .map(
@@ -113,7 +113,6 @@ class UserPollDetailResponse {
             ),
           )
           .toList(growable: false),
-      whys: List<PollWhy>.unmodifiable(PollWhy.listFromJson(json['whys'])),
       youVsCrowd: rawYouVsCrowd is Map
           ? YouVsCrowdResponse.fromJson(Map<String, dynamic>.from(rawYouVsCrowd))
           : const YouVsCrowdResponse(),

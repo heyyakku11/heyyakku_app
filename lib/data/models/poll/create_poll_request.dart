@@ -2,32 +2,31 @@ import 'package:yakku/data/models/poll/create_poll_option_request.dart';
 
 class CreatePollRequest {
   final String question;
-  final List<String> categoryIds;
-  final String optionType;
-  final List<CreatePollOptionRequest> options;
-  final int selectedOptionIndex;
+  final String contentType;
+  final String? visibility;
   final DateTime? expiresAt;
-  final bool allowComments;
+  final List<CreatePollOptionRequest> options;
+  final String? mediaUploadSessionId;
 
   const CreatePollRequest({
     required this.question,
-    required this.optionType,
+    required this.contentType,
     required this.options,
-    required this.selectedOptionIndex,
-    this.categoryIds = const [],
+    this.visibility,
     this.expiresAt,
-    this.allowComments = true,
+    this.mediaUploadSessionId,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'question': question,
-      if (categoryIds.isNotEmpty) 'categoryIds': categoryIds,
-      'optionType': optionType,
-      'options': options.map((option) => option.toJson()).toList(),
-      'selectedOptionIndex': selectedOptionIndex,
+      'contentType': contentType,
+      if (visibility != null && visibility!.trim().isNotEmpty)
+        'visibility': visibility!.trim(),
       if (expiresAt != null) 'expiresAt': expiresAt!.toUtc().toIso8601String(),
-      'allowComments': allowComments,
+      'options': options.map((option) => option.toJson()).toList(),
+      if (mediaUploadSessionId != null && mediaUploadSessionId!.isNotEmpty)
+        'mediaUploadSessionId': mediaUploadSessionId,
     };
   }
 }

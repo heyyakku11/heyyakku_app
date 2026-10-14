@@ -93,7 +93,9 @@ abstract final class DioErrorMapper {
       ApiErrorKind.forbidden =>
         serverMessage ?? 'You do not have permission to do that.',
       ApiErrorKind.notFound =>
-        serverMessage ?? 'Requested resource was not found.',
+        serverMessage ??
+            _notFoundFallback(cause) ??
+            'Requested resource was not found.',
       ApiErrorKind.rateLimited =>
         serverMessage ?? 'Too many requests. Please wait and try again.',
       ApiErrorKind.server =>
@@ -154,5 +156,14 @@ abstract final class DioErrorMapper {
       }
     }
     return null;
+  }
+
+  /// Empty ASP.NET 404 bodies have no message; surface the requested path.
+  static String? _notFoundFallback(Object? cause) {
+    if (cause is! DioException) return null;
+    final uri = cause.requestOptions.uri;
+    final path = uri.path;
+    if (path.isEmpty) return null;
+    return 'API endpoint not found ($path). The server may be on an older deploy.';
   }
 }

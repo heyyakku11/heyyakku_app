@@ -482,7 +482,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       question: question,
       options: options,
       selectedOptionIndex: selectedIndex,
-      allowComments: _allowComments,
     );
   }
 
@@ -490,7 +489,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    required bool allowComments,
   }) async {
     if (_isCreating) return;
 
@@ -515,7 +513,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
         question: question,
         options: filled,
         selectedOptionIndex: apiSelectedIndex,
-        allowComments: allowComments,
       );
       if (!mounted) return;
       setState(() => _isCreating = false);
