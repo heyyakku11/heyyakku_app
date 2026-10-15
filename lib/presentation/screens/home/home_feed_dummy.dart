@@ -65,6 +65,22 @@ final homeFeedResponse = HomeFeedResponse.fromJson(const {
       'question': 'Would you tell me if I hurt you?',
       'options': ['Right away', 'Eventually', "I'd stay quiet"],
     },
+    {
+      'question': 'Do you think I try too hard to fit in?',
+      'options': ['Never', 'Sometimes', 'Yeah, a lot'],
+    },
+    {
+      'question': 'Would you hang out with me one-on-one?',
+      'options': ['Always', 'Sometimes', 'Not really'],
+    },
+    {
+      'question': 'Have you ever fake-laughed at something I said?',
+      'options': ['Never', 'Once or twice', 'More times than I can count'],
+    },
+    {
+      'question': 'Am I someone you'd go to for advice?',
+      'options': ['Definitely', 'Maybe', 'No, not really'],
+    },
   ],
 });
 
