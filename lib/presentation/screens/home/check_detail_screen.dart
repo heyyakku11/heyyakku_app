@@ -274,30 +274,8 @@ class _PickYourAnswerFooter extends StatefulWidget {
   State<_PickYourAnswerFooter> createState() => _PickYourAnswerFooterState();
 }
 
-class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
-    with SingleTickerProviderStateMixin {
+class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter> {
   static const _ink = Color(0xFF1B1418);
-
-  late final AnimationController _bounce;
-  late final Animation<double> _offsetY;
-
-  @override
-  void initState() {
-    super.initState();
-    _bounce = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
-    _offsetY = Tween<double>(begin: 0, end: -5).animate(
-      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _bounce.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,19 +306,10 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    AnimatedBuilder(
-                      animation: _offsetY,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, _offsetY.value),
-                          child: child,
-                        );
-                      },
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 18,
-                        color: _ink,
-                      ),
+                    const Icon(
+                      Icons.arrow_upward_rounded,
+                      size: 18,
+                      color: _ink,
                     ),
                     const SizedBox(width: 8),
                     const Text(
