@@ -185,6 +185,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
                         )
                       : _PickYourAnswerFooter(
                           onTap: _playSelectionHint,
+                          bounceAnimation: _showSelectionHint ? _hintAnimation : null,
                         ),
                 ),
               ],
@@ -266,9 +267,13 @@ class _OptionEntranceSlide extends StatelessWidget {
 
 /// Shown when no answer is selected.
 class _PickYourAnswerFooter extends StatefulWidget {
-  const _PickYourAnswerFooter({required this.onTap});
+  const _PickYourAnswerFooter({
+    required this.onTap,
+    this.bounceAnimation,
+  });
 
   final VoidCallback onTap;
+  final Animation<double>? bounceAnimation;
 
   @override
   State<_PickYourAnswerFooter> createState() => _PickYourAnswerFooterState();
@@ -304,54 +309,67 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(28),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: _ink, width: 1.6),
-                boxShadow: const [
-                  BoxShadow(
-                    color: _ink,
-                    offset: Offset(0, 4),
-                    blurRadius: 0,
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _offsetY,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, _offsetY.value),
-                          child: child,
-                        );
-                      },
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 18,
-                        color: _ink,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Pick your answer',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+        AnimatedBuilder(
+          animation: widget.bounceAnimation ?? AlwaysStoppedAnimation(0),
+          builder: (context, child) {
+            final bounceValue = widget.bounceAnimation?.value ?? 0;
+            // Bounce up and down: 0 to -8 pixels
+            final bounceOffset = sin((bounceValue - 0.5) * pi) * 8;
+
+            return Transform.translate(
+              offset: Offset(0, bounceOffset),
+              child: child,
+            );
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(28),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: _ink, width: 1.6),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: _ink,
+                      offset: Offset(0, 4),
+                      blurRadius: 0,
                     ),
                   ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _offsetY,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, _offsetY.value),
+                            child: child,
+                          );
+                        },
+                        child: const Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 18,
+                          color: _ink,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Pick your answer',
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -740,7 +758,7 @@ class _AnimatedPointingFinger extends StatelessWidget {
         final scale = 0.9 + (sin((t - 0.5) * pi) * 0.15).abs();
 
         return Positioned(
-          top: 380,
+          top: 320,
           right: 16,
           child: Transform.scale(
             scale: scale,
