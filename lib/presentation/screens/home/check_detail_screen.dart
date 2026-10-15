@@ -1,12 +1,12 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
+import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
+import 'package:yakku/presentation/widgets/pick_hint_finger.dart';
 
 class CheckDetailScreen extends StatefulWidget {
   const CheckDetailScreen({super.key, required this.check});
@@ -25,6 +25,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
 
   late final AnimationController _optionsEntrance;
   late final AnimationController _hintAnimation;
+  final LayerLink _firstAnswerLink = LayerLink();
 
   AskFriendsCheck get check => widget.check;
 
@@ -87,6 +88,12 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
         ? check.question.trim()
         : check.title.trim();
     final options = [for (final option in answers) option.label.trim()];
+
+    // Guests must log in before the check can be created.
+    if (!AppScope.of(context).authController.isLoggedIn) {
+      await openMobileLogin(context);
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+    }
 
     setState(() => _sending = true);
     try {
@@ -181,8 +188,19 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
                 ),
               ],
             ),
-            if (_showSelectionHint)
-              _AnimatedPointingFinger(animation: _hintAnimation),
+            if (_showSelectionHint && !hasSelection)
+              Positioned(
+                left: 0,
+                top: 0,
+                child: CompositedTransformFollower(
+                  link: _firstAnswerLink,
+                  showWhenUnlinked: false,
+                  targetAnchor: Alignment.bottomRight,
+                  followerAnchor: Alignment.topRight,
+                  offset: const Offset(-18, 2),
+                  child: const PickHintFinger(),
+                ),
+              ),
           ],
         ),
       ),
@@ -195,6 +213,12 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     return String.fromCharCode(65 + index);
   }
 
+  /// The first answer row anchors the pick-hint finger.
+  Widget _linkFirstAnswer(int index, Widget row) {
+    if (index != 0) return row;
+    return CompositedTransformTarget(link: _firstAnswerLink, child: row);
+  }
+
   List<Widget> _buildAnimatedOptions() {
     final answers = _answerOptions;
     // Answers + friends-add row, staggered over 1800ms.
@@ -204,13 +228,16 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
       for (var index = 0; index < answers.length; index++) ...[
         _OptionEntranceSlide(
           animation: _stagger(index, itemCount),
-          child: _AnswerRow(
-            check: check,
-            option: answers[index],
-            letter: _letterFor(answers[index], index),
-            selected: _selectedIndex == index,
-            onTap: () => setState(() => _selectedIndex = index),
-            showGlow: _showSelectionHint,
+          child: _linkFirstAnswer(
+            index,
+            _AnswerRow(
+              check: check,
+              option: answers[index],
+              letter: _letterFor(answers[index], index),
+              selected: _selectedIndex == index,
+              onTap: () => setState(() => _selectedIndex = index),
+              showGlow: _showSelectionHint,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -667,35 +694,6 @@ class _FriendsCanAddOwnButton extends StatelessWidget {
         .withLightness((hsl.lightness - 0.04).clamp(0.5, 0.7))
         .toColor();
     return (fill: fill, border: border);
-  }
-}
-
-/// Animated pointing finger that guides user to select an option.
-class _AnimatedPointingFinger extends StatelessWidget {
-  const _AnimatedPointingFinger({required this.animation});
-
-  final Animation<double> animation;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        final t = animation.value;
-
-        // Scale in-out animation (0.8 to 1.2)
-        final scale = 0.8 + (sin((t - 0.5) * pi) * 0.2).abs();
-
-        return Positioned(
-          top: 300,
-          right: 16,
-          child: Transform.scale(
-            scale: scale,
-            child: const Text('👆', style: TextStyle(fontSize: 48)),
-          ),
-        );
-      },
-    );
   }
 }
 

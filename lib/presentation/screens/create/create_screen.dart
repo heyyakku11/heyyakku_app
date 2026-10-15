@@ -16,6 +16,7 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
+import 'package:yakku/presentation/widgets/pick_hint_finger.dart';
 
 String _capitalizeOption(String value) {
   final text = value.trim();
@@ -56,6 +57,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     with TickerProviderStateMixin {
   static const _duplicateMessage = 'This option is already used';
   static const _friendsTooltip = "This spot is for your friends' own options.";
+
   /// Auto-typing question placeholders (loop). Defined only on create screen.
   static const _questionPlaceholderPhrases = <String>[
     'Would you trust me with a secret?',
@@ -79,6 +81,9 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _allowComments = true;
   bool _stopPlaceholder = false;
   Timer? _pickHintTimer;
+
+  /// Anchors the pick-hint finger under option A's radio.
+  final LayerLink _pickHintLink = LayerLink();
 
   final ImagePicker _imagePicker = ImagePicker();
   File? _photoFile;
@@ -194,7 +199,8 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     _optionFocusNodes = List.generate(optionCount, (_) => FocusNode());
 
     _showOptions = _shouldRevealOptions(_questionController.text);
-    _showAddOption = _optionControllers.isNotEmpty &&
+    _showAddOption =
+        _optionControllers.isNotEmpty &&
         _optionControllers.first.text.trim().isNotEmpty;
     if (_optionControllers.length > AppLimits.minOptions) {
       _showAddOption = true;
@@ -267,10 +273,11 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       }
     }
 
-    final typedInA = _optionControllers.isNotEmpty &&
+    final typedInA =
+        _optionControllers.isNotEmpty &&
         _optionControllers.first.text.trim().isNotEmpty;
-    final shouldShowAdd = typedInA ||
-        _optionControllers.length > AppLimits.minOptions;
+    final shouldShowAdd =
+        typedInA || _optionControllers.length > AppLimits.minOptions;
 
     if (shouldShowAdd != _showAddOption) {
       setState(() => _showAddOption = shouldShowAdd);
@@ -405,25 +412,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     });
   }
 
-  void _resetForm() {
-    _pickHintTimer?.cancel();
-    _questionController.clear();
-    FocusScope.of(context).unfocus();
-    _resetOptionFields();
-    _glowController.stop();
-    _glowController.value = 0;
-    setState(() {
-      _showOptions = false;
-      _showAddOption = false;
-      _showPickHint = false;
-      _allowComments = true;
-      _stopPlaceholder = false;
-      _photoFile = null;
-      _mediaSessionId = null;
-      _isUploadingPhoto = false;
-    });
-  }
-
   Future<void> _onPhotoChipTap() async {
     final auth = AppScope.of(context).authController;
     if (!auth.isLoggedIn) {
@@ -531,7 +519,11 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       _questionFocus.requestFocus();
       return;
     }
-    for (var i = 0; i < math.min(AppLimits.minOptions, _optionControllers.length); i++) {
+    for (
+      var i = 0;
+      i < math.min(AppLimits.minOptions, _optionControllers.length);
+      i++
+    ) {
       if (_optionControllers[i].text.trim().isEmpty) {
         _optionFocusNodes[i].requestFocus();
         return;
@@ -629,8 +621,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       return;
     }
 
-    if (_photoFile != null &&
-        (_mediaSessionId == null || _isUploadingPhoto)) {
+    if (_photoFile != null && (_mediaSessionId == null || _isUploadingPhoto)) {
       _showMessage('Wait for the photo to finish uploading');
       return;
     }
@@ -661,13 +652,24 @@ class _CreatePollSheetState extends State<CreatePollSheet>
               mediaUploadSessionId: sessionId,
             );
       if (!mounted) return;
-      setState(() => _isCreating = false);
-      _resetForm();
-      await Navigator.of(context, rootNavigator: true).push<void>(
-        MaterialPageRoute<void>(
-          builder: (context) => CreatedPollScreen(poll: poll),
-        ),
+      // Close the create sheet and open the created poll in its place.
+      setState(() {
+        _isCreating = false;
+        _allowPop = true;
+      });
+      final route = MaterialPageRoute<void>(
+        builder: (context) => CreatedPollScreen(poll: poll),
       );
+      final sheetNavigator = Navigator.of(context);
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      if (identical(sheetNavigator, rootNavigator)) {
+        unawaited(sheetNavigator.pushReplacement(route));
+      } else {
+        // Sheet lives in a nested navigator; the poll screen must still cover
+        // the whole app, so close the sheet and push on the root navigator.
+        sheetNavigator.pop();
+        unawaited(rootNavigator.push(route));
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => _isCreating = false);
@@ -780,105 +782,136 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                           padding: const EdgeInsets.only(
                                             top: AppSpacing.md,
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
                                             children: [
-                                              for (var i = 0;
-                                                  i <
-                                                      _optionControllers
-                                                          .length;
-                                                  i++)
-                                                _StaggerReveal(
-                                                  key: ValueKey(
-                                                    'option-reveal-$i',
-                                                  ),
-                                                  index: i,
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                      bottom: AppSpacing.sm,
-                                                    ),
-                                                    child: _OptionRow(
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  for (
+                                                    var i = 0;
+                                                    i <
+                                                        _optionControllers
+                                                            .length;
+                                                    i++
+                                                  )
+                                                    _StaggerReveal(
+                                                      key: ValueKey(
+                                                        'option-reveal-$i',
+                                                      ),
                                                       index: i,
-                                                      controller:
-                                                          _optionControllers[
-                                                              i],
-                                                      focusNode:
-                                                          _optionFocusNodes[i],
-                                                      selected:
-                                                          _selectedOptionIndex ==
+                                                      child: Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              bottom:
+                                                                  AppSpacing.sm,
+                                                            ),
+                                                        child: _OptionRow(
+                                                          index: i,
+                                                          controller:
+                                                              _optionControllers[i],
+                                                          focusNode:
+                                                              _optionFocusNodes[i],
+                                                          selected:
+                                                              _selectedOptionIndex ==
                                                               i,
-                                                      showRadio:
-                                                          _optionControllers[i]
-                                                              .text
-                                                              .trim()
-                                                              .isNotEmpty,
-                                                      errorText:
-                                                          _duplicateErrorFor(
-                                                        i,
+                                                          showRadio:
+                                                              _optionControllers[i]
+                                                                  .text
+                                                                  .trim()
+                                                                  .isNotEmpty,
+                                                          errorText:
+                                                              _duplicateErrorFor(
+                                                                i,
+                                                              ),
+                                                          pulseListenable:
+                                                              _radioPulseController,
+                                                          radioLink: i == 0
+                                                              ? _pickHintLink
+                                                              : null,
+                                                          onSelect: () =>
+                                                              _selectOpinion(i),
+                                                          onSubmitted: () =>
+                                                              _moveFocusFromOption(
+                                                                i,
+                                                              ),
+                                                        ),
                                                       ),
-                                                      pulseListenable:
-                                                          _radioPulseController,
-                                                      onSelect: () =>
-                                                          _selectOpinion(i),
-                                                      onSubmitted: () =>
-                                                          _moveFocusFromOption(
-                                                        i,
+                                                    ),
+                                                  _StaggerReveal(
+                                                    key: ValueKey(
+                                                      'add-reveal-${_optionControllers.length}',
+                                                    ),
+                                                    index: _optionControllers
+                                                        .length,
+                                                    child: Padding(
+                                                      padding: EdgeInsets.only(
+                                                        bottom:
+                                                            _showAddOption &&
+                                                                _optionControllers
+                                                                        .length <
+                                                                    AppLimits
+                                                                        .maxOptions
+                                                            ? AppSpacing.sm
+                                                            : 0,
+                                                      ),
+                                                      child: AnimatedSize(
+                                                        duration:
+                                                            const Duration(
+                                                              milliseconds: 200,
+                                                            ),
+                                                        curve: Curves.easeOut,
+                                                        alignment:
+                                                            Alignment.topCenter,
+                                                        child:
+                                                            _showAddOption &&
+                                                                _optionControllers
+                                                                        .length <
+                                                                    AppLimits
+                                                                        .maxOptions
+                                                            ? _AddOptionButton(
+                                                                onPressed:
+                                                                    _addOption,
+                                                              )
+                                                            : const SizedBox(
+                                                                width: double
+                                                                    .infinity,
+                                                              ),
                                                       ),
                                                     ),
                                                   ),
-                                                ),
-                                              _StaggerReveal(
-                                                key: ValueKey(
-                                                  'add-reveal-${_optionControllers.length}',
-                                                ),
-                                                index:
-                                                    _optionControllers.length,
-                                                child: Padding(
-                                                  padding: EdgeInsets.only(
-                                                    bottom: _showAddOption &&
-                                                            _optionControllers
-                                                                    .length <
-                                                                AppLimits
-                                                                    .maxOptions
-                                                        ? AppSpacing.sm
-                                                        : 0,
-                                                  ),
-                                                  child: AnimatedSize(
-                                                    duration: const Duration(
-                                                      milliseconds: 200,
+                                                  _StaggerReveal(
+                                                    key: const ValueKey(
+                                                      'friends-reveal',
                                                     ),
-                                                    curve: Curves.easeOut,
-                                                    alignment:
-                                                        Alignment.topCenter,
-                                                    child: _showAddOption &&
-                                                            _optionControllers
-                                                                    .length <
-                                                                AppLimits
-                                                                    .maxOptions
-                                                        ? _AddOptionButton(
-                                                            onPressed:
-                                                                _addOption,
-                                                          )
-                                                        : const SizedBox(
-                                                            width:
-                                                                double.infinity,
-                                                          ),
-                                                  ),
-                                                ),
-                                              ),
-                                              _StaggerReveal(
-                                                key: const ValueKey(
-                                                  'friends-reveal',
-                                                ),
-                                                index:
-                                                    _optionControllers.length +
+                                                    index:
+                                                        _optionControllers
+                                                            .length +
                                                         1,
-                                                child: const _FriendsSlot(
-                                                  tooltip: _friendsTooltip,
-                                                ),
+                                                    child: const _FriendsSlot(
+                                                      tooltip: _friendsTooltip,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
+                                              if (_showPickHint &&
+                                                  _selectedOptionIndex == null)
+                                                Positioned(
+                                                  left: 0,
+                                                  top: 0,
+                                                  child: CompositedTransformFollower(
+                                                    link: _pickHintLink,
+                                                    showWhenUnlinked: false,
+                                                    targetAnchor:
+                                                        Alignment.bottomCenter,
+                                                    followerAnchor:
+                                                        Alignment.topCenter,
+                                                    offset: const Offset(0, 2),
+                                                    child:
+                                                        const PickHintFinger(),
+                                                  ),
+                                                ),
                                             ],
                                           ),
                                         ),
@@ -989,23 +1022,24 @@ class _QuestionCard extends StatelessWidget {
                 cursorColor: YakkuPalette.primary,
                 onSubmitted: (_) => onSubmitted(),
                 onEditingComplete: onSubmitted,
-                buildCounter: (
-                  context, {
-                  required currentLength,
-                  required isFocused,
-                  required maxLength,
-                }) {
-                  if (!_nearLimit) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '$currentLength/$maxLength',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: YakkuPalette.textSecondary,
-                      ),
-                    ),
-                  );
-                },
+                buildCounter:
+                    (
+                      context, {
+                      required currentLength,
+                      required isFocused,
+                      required maxLength,
+                    }) {
+                      if (!_nearLimit) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '$currentLength/$maxLength',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: YakkuPalette.textSecondary,
+                          ),
+                        ),
+                      );
+                    },
                 decoration: const InputDecoration(
                   isDense: true,
                   filled: true,
@@ -1076,10 +1110,11 @@ class _MediaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        selected ? YakkuPalette.primary : Colors.grey.shade300;
+    final borderColor = selected ? YakkuPalette.primary : Colors.grey.shade300;
     return Material(
-      color: selected ? YakkuPalette.primary.withValues(alpha: 0.08) : Colors.white,
+      color: selected
+          ? YakkuPalette.primary.withValues(alpha: 0.08)
+          : Colors.white,
       shape: StadiumBorder(side: BorderSide(color: borderColor)),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -1097,10 +1132,10 @@ class _MediaChip extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: YakkuPalette.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
+                  color: YakkuPalette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -1179,11 +1214,7 @@ class _TypingPlaceholderState extends State<_TypingPlaceholder> {
 }
 
 class _StaggerReveal extends StatefulWidget {
-  const _StaggerReveal({
-    super.key,
-    required this.index,
-    required this.child,
-  });
+  const _StaggerReveal({super.key, required this.index, required this.child});
 
   final int index;
   final Widget child;
@@ -1254,6 +1285,7 @@ class _OptionRow extends StatefulWidget {
     required this.onSelect,
     required this.onSubmitted,
     required this.pulseListenable,
+    this.radioLink,
     this.errorText,
   });
 
@@ -1265,14 +1297,16 @@ class _OptionRow extends StatefulWidget {
   final VoidCallback onSelect;
   final VoidCallback onSubmitted;
   final Animation<double> pulseListenable;
+
+  /// When set, the radio becomes the anchor for the pick-hint finger.
+  final LayerLink? radioLink;
   final String? errorText;
 
   @override
   State<_OptionRow> createState() => _OptionRowState();
 }
 
-class _OptionRowState extends State<_OptionRow>
-    with TickerProviderStateMixin {
+class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
   late final AnimationController _popController;
   late final AnimationController _radioInController;
   late final AnimationController _appearPulseController;
@@ -1336,6 +1370,12 @@ class _OptionRowState extends State<_OptionRow>
 
   void _onFocusChange() => setState(() {});
 
+  Widget _maybeLinkRadio(Widget radio) {
+    final link = widget.radioLink;
+    if (link == null) return radio;
+    return CompositedTransformTarget(link: link, child: radio);
+  }
+
   double _popScale() {
     final t = Curves.easeOut.transform(_popController.value);
     if (t < 0.45) {
@@ -1353,8 +1393,8 @@ class _OptionRowState extends State<_OptionRow>
     final borderColor = selected
         ? ink
         : focused
-            ? YakkuPalette.primary
-            : const Color(0xFFE5DCDF);
+        ? YakkuPalette.primary
+        : const Color(0xFFE5DCDF);
     final fill = selected ? ink : Colors.white;
     final shadowColor = selected ? YakkuPalette.primary : ink;
 
@@ -1378,9 +1418,7 @@ class _OptionRowState extends State<_OptionRow>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: borderColor,
-                width: selected
-                    ? 1.6
-                    : (focused ? 1.5 : 1),
+                width: selected ? 1.6 : (focused ? 1.5 : 1),
               ),
               boxShadow: selected
                   ? [
@@ -1427,23 +1465,24 @@ class _OptionRowState extends State<_OptionRow>
                     ),
                     onSubmitted: (_) => widget.onSubmitted(),
                     onEditingComplete: widget.onSubmitted,
-                    buildCounter: (
-                      context, {
-                      required currentLength,
-                      required isFocused,
-                      required maxLength,
-                    }) {
-                      if (!_nearLimit) return const SizedBox.shrink();
-                      return Text(
-                        '$currentLength/$maxLength',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: selected
-                              ? Colors.white70
-                              : YakkuPalette.textSecondary,
-                          fontSize: 10,
-                        ),
-                      );
-                    },
+                    buildCounter:
+                        (
+                          context, {
+                          required currentLength,
+                          required isFocused,
+                          required maxLength,
+                        }) {
+                          if (!_nearLimit) return const SizedBox.shrink();
+                          return Text(
+                            '$currentLength/$maxLength',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: selected
+                                  ? Colors.white70
+                                  : YakkuPalette.textSecondary,
+                              fontSize: 10,
+                            ),
+                          );
+                        },
                     decoration: InputDecoration(
                       isDense: true,
                       filled: true,
@@ -1509,34 +1548,36 @@ class _OptionRowState extends State<_OptionRow>
                               ),
                             );
                           },
-                          child: GestureDetector(
-                            onTap: widget.onSelect,
-                            behavior: HitTestBehavior.opaque,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: selected
-                                    ? YakkuPalette.primary
-                                    : Colors.transparent,
-                                border: Border.all(
+                          child: _maybeLinkRadio(
+                            GestureDetector(
+                              onTap: widget.onSelect,
+                              behavior: HitTestBehavior.opaque,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
                                   color: selected
                                       ? YakkuPalette.primary
-                                      : YakkuPalette.primary.withValues(
-                                          alpha: 0.55,
-                                        ),
-                                  width: 1.6,
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: selected
+                                        ? YakkuPalette.primary
+                                        : YakkuPalette.primary.withValues(
+                                            alpha: 0.55,
+                                          ),
+                                    width: 1.6,
+                                  ),
                                 ),
+                                child: selected
+                                    ? const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: Colors.white,
+                                      )
+                                    : null,
                               ),
-                              child: selected
-                                  ? const Icon(
-                                      Icons.check,
-                                      size: 14,
-                                      color: Colors.white,
-                                    )
-                                  : null,
                             ),
                           ),
                         ),
@@ -1587,9 +1628,9 @@ class _AddOptionButton extends StatelessWidget {
                 Text(
                   'Add another option',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -1637,9 +1678,9 @@ class _FriendsSlot extends StatelessWidget {
                 child: Text(
                   'D',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: YakkuPalette.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: YakkuPalette.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1647,9 +1688,9 @@ class _FriendsSlot extends StatelessWidget {
                 child: Text(
                   'Friends add their own',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: YakkuPalette.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: YakkuPalette.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const Icon(
@@ -1720,7 +1761,13 @@ class _AskFooter extends StatelessWidget {
               final shakeT = shakeListenable.value;
               final dx = math.sin(shakeT * math.pi * 8) * (1 - shakeT) * 10;
               final glow = ready
-                  ? (0.18 + 0.18 * (0.5 + 0.5 * math.sin(glowListenable.value * math.pi * 2)))
+                  ? (0.18 +
+                        0.18 *
+                            (0.5 +
+                                0.5 *
+                                    math.sin(
+                                      glowListenable.value * math.pi * 2,
+                                    )))
                   : 0.0;
               return Transform.translate(
                 offset: Offset(dx, 0),
