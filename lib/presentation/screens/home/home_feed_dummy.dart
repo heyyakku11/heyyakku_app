@@ -11,11 +11,7 @@ final homeFeedResponse = HomeFeedResponse.fromJson(const {
       'chipColor': '#F6F1F3',
       'accentColor': '#D02E62',
       'sticker': 'No filters.\nJust truth.',
-      'options': [
-        'Genuinely like you',
-        'Like having you around',
-        'Both',
-      ],
+      'options': ['Genuinely like you', 'Like having you around', 'Both'],
     },
     {
       'title': 'Trust Check',
@@ -25,11 +21,7 @@ final homeFeedResponse = HomeFeedResponse.fromJson(const {
       'chipColor': '#FFFFFF',
       'accentColor': '#D02E62',
       'sticker': 'Keep it real.',
-      'options': [
-        'Never',
-        'A week',
-        'Already told',
-      ],
+      'options': ['Never', 'A week', 'Already told'],
     },
     {
       'title': 'Vibe Check',
@@ -78,7 +70,7 @@ final homeFeedResponse = HomeFeedResponse.fromJson(const {
       'options': ['Never', 'Once or twice', 'More times than I can count'],
     },
     {
-      'question': 'Am I someone you'd go to for advice?',
+      'question': 'Am I someone you\'d go to for advice?',
       'options': ['Definitely', 'Maybe', 'No, not really'],
     },
   ],
