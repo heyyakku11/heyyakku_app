@@ -86,9 +86,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     final question = check.question.trim().isNotEmpty
         ? check.question.trim()
         : check.title.trim();
-    final options = [
-      for (final option in answers) option.label.trim(),
-    ];
+    final options = [for (final option in answers) option.label.trim()];
 
     setState(() => _sending = true);
     try {
@@ -109,11 +107,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
         error,
         fallback: 'Could not send this check. Please try again.',
       ).message;
-      await showAppAlert(
-        context,
-        title: "Couldn't send",
-        message: message,
-      );
+      await showAppAlert(context, title: "Couldn't send", message: message);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -185,15 +179,15 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
                         )
                       : _PickYourAnswerFooter(
                           onTap: _playSelectionHint,
-                          bounceAnimation: _showSelectionHint ? _hintAnimation : null,
+                          bounceAnimation: _showSelectionHint
+                              ? _hintAnimation
+                              : null,
                         ),
                 ),
               ],
             ),
             if (_showSelectionHint)
-              _AnimatedPointingFinger(
-                animation: _hintAnimation,
-              ),
+              _AnimatedPointingFinger(animation: _hintAnimation),
           ],
         ),
       ),
@@ -236,10 +230,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
 
 /// Starts hidden, then slides in top-to-bottom as [animation] progresses.
 class _OptionEntranceSlide extends StatelessWidget {
-  const _OptionEntranceSlide({
-    required this.animation,
-    required this.child,
-  });
+  const _OptionEntranceSlide({required this.animation, required this.child});
 
   final Animation<double> animation;
   final Widget child;
@@ -267,10 +258,7 @@ class _OptionEntranceSlide extends StatelessWidget {
 
 /// Shown when no answer is selected.
 class _PickYourAnswerFooter extends StatefulWidget {
-  const _PickYourAnswerFooter({
-    required this.onTap,
-    this.bounceAnimation,
-  });
+  const _PickYourAnswerFooter({required this.onTap, this.bounceAnimation});
 
   final VoidCallback onTap;
   final Animation<double>? bounceAnimation;
@@ -279,30 +267,8 @@ class _PickYourAnswerFooter extends StatefulWidget {
   State<_PickYourAnswerFooter> createState() => _PickYourAnswerFooterState();
 }
 
-class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
-    with SingleTickerProviderStateMixin {
+class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter> {
   static const _ink = Color(0xFF1B1418);
-
-  late final AnimationController _bounce;
-  late final Animation<double> _offsetY;
-
-  @override
-  void initState() {
-    super.initState();
-    _bounce = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
-    _offsetY = Tween<double>(begin: 0, end: -5).animate(
-      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _bounce.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -320,11 +286,7 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: _ink, width: 1.6),
                 boxShadow: const [
-                  BoxShadow(
-                    color: _ink,
-                    offset: Offset(0, 4),
-                    blurRadius: 0,
-                  ),
+                  BoxShadow(color: _ink, offset: Offset(0, 4), blurRadius: 0),
                 ],
               ),
               child: SizedBox(
@@ -334,7 +296,8 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     AnimatedBuilder(
-                      animation: widget.bounceAnimation ?? AlwaysStoppedAnimation(0),
+                      animation:
+                          widget.bounceAnimation ?? AlwaysStoppedAnimation(0),
                       builder: (context, child) {
                         final bounceValue = widget.bounceAnimation?.value ?? 0;
                         // Bounce up and down: 0 to -8 pixels
@@ -345,32 +308,10 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
                           child: child,
                         );
                       },
-                      child: Icon(
+                      child: const Icon(
                         Icons.arrow_upward_rounded,
                         size: 18,
                         color: _ink,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    AnimatedBuilder(
-                      animation: widget.bounceAnimation ?? AlwaysStoppedAnimation(0),
-                      builder: (context, child) {
-                        final bounceValue = widget.bounceAnimation?.value ?? 0;
-                        // Bounce up and down: 0 to -8 pixels
-                        final bounceOffset = sin((bounceValue - 0.5) * pi) * 8;
-
-                        return Transform.translate(
-                          offset: Offset(0, bounceOffset),
-                          child: child,
-                        );
-                      },
-                      child: const Text(
-                        'Pick your answer',
-                        style: TextStyle(
-                          color: _ink,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
                       ),
                     ),
                   ],
@@ -766,10 +707,7 @@ class _AnimatedPointingFinger extends StatelessWidget {
           right: 16,
           child: Transform.scale(
             scale: scale,
-            child: const Text(
-              '👆',
-              style: TextStyle(fontSize: 44),
-            ),
+            child: const Text('👆', style: TextStyle(fontSize: 44)),
           ),
         );
       },
