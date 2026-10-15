@@ -6,6 +6,7 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/presentation/widgets/option_bottom_sheet.dart';
+import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
 class PollResultsScreen extends StatefulWidget {
   const PollResultsScreen({
@@ -110,10 +111,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton(
-                onPressed: () {
-                  _sheetShown = false;
-                  _openShareSheet();
-                },
+                onPressed: () => sharePollResponse(context, widget.poll),
                 child: const Text('Share poll'),
               ),
               const SizedBox(height: AppSpacing.sm),

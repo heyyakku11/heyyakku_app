@@ -103,7 +103,9 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
         selectedOptionIndex: selected,
       );
       if (!mounted) return;
-      await Navigator.of(context).push(
+      // Replace the check screen so Back from the created poll doesn't return
+      // to a check that has already been sent.
+      await Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (context) => CreatedPollScreen(poll: poll),
         ),

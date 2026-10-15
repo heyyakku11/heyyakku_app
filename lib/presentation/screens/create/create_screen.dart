@@ -1078,12 +1078,13 @@ class _QuestionCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _MediaChip(
-                icon: Icons.image_outlined,
-                label: 'Photo',
-                selected: photoFile != null,
-                onTap: onPhotoTap,
-              ),
+              // Photo chip temporarily disabled.
+              // _MediaChip(
+              //   icon: Icons.image_outlined,
+              //   label: 'Photo',
+              //   selected: photoFile != null,
+              //   onTap: onPhotoTap,
+              // ),
               // Future: Video / Voice media chips.
               // _MediaChip(icon: Icons.videocam_outlined, label: 'Video'),
               // _MediaChip(icon: Icons.mic_none_rounded, label: 'Voice'),

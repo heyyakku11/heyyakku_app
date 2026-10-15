@@ -5,6 +5,7 @@ import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/poll_option.dart';
 import 'package:yakku/domain/enums/poll_options_type.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
+import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
 const double _actionButtonHeight = 52;
 const double _pollImageSize = 88;
@@ -473,7 +474,11 @@ void _showMakeItYourSheet({
                       icon: Icons.share,
                       onPressed: () {
                         Navigator.pop(sheetContext);
-                        onShare?.call();
+                        if (onShare != null) {
+                          onShare();
+                        } else {
+                          sharePollModel(context, poll);
+                        }
                       },
                     ),
                   ),

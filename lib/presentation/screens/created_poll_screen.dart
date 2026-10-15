@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
+import 'package:yakku/core/share/share_coordinator.dart';
+import 'package:yakku/core/share/share_payload.dart';
+import 'package:yakku/core/share/share_platform_adapter.dart';
+import 'package:yakku/core/share/share_result.dart';
 import 'package:yakku/presentation/app_scope.dart';
 
 /// "Your card is live" screen shown right after a poll is created.
@@ -24,19 +26,36 @@ class CreatedPollScreen extends StatelessWidget {
   static const _ink = Color(0xFF21191D);
   static const _muted = Color(0xFF7C6466);
 
-  String _shareText() => 'Do you have a take on this? "${poll.question}" '
-      '— answer on Yakku, your pick stays secret.';
-
-  Future<void> _share() {
-    return SharePlus.instance.share(ShareParams(text: _shareText()));
-  }
-
-  Future<void> _copyLink(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: _shareText()));
-    if (!context.mounted) return;
+  /// Instagram, Snapchat and Facebook sharing isn't implemented yet.
+  void _showUnavailable(BuildContext context) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Copied')));
+      ..showSnackBar(
+        const SnackBar(content: Text('Not available yet. Coming soon.')),
+      );
+  }
+
+  /// Runs WhatsApp / Copy link through the share module and reports the
+  /// real outcome.
+  Future<void> _shareVia(BuildContext context, SharePlatformId platform) async {
+    final messenger = ScaffoldMessenger.of(context);
+    String? message;
+    try {
+      final payload = SharePayload.fromPollResponse(poll);
+      final result = await ShareCoordinator().share(platform, payload);
+      message = switch (result) {
+        ShareSuccess(:final feedbackMessage) => feedbackMessage,
+        ShareCancelled() => null,
+        ShareUnsupported(:final userMessage) => userMessage,
+        ShareFailure(:final userMessage) => userMessage,
+      };
+    } on SharePayloadException {
+      message = "This poll can't be shared right now.";
+    }
+    if (message == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -88,14 +107,16 @@ class CreatedPollScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 26),
                   _ShareRow(
-                    onInstagramDm: _share,
-                    onWhatsApp: _share,
-                    onSnapchat: _share,
-                    onFacebook: _share,
-                    onCopyLink: () => _copyLink(context),
+                    onInstagramDm: () => _showUnavailable(context),
+                    onWhatsApp: () =>
+                        _shareVia(context, SharePlatformId.whatsapp),
+                    onSnapchat: () => _showUnavailable(context),
+                    onFacebook: () => _showUnavailable(context),
+                    onCopyLink: () =>
+                        _shareVia(context, SharePlatformId.copyLink),
                   ),
                   const SizedBox(height: 22),
-                  _StoryButton(onTap: _share),
+                  _StoryButton(onTap: () => _showUnavailable(context)),
                   const SizedBox(height: 14),
                   Center(
                     child: TextButton(
