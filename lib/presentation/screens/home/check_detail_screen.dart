@@ -295,22 +295,13 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    AnimatedBuilder(
-                      animation:
-                          widget.bounceAnimation ?? AlwaysStoppedAnimation(0),
-                      builder: (context, child) {
-                        final bounceValue = widget.bounceAnimation?.value ?? 0;
-                        // Bounce up and down: 0 to -8 pixels
-                        final bounceOffset = sin((bounceValue - 0.5) * pi) * 8;
-
-                        return Transform.translate(
-                          offset: Offset(0, bounceOffset),
-                          child: child,
-                        );
-                      },
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 18,
+                    Icon(Icons.arrow_upward_rounded, size: 18, color: _ink),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Pick your answer',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight(800),
                         color: _ink,
                       ),
                     ),
