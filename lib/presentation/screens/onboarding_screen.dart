@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -20,10 +19,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await scope.authController.enterAsGuest();
     scope.guestSession.ensureGuestProfileInBackground();
     if (mounted) setState(() => _entering = false);
-  }
-
-  Future<void> _signInWithPhone() async {
-    await openMobileLogin(context);
   }
 
   @override
@@ -92,31 +87,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  onPressed: _entering ? null : _signInWithPhone,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: YakkuPalette.primary,
-                    side: BorderSide(
-                      color: YakkuPalette.primary.withValues(alpha: 0.6),
-                      width: 1.5,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                  ),
-                  child: const Text(
-                    'Sign in with phone',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(height: 20),
