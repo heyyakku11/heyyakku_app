@@ -19,8 +19,10 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     with TickerProviderStateMixin {
   int? _selectedIndex;
   bool _sending = false;
+  bool _showSelectionHint = false;
 
   late final AnimationController _optionsEntrance;
+  late final AnimationController _hintAnimation;
 
   AskFriendsCheck get check => widget.check;
 
@@ -37,12 +39,28 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..forward();
+
+    _hintAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
   }
 
   @override
   void dispose() {
     _optionsEntrance.dispose();
+    _hintAnimation.dispose();
     super.dispose();
+  }
+
+  Future<void> _playSelectionHint() async {
+    if (_selectedIndex != null) return;
+
+    setState(() => _showSelectionHint = true);
+    await _hintAnimation.forward();
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await _hintAnimation.reverse();
+    if (mounted) setState(() => _showSelectionHint = false);
   }
 
   Animation<double> _stagger(int index, int count) {
@@ -156,12 +174,22 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
-              child: hasSelection
-                  ? _AskMyFriendsFooter(
-                      sending: _sending,
-                      onTap: _sending ? null : _send,
-                    )
-                  : const _PickYourAnswerFooter(),
+              child: Stack(
+                children: [
+                  hasSelection
+                      ? _AskMyFriendsFooter(
+                          sending: _sending,
+                          onTap: _sending ? null : _send,
+                        )
+                      : _PickYourAnswerFooter(
+                          onTap: _playSelectionHint,
+                        ),
+                  if (_showSelectionHint)
+                    _AnimatedPointingFinger(
+                      animation: _hintAnimation,
+                    ),
+                ],
+              ),
             ),
           ],
         ),
@@ -235,7 +263,9 @@ class _OptionEntranceSlide extends StatelessWidget {
 
 /// Shown when no answer is selected.
 class _PickYourAnswerFooter extends StatefulWidget {
-  const _PickYourAnswerFooter();
+  const _PickYourAnswerFooter({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   State<_PickYourAnswerFooter> createState() => _PickYourAnswerFooterState();
@@ -271,49 +301,56 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: _ink, width: 1.6),
-            boxShadow: const [
-              BoxShadow(
-                color: _ink,
-                offset: Offset(0, 4),
-                blurRadius: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: _ink, width: 1.6),
+                boxShadow: const [
+                  BoxShadow(
+                    color: _ink,
+                    offset: Offset(0, 4),
+                    blurRadius: 0,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: _offsetY,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(0, _offsetY.value),
-                      child: child,
-                    );
-                  },
-                  child: const Icon(
-                    Icons.arrow_upward_rounded,
-                    size: 18,
-                    color: _ink,
-                  ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _offsetY,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(0, _offsetY.value),
+                          child: child,
+                        );
+                      },
+                      child: const Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 18,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Pick your answer',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Pick your answer',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -670,6 +707,54 @@ class _FriendsCanAddOwnButton extends StatelessWidget {
         .withLightness((hsl.lightness - 0.04).clamp(0.5, 0.7))
         .toColor();
     return (fill: fill, border: border);
+  }
+}
+
+/// Animated pointing finger that guides user to select an option.
+class _AnimatedPointingFinger extends StatelessWidget {
+  const _AnimatedPointingFinger({required this.animation});
+
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final t = animation.value;
+        return Positioned(
+          left: 0,
+          right: 0,
+          top: -60 + (t * 20),
+          child: Opacity(
+            opacity: (1 - (t - 0.7).abs() / 0.3).clamp(0.0, 1.0),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Transform.scale(
+                    scale: 1.0 + (t * 0.15),
+                    child: const Text(
+                      '👆',
+                      style: TextStyle(fontSize: 32),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select an option first',
+                    style: TextStyle(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
