@@ -220,6 +220,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
             letter: _letterFor(answers[index], index),
             selected: _selectedIndex == index,
             onTap: () => setState(() => _selectedIndex = index),
+            showGlow: _showSelectionHint,
           ),
         ),
         const SizedBox(height: 14),
@@ -564,6 +565,7 @@ class _AnswerRow extends StatelessWidget {
     required this.letter,
     required this.selected,
     required this.onTap,
+    this.showGlow = false,
   });
 
   final AskFriendsCheck check;
@@ -571,9 +573,11 @@ class _AnswerRow extends StatelessWidget {
   final String letter;
   final bool selected;
   final VoidCallback? onTap;
+  final bool showGlow;
 
   static const _radius = 18.0;
   static const _ink = Color(0xFF1B1418);
+  static const _glowRed = Color(0xFFD32F2F);
 
   @override
   Widget build(BuildContext context) {
@@ -601,6 +605,12 @@ class _AnswerRow extends StatelessWidget {
                 offset: const Offset(3, 3),
                 blurRadius: 0,
               ),
+              if (showGlow)
+                BoxShadow(
+                  color: _glowRed.withValues(alpha: 0.6),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
             ],
           ),
           child: Padding(
@@ -730,7 +740,7 @@ class _AnimatedPointingFinger extends StatelessWidget {
         final scale = 0.9 + (sin((t - 0.5) * pi) * 0.15).abs();
 
         return Positioned(
-          top: 180,
+          top: 380,
           right: 16,
           child: Transform.scale(
             scale: scale,
