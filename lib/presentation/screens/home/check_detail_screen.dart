@@ -692,7 +692,6 @@ class _FriendsCanAddOwnButton extends StatelessWidget {
 }
 
 /// Animated pointing finger that guides user to select an option.
-/// Animated index finger that moves from button to poll options.
 class _AnimatedPointingFinger extends StatelessWidget {
   const _AnimatedPointingFinger({required this.animation});
 
@@ -705,17 +704,17 @@ class _AnimatedPointingFinger extends StatelessWidget {
       builder: (context, child) {
         final t = animation.value;
 
-        // Ease in-out scale animation (breathing effect)
-        final scale = 0.9 + (sin((t - 0.5) * pi) * 0.15).abs();
+        // Scale in-out animation (0.8 to 1.2)
+        final scale = 0.8 + (sin((t - 0.5) * pi) * 0.2).abs();
 
         return Positioned(
-          top: 380,
+          top: 300,
           right: 16,
           child: Transform.scale(
             scale: scale,
             child: const Text(
               '👆',
-              style: TextStyle(fontSize: 44),
+              style: TextStyle(fontSize: 48),
             ),
           ),
         );
