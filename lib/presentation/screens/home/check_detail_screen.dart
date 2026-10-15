@@ -718,8 +718,6 @@ class _AnimatedPointingFinger extends StatelessWidget {
   const _AnimatedPointingFinger({required this.animation});
 
   final Animation<double> animation;
-  static const _buttonHeight = 56.0;
-  static const _footerPadding = 26.0;
 
   @override
   Widget build(BuildContext context) {
@@ -728,49 +726,17 @@ class _AnimatedPointingFinger extends StatelessWidget {
       builder: (context, child) {
         final t = animation.value;
 
-        // Easing: ease-out-cubic for smooth deceleration
-        final easedT = 1 - pow(1 - t, 3).toDouble();
-
-        // Fade in quickly, hold, then fade out
-        final opacity = t < 0.2
-            ? t / 0.2
-            : t > 0.8
-                ? (1 - t) / 0.2
-                : 1.0;
-
-        // Animate from bottom upward (~300-400px)
-        final offsetY = MediaQuery.of(context).size.height * 0.25 * (1 - easedT);
+        // Ease in-out scale animation (breathing effect)
+        final scale = 0.9 + (sin((t - 0.5) * pi) * 0.15).abs();
 
         return Positioned(
-          left: 0,
-          right: 0,
-          bottom: _buttonHeight + _footerPadding + offsetY,
-          child: Opacity(
-            opacity: opacity,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Pulsing scale effect
-                  Transform.scale(
-                    scale: 1.0 + (sin(t * pi * 2) * 0.12).toDouble(),
-                    child: const Icon(
-                      Icons.pan_tool_rounded,
-                      size: 48,
-                      color: Color(0xFF1B1418),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Select an option',
-                    style: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+          top: 180,
+          right: 16,
+          child: Transform.scale(
+            scale: scale,
+            child: const Text(
+              '👆',
+              style: TextStyle(fontSize: 44),
             ),
           ),
         );
