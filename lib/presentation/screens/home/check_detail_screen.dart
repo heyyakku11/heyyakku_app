@@ -126,59 +126,59 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     return Scaffold(
       backgroundColor: check.backgroundColor,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: check.foregroundColor,
-                  size: 20,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
-                children: [
-                  _Header(check: check),
-                  const SizedBox(height: 22),
-                  Text(
-                    check.title,
-                    style: TextStyle(
+            Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
                       color: check.foregroundColor,
-                      fontSize: 36,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
+                      size: 20,
                     ),
                   ),
-                  if (check.question.isNotEmpty &&
-                      check.question != check.title) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      check.question,
-                      style: TextStyle(
-                        color: check.foregroundColor,
-                        fontSize: 26,
-                        height: 1.25,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.3,
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                    children: [
+                      _Header(check: check),
+                      const SizedBox(height: 22),
+                      Text(
+                        check.title,
+                        style: TextStyle(
+                          color: check.foregroundColor,
+                          fontSize: 36,
+                          height: 1.05,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                        ),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 28),
-                  ..._buildAnimatedOptions(),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
-              child: Stack(
-                children: [
-                  hasSelection
+                      if (check.question.isNotEmpty &&
+                          check.question != check.title) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          check.question,
+                          style: TextStyle(
+                            color: check.foregroundColor,
+                            fontSize: 26,
+                            height: 1.25,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      ..._buildAnimatedOptions(),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+                  child: hasSelection
                       ? _AskMyFriendsFooter(
                           sending: _sending,
                           onTap: _sending ? null : _send,
@@ -186,13 +186,13 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
                       : _PickYourAnswerFooter(
                           onTap: _playSelectionHint,
                         ),
-                  if (_showSelectionHint)
-                    _AnimatedPointingFinger(
-                      animation: _hintAnimation,
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (_showSelectionHint)
+              _AnimatedPointingFinger(
+                animation: _hintAnimation,
+              ),
           ],
         ),
       ),
