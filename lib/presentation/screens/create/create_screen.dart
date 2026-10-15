@@ -1033,52 +1033,10 @@ class _QuestionCard extends StatelessWidget {
           ),
           if (photoFile != null) ...[
             const SizedBox(height: 12),
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Image.file(
-                      photoFile!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                    ),
-                  ),
-                ),
-                if (isUploadingPhoto)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: isUploadingPhoto ? null : onClearPhoto,
-                      child: const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: Icon(Icons.close, size: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            _ImagePreview(
+              photoFile: photoFile!,
+              isUploading: isUploadingPhoto,
+              onClear: onClearPhoto,
             ),
           ],
           const SizedBox(height: 12),
@@ -1870,6 +1828,69 @@ class _AskFooter extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ImagePreview extends StatelessWidget {
+  const _ImagePreview({
+    required this.photoFile,
+    required this.isUploading,
+    required this.onClear,
+  });
+
+  final File photoFile;
+  final bool isUploading;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Image.file(
+              photoFile,
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
+          ),
+        ),
+        if (isUploading)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black.withValues(alpha: 0.35),
+              child: const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.55),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: isUploading ? null : onClear,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
