@@ -9,6 +9,8 @@ class SharePlatformId {
   const SharePlatformId(this.value);
 
   static const whatsapp = SharePlatformId('whatsapp');
+  static const instagramDm = SharePlatformId('instagram_dm');
+  static const instagramStory = SharePlatformId('instagram_story');
   static const copyLink = SharePlatformId('copy_link');
 
   final String value;

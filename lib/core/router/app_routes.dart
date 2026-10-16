@@ -5,9 +5,14 @@ abstract final class AppRoutes {
   static const pollResults = '/polls/results';
   static const pollView = '/polls/view';
 
+  /// Canonical shared-poll path, identical to the website's `/vote/{pollId}`.
+  static const pollVote = '/vote/:pollId';
+  static String pollVoteLocation(String pollId) => '/vote/$pollId';
+
   static const onboardingName = 'onboarding';
   static const mainName = 'main';
   static const pollAnswerName = 'pollAnswer';
   static const pollResultsName = 'pollResults';
   static const pollViewName = 'pollView';
+  static const pollVoteName = 'pollVote';
 }

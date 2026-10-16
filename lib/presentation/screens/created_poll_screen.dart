@@ -7,7 +7,7 @@ import 'package:yakku/core/share/share_coordinator.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
 import 'package:yakku/core/share/share_result.dart';
-import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/instagram_story_guide_screen.dart';
 
 /// "Your card is live" screen shown right after a poll is created.
 class CreatedPollScreen extends StatelessWidget {
@@ -26,13 +26,31 @@ class CreatedPollScreen extends StatelessWidget {
   static const _ink = Color(0xFF21191D);
   static const _muted = Color(0xFF7C6466);
 
-  /// Instagram, Snapchat and Facebook sharing isn't implemented yet.
+  /// Snapchat and Facebook sharing isn't implemented yet.
   void _showUnavailable(BuildContext context) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(content: Text('Not available yet. Coming soon.')),
       );
+  }
+
+  /// Opens the "link sticker" guide that precedes the Instagram story composer.
+  void _openStoryGuide(BuildContext context) {
+    try {
+      final payload = SharePayload.fromPollResponse(poll);
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => InstagramStoryGuideScreen(payload: payload),
+        ),
+      );
+    } on SharePayloadException {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text("This poll can't be shared right now.")),
+        );
+    }
   }
 
   /// Runs WhatsApp / Copy link through the share module and reports the
@@ -60,8 +78,6 @@ class CreatedPollScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = AppScope.of(context).authController.displayName?.trim() ?? '';
-    final asker = name.isEmpty ? 'Someone' : name;
     final optionCount = poll.options.length.clamp(2, 4);
 
     return Scaffold(
@@ -101,13 +117,13 @@ class CreatedPollScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 26),
                   _PreviewCard(
-                    asker: asker,
                     question: poll.question,
                     optionCount: optionCount,
                   ),
                   const SizedBox(height: 26),
                   _ShareRow(
-                    onInstagramDm: () => _showUnavailable(context),
+                    onInstagramDm: () =>
+                        _shareVia(context, SharePlatformId.instagramDm),
                     onWhatsApp: () =>
                         _shareVia(context, SharePlatformId.whatsapp),
                     onSnapchat: () => _showUnavailable(context),
@@ -116,7 +132,9 @@ class CreatedPollScreen extends StatelessWidget {
                         _shareVia(context, SharePlatformId.copyLink),
                   ),
                   const SizedBox(height: 22),
-                  _StoryButton(onTap: () => _showUnavailable(context)),
+                  _StoryButton(
+                    onTap: () => _openStoryGuide(context),
+                  ),
                   const SizedBox(height: 14),
                   Center(
                     child: TextButton(
@@ -151,12 +169,10 @@ class CreatedPollScreen extends StatelessWidget {
 /// Tilted pink card previewing how friends will see the question.
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({
-    required this.asker,
     required this.question,
     required this.optionCount,
   });
 
-  final String asker;
   final String question;
   final int optionCount;
 
@@ -197,19 +213,6 @@ class _PreviewCard extends StatelessWidget {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        '$asker asked',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -238,7 +241,7 @@ class _PreviewCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 6),
                 Text(
-                  "Tap to answer. $asker won't know it was you.",
+                  "Tap to answer. They won't know it was you.",
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

@@ -5,6 +5,7 @@ abstract final class AppSpacing {
   static const double lg = 16;
   static const double xl = 24;
   static const double xxl = 32;
+
   /// Horizontal page / sheet margin (matches home).
   static const double screen = 10;
 }

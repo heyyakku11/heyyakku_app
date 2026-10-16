@@ -10,6 +10,7 @@ abstract final class StorageKeys {
   static const isUserLogged = 'isUserLogged';
   static const hasEnteredAsGuest = 'hasEnteredAsGuest';
   static const phoneNumber = 'phoneNumber';
+
   /// Legacy prefs key; kept for one-time migration to [phoneNumber].
   static const legacyEmail = 'email';
   static const displayName = 'displayName';
