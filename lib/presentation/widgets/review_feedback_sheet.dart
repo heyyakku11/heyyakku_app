@@ -115,10 +115,7 @@ class _ReviewFeedbackSheetState extends State<ReviewFeedbackSheet> {
                 keyboardType: TextInputType.multiline,
               ),
               const SizedBox(height: AppSpacing.lg),
-              AppButton(
-                label: 'Send',
-                onPressed: _rating == 0 ? null : _send,
-              ),
+              AppButton(label: 'Send', onPressed: _rating == 0 ? null : _send),
             ],
           ),
         ),

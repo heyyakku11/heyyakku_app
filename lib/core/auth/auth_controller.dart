@@ -78,10 +78,9 @@ class AuthController extends ChangeNotifier {
     );
 
     final trimmedName = firstName?.trim() ?? '';
-    final displayName =
-        trimmedName.isNotEmpty
-            ? trimmedName
-            : (data.name.isNotEmpty ? data.name : data.anonymousName);
+    final displayName = trimmedName.isNotEmpty
+        ? trimmedName
+        : (data.name.isNotEmpty ? data.name : data.anonymousName);
 
     await userPreferences.setPhoneNumber(phone);
     await userPreferences.setDisplayName(displayName);

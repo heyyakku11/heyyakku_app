@@ -11,6 +11,11 @@ abstract final class ApiRoutes {
   // Devices
   static const String registerDevice = '/api/v1/devices/register';
 
+  // Checks
+  static const String checks = '/api/v1/checks';
+  static const String makeCheck = '/api/v1/checks/make';
+  static const String myChecks = '/api/v1/checks/mine';
+
   // Polls
   static const String polls = '/api/v1/polls';
   static const String createPoll = '/api/v1/users/poll/create';

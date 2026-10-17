@@ -6,10 +6,7 @@ import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
 
 class MobileLoginResult {
-  const MobileLoginResult({
-    required this.phone,
-    required this.firstName,
-  });
+  const MobileLoginResult({required this.phone, required this.firstName});
 
   /// Full E.164 phone, e.g. +919876543210.
   final String phone;
@@ -97,15 +94,12 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
 
     setState(() => _isSubmitting = true);
 
-    AppScope.of(context).loginAuth.sendOtpInBackground(
-      phone: phone,
-      name: name,
-    );
+    AppScope.of(
+      context,
+    ).loginAuth.sendOtpInBackground(phone: phone, name: name);
 
     if (!mounted) return;
-    Navigator.of(context).pop(
-      MobileLoginResult(phone: phone, firstName: name),
-    );
+    Navigator.of(context).pop(MobileLoginResult(phone: phone, firstName: name));
   }
 
   @override
@@ -128,8 +122,9 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  onPressed:
-                      _isSubmitting ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close, size: 22),
                   color: YakkuPalette.textPrimary,
                 ),
@@ -328,10 +323,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
 }
 
 class _RoundedField extends StatelessWidget {
-  const _RoundedField({
-    required this.child,
-    this.errorText,
-  });
+  const _RoundedField({required this.child, this.errorText});
 
   final Widget child;
   final String? errorText;

@@ -1,7 +1,10 @@
 import 'package:flutter/painting.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
-Color parseHexColor(Object? value, {Color fallback = YakkuPalette.textPrimary}) {
+Color parseHexColor(
+  Object? value, {
+  Color fallback = YakkuPalette.textPrimary,
+}) {
   final raw = value?.toString().trim() ?? '';
   if (raw.isEmpty) return fallback;
 

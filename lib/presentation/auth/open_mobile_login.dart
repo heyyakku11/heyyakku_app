@@ -29,10 +29,7 @@ Future<void> openMobileLogin(BuildContext context) async {
     backgroundColor: Colors.white,
     shape: _sheetShape,
     builder: (context) {
-      return OtpBottomSheet(
-        phone: sent.phone,
-        firstName: sent.firstName,
-      );
+      return OtpBottomSheet(phone: sent.phone, firstName: sent.firstName);
     },
   );
 }

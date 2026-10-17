@@ -1,6 +1,7 @@
 import 'package:flutter/painting.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
+import 'package:yakku/data/models/checks/check_response.dart';
 
 class MirrorCheckOption {
   const MirrorCheckOption({
@@ -8,9 +9,13 @@ class MirrorCheckOption {
     this.letter,
     this.trailing,
     this.outlined = false,
+    this.id,
   });
 
   final String label;
+
+  /// Backend option id; null for dummy / UI-only options.
+  final String? id;
   final String? letter;
   final String? trailing;
   final bool outlined;
@@ -53,8 +58,15 @@ class MirrorCheck {
     this.eyebrow,
     this.meta,
     this.sticker,
+    this.id,
+    this.used = false,
   });
 
+  /// Backend check id; null for dummy cards.
+  final String? id;
+
+  /// True once the caller has made this check.
+  final bool used;
   final String title;
   final String question;
   final Color backgroundColor;
@@ -65,6 +77,33 @@ class MirrorCheck {
   final String? meta;
   final String? sticker;
   final List<MirrorCheckOption> options;
+
+  /// The backend only sends the background colour; the rest follows the
+  /// shared card palette.
+  factory MirrorCheck.fromCheck(CheckResponse check) {
+    return MirrorCheck(
+      id: check.id,
+      used: check.used,
+      title: check.title,
+      question: check.question,
+      backgroundColor: parseHexColor(
+        check.backgroundColor,
+        fallback: YakkuPalette.cream,
+      ),
+      foregroundColor: YakkuPalette.textPrimary,
+      chipColor: const Color(0xFFFFFFFF),
+      accentColor: YakkuPalette.primary,
+      sticker: check.sticker.trim().isEmpty ? null : check.sticker,
+      options: [
+        for (var i = 0; i < check.options.length; i++)
+          MirrorCheckOption(
+            id: check.options[i].id,
+            label: check.options[i].text,
+            letter: String.fromCharCode(65 + i),
+          ),
+      ],
+    );
+  }
 
   factory MirrorCheck.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['options'] as List<dynamic>? ?? const [];

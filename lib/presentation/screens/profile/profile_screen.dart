@@ -20,6 +20,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   String? _phoneNumber;
+  String? _planName;
   int _asks = 0;
   int _votes = 0;
   AuthController? _authController;
@@ -48,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _name = null;
         _phoneNumber = null;
+        _planName = null;
         _asks = 0;
         _votes = 0;
       });
@@ -73,6 +75,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final phone = _nonEmpty(me.phoneNumber);
         if (name != null) _name = name;
         if (phone != null) _phoneNumber = phone;
+        final plan = _nonEmpty(me.currentPlan?.name);
+        if (plan != null) _planName = plan;
       });
     } catch (_) {}
 
@@ -127,7 +131,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       onPressed: () =>
-                          _openWhenLoggedIn(const SettingsScreen()),
+                          _openWhenLoggedIn(
+                            SettingsScreen(
+                              phoneNumber: phoneNumber,
+                              planName: _planName,
+                            ),
+                          ),
                       icon: const Icon(Icons.settings_outlined),
                     ),
                   ),

@@ -7,7 +7,13 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.phoneNumber, this.planName});
+
+  /// From the get-user API; falls back to the stored session phone number.
+  final String? phoneNumber;
+
+  /// Current plan name from the get-user API (e.g. "Free").
+  final String? planName;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -29,8 +35,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadNotifications() async {
     try {
-      final prefs =
-          await AppScope.of(context).notificationPreferences.getPreferences();
+      final prefs = await AppScope.of(
+        context,
+      ).notificationPreferences.getPreferences();
       if (!mounted) return;
       setState(() {
         _notifications = prefs;
@@ -121,7 +128,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final phoneNumber = AppScope.of(context).authController.phoneNumber;
+    final phoneNumber =
+        widget.phoneNumber ?? AppScope.of(context).authController.phoneNumber;
     final maskedPhone = _maskPhoneNumber(phoneNumber);
     final dividerColor = theme.dividerColor.withValues(alpha: 0.55);
     final n = _notifications;
@@ -174,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               dividerColor: dividerColor,
               children: [
                 _PlanRow(
-                  planLabel: 'Free',
+                  planLabel: widget.planName ?? 'Free',
                   actionLabel: 'See Yakku Love',
                   onActionTap: () {},
                 ),
@@ -367,10 +375,7 @@ class _PlanRow extends StatelessWidget {
             ),
             child: Text(
               actionLabel,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -452,10 +457,9 @@ String? _maskPhoneNumber(String? phone) {
   final hasCountry91 =
       (digits.length >= 12 && digits.startsWith('91')) ||
       trimmed.startsWith('+91');
-  final local =
-      hasCountry91 && digits.length >= 12
-          ? digits.substring(digits.length - 10)
-          : digits.substring(digits.length - 10);
+  final local = hasCountry91 && digits.length >= 12
+      ? digits.substring(digits.length - 10)
+      : digits.substring(digits.length - 10);
 
   final masked =
       '${local.substring(0, 2)}xxx xx${local.substring(local.length - 3)}';

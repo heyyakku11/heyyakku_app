@@ -2,23 +2,14 @@ import 'package:yakku/core/storage/preference_storage_service.dart';
 import 'package:yakku/core/storage/storage_keys.dart';
 
 class YouSettings {
-  const YouSettings({
-    required this.tellVoters,
-    required this.kindMode,
-  });
+  const YouSettings({required this.tellVoters, required this.kindMode});
 
   final bool tellVoters;
   final bool kindMode;
 
-  static const defaults = YouSettings(
-    tellVoters: true,
-    kindMode: false,
-  );
+  static const defaults = YouSettings(tellVoters: true, kindMode: false);
 
-  YouSettings copyWith({
-    bool? tellVoters,
-    bool? kindMode,
-  }) {
+  YouSettings copyWith({bool? tellVoters, bool? kindMode}) {
     return YouSettings(
       tellVoters: tellVoters ?? this.tellVoters,
       kindMode: kindMode ?? this.kindMode,

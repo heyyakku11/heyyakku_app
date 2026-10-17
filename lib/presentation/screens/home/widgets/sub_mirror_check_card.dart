@@ -35,7 +35,7 @@ class MoreChecksSection extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             Flexible(
               child: Text(
                 'New every Monday',

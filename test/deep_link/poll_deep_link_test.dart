@@ -14,6 +14,9 @@ import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
+import 'package:yakku/data/datasources/check_remote_data_source.dart';
+import 'package:yakku/data/models/checks/check_response.dart';
+import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
@@ -128,6 +131,7 @@ class _Scope extends StatelessWidget {
       backgroundApiWorker: _F6(),
       polls: _F7(),
       pollApi: pollApi,
+      checkApi: _F14(),
       mediaUploads: _F8(),
       activityPolls: _F9(),
       userRemote: _F10(),
@@ -164,6 +168,15 @@ class _F11 extends Fake implements NotificationPreferenceRemoteDataSource {}
 class _F12 extends Fake implements DeviceRegistrationService {}
 
 class _F13 extends Fake implements DraftPollStore {}
+
+class _F14 extends CheckApiRepository {
+  _F14() : super(_FakeCheckRemote());
+}
+
+class _FakeCheckRemote extends Fake implements CheckRemoteDataSource {
+  @override
+  Future<List<CheckResponse>> getChecks() async => const [];
+}
 
 void main() {
   group('PollDeepLink.pollIdFromUrl', () {

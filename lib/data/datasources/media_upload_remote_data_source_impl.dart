@@ -9,10 +9,8 @@ import 'package:yakku/data/models/media/create_media_upload_session_request.dart
 import 'package:yakku/data/models/media/media_upload_session_response.dart';
 
 class MediaUploadRemoteDataSourceImpl implements MediaUploadRemoteDataSource {
-  MediaUploadRemoteDataSourceImpl({
-    required this.apiDio,
-    Dio? storageDio,
-  }) : storageDio = storageDio ?? Dio();
+  MediaUploadRemoteDataSourceImpl({required this.apiDio, Dio? storageDio})
+    : storageDio = storageDio ?? Dio();
 
   /// Authenticated API client.
   final Dio apiDio;

@@ -141,12 +141,11 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     _focusNodes.first.requestFocus();
   }
 
-  Future<void> _showError(String message, {String title = 'Verification failed'}) {
-    return showAppAlert(
-      context,
-      title: title,
-      message: message,
-    );
+  Future<void> _showError(
+    String message, {
+    String title = 'Verification failed',
+  }) {
+    return showAppAlert(context, title: title, message: message);
   }
 
   ApiException _mappedError(Object error) {
@@ -185,22 +184,13 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
 
     switch (code) {
       case OtpErrorCodes.invalid:
-        await _showError(
-          mapped.message,
-          title: 'Invalid code',
-        );
+        await _showError(mapped.message, title: 'Invalid code');
         return;
       case OtpErrorCodes.notFound:
-        await _showError(
-          mapped.message,
-          title: 'Code not found',
-        );
+        await _showError(mapped.message, title: 'Code not found');
         return;
       case OtpErrorCodes.retryLimitExceeded:
-        await _showError(
-          mapped.message,
-          title: 'Too many attempts',
-        );
+        await _showError(mapped.message, title: 'Too many attempts');
         if (!mounted) return;
         _closeSheet();
         return;
@@ -344,9 +334,8 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
                     );
                   }
 
-                  final canVerify = _isOtpComplete &&
-                      !_isVerifying &&
-                      !_isWaitingForSend;
+                  final canVerify =
+                      _isOtpComplete && !_isVerifying && !_isWaitingForSend;
                   return ElevatedButton(
                     onPressed: canVerify ? _verifyOtp : null,
                     child: _isVerifying

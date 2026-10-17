@@ -20,7 +20,9 @@ class PollMediaResponse {
       mediaType: json['mediaType'] as String? ?? '',
       mimeType: json['mimeType'] as String? ?? '',
       fileSize: _asInt(json['fileSize']),
-      durationMs: json['durationMs'] == null ? null : _asInt(json['durationMs']),
+      durationMs: json['durationMs'] == null
+          ? null
+          : _asInt(json['durationMs']),
       url: json['url'] as String?,
       urlExpiresAt: _parseDate(json['urlExpiresAt']),
     );

@@ -8,9 +8,11 @@ class AskFriendsOption {
     required this.label,
     this.letter,
     this.outlined = false,
+    this.id,
   });
 
   final String label;
+  final String? id;
   final String? letter;
   final bool outlined;
 }
@@ -27,8 +29,11 @@ class AskFriendsCheck {
     this.eyebrow,
     this.meta,
     this.sticker,
+    this.checkId,
   });
 
+  /// Backend check id; set only for checks that come from the API.
+  final String? checkId;
   final String title;
   final String question;
   final Color backgroundColor;
@@ -41,6 +46,7 @@ class AskFriendsCheck {
 
   factory AskFriendsCheck.fromMirrorCheck(MirrorCheck check) {
     return AskFriendsCheck(
+      checkId: check.id,
       title: check.title,
       question: check.question,
       backgroundColor: check.backgroundColor,
@@ -53,6 +59,7 @@ class AskFriendsCheck {
         for (final option in check.options)
           if (!option.outlined && option.label.trim().isNotEmpty)
             AskFriendsOption(
+              id: option.id,
               label: option.label,
               letter: option.letter,
             ),

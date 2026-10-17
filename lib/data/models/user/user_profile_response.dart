@@ -1,3 +1,29 @@
+class UserPlanResponse {
+  final String id;
+  final String code;
+  final String name;
+  final num price;
+  final String currency;
+
+  const UserPlanResponse({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.price,
+    required this.currency,
+  });
+
+  factory UserPlanResponse.fromJson(Map<String, dynamic> json) {
+    return UserPlanResponse(
+      id: json['id']?.toString() ?? '',
+      code: json['code'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      price: json['price'] as num? ?? 0,
+      currency: json['currency'] as String? ?? '',
+    );
+  }
+}
+
 class UserProfileResponse {
   final String id;
   final String status;
@@ -6,6 +32,7 @@ class UserProfileResponse {
   final String anonymousName;
   final DateTime? loginAt;
   final String? avatarUrl;
+  final UserPlanResponse? currentPlan;
 
   const UserProfileResponse({
     required this.id,
@@ -15,9 +42,11 @@ class UserProfileResponse {
     required this.anonymousName,
     this.loginAt,
     this.avatarUrl,
+    this.currentPlan,
   });
 
   factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
+    final plan = json['currentPlan'];
     return UserProfileResponse(
       id: json['id']?.toString() ?? '',
       status: json['status'] as String? ?? '',
@@ -26,6 +55,9 @@ class UserProfileResponse {
       anonymousName: json['anonymousName'] as String? ?? '',
       loginAt: _parseDate(json['loginAt']),
       avatarUrl: json['avatarUrl'] as String?,
+      currentPlan: plan is Map<String, dynamic>
+          ? UserPlanResponse.fromJson(plan)
+          : null,
     );
   }
 }

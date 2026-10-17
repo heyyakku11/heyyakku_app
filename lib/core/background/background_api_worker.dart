@@ -8,9 +8,7 @@ import 'package:yakku/core/background/background_job.dart';
 /// Intentionally knows nothing about auth, Dio, or UI — callers supply
 /// [BackgroundJob.execute] and react to [results].
 class BackgroundApiWorker {
-  BackgroundApiWorker({
-    this._retryDelay = const Duration(milliseconds: 800),
-  });
+  BackgroundApiWorker({this._retryDelay = const Duration(milliseconds: 800)});
 
   final Duration _retryDelay;
   final StreamController<BackgroundJobResult> _resultsController =

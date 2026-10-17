@@ -1,8 +1,5 @@
 class QuestionWorthAsking {
-  const QuestionWorthAsking({
-    required this.question,
-    required this.options,
-  });
+  const QuestionWorthAsking({required this.question, required this.options});
 
   final String question;
   final List<String> options;

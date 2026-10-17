@@ -32,19 +32,18 @@ class ActivityPollRemoteDataSourceImpl implements ActivityPollRemoteDataSource {
       throw StateError('Empty activity polls response');
     }
 
-    final apiResponse = ApiResponse<List<UserPollResponse>>.fromJson(
-      body,
-      (json) {
-        if (json is! List) return const <UserPollResponse>[];
-        return json
-            .whereType<Map>()
-            .map(
-              (item) =>
-                  UserPollResponse.fromJson(Map<String, dynamic>.from(item)),
-            )
-            .toList(growable: false);
-      },
-    );
+    final apiResponse = ApiResponse<List<UserPollResponse>>.fromJson(body, (
+      json,
+    ) {
+      if (json is! List) return const <UserPollResponse>[];
+      return json
+          .whereType<Map>()
+          .map(
+            (item) =>
+                UserPollResponse.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(growable: false);
+    });
 
     if (!apiResponse.success || apiResponse.data == null) {
       throw StateError(apiResponse.message ?? 'Failed to load activity polls');

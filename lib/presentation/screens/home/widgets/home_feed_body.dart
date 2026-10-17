@@ -1,50 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/models/home/question_worth_asking.dart';
+import 'package:yakku/presentation/screens/home/widgets/check_done_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/mirror_check_card.dart';
+import 'package:yakku/presentation/screens/home/widgets/your_cards_section.dart';
 import 'package:yakku/presentation/screens/home/widgets/question_worth_asking_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
+import 'package:yakku/presentation/screens/home/widgets/write_own_question_cta.dart';
 
 class HomeFeedBody extends StatelessWidget {
   const HomeFeedBody({
     super.key,
     required this.mirrorChecks,
+    this.myChecks = const [],
+    this.errorMessage,
     required this.questionsWorthAsking,
   });
 
   final List<MirrorCheck> mirrorChecks;
+  final List<UserCheckResponse> myChecks;
+  final String? errorMessage;
   final List<QuestionWorthAsking> questionsWorthAsking;
 
   @override
   Widget build(BuildContext context) {
     final featured = mirrorChecks.isEmpty ? null : mirrorChecks.first;
-    final moreChecks = mirrorChecks.length > 1
-        ? mirrorChecks.sublist(1)
-        : const <MirrorCheck>[];
+    // Made checks drop out of "More checks"; a made featured check shows as done.
+    final moreChecks = [
+      for (final check in mirrorChecks.skip(1))
+        if (!check.used) check,
+    ];
+    final returning = myChecks.isNotEmpty;
+    final theme = Theme.of(context);
+    final ink = theme.brightness == Brightness.dark
+        ? theme.colorScheme.onSurface
+        : YakkuPalette.textPrimary;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        const _FeedHeader(),
+        _FeedHeader(showTagline: !returning),
         const SizedBox(height: 22),
+        if (errorMessage != null) ...[
+          Text(errorMessage!, style: TextStyle(color: ink)),
+          const SizedBox(height: 22),
+        ],
+        if (returning) ...[
+          YourCardsSection(cards: myChecks),
+          const SizedBox(height: 24),
+        ],
         if (featured != null) ...[
-          // Index 0 → current/ongoing design; list order alone picks the widget.
-          CurrentMirrorCheckCard(check: featured),
+          if (featured.used) ...[
+            Text(
+              "This week's drop",
+              style: TextStyle(
+                color: ink,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            CheckDoneCard(check: featured),
+          ] else
+            CurrentMirrorCheckCard(check: featured),
           const SizedBox(height: 28),
         ],
-        // Indexes 1..end → SubMirrorCheckCard inside MoreChecksSection.
         MoreChecksSection(checks: moreChecks),
         const SizedBox(height: 28),
         QuestionsWorthAskingSection(questions: questionsWorthAsking),
+        const SizedBox(height: 14),
+        const WriteOwnQuestionCta(),
       ],
     );
   }
 }
 
 class _FeedHeader extends StatelessWidget {
-  const _FeedHeader();
+  const _FeedHeader({this.showTagline = true});
+
+  /// Hidden once "Your cards" loads; the cards take its place.
+  final bool showTagline;
 
   @override
   Widget build(BuildContext context) {
@@ -75,16 +113,18 @@ class _FeedHeader extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Ask your friends anything.\nThey answer anonymously.',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: ink,
-            fontSize: 24,
-            height: 1.28,
-            fontWeight: FontWeight.w900,
+        if (showTagline) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Ask your friends anything.\nThey answer anonymously.',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: ink,
+              fontSize: 24,
+              height: 1.28,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

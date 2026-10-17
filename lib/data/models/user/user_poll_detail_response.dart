@@ -114,7 +114,9 @@ class UserPollDetailResponse {
           )
           .toList(growable: false),
       youVsCrowd: rawYouVsCrowd is Map
-          ? YouVsCrowdResponse.fromJson(Map<String, dynamic>.from(rawYouVsCrowd))
+          ? YouVsCrowdResponse.fromJson(
+              Map<String, dynamic>.from(rawYouVsCrowd),
+            )
           : const YouVsCrowdResponse(),
     );
   }

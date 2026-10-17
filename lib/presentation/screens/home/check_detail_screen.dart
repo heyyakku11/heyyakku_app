@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
+import 'package:yakku/presentation/screens/home/created_check_screen.dart';
 import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
@@ -97,6 +99,21 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
 
     setState(() => _sending = true);
     try {
+      final checkId = check.checkId;
+      final optionId = answers[selected].id;
+      if (checkId != null && optionId != null) {
+        final made = await AppScope.of(context).checkApi.makeCheck(
+          MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
+        );
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (context) => CreatedCheckScreen(userCheck: made),
+          ),
+        );
+        return;
+      }
+
       final poll = await AppScope.of(context).pollApi.createTextPoll(
         question: question,
         options: options,

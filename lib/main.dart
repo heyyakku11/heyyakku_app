@@ -33,7 +33,9 @@ import 'package:yakku/data/datasources/guest_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/media_upload_remote_data_source_impl.dart';
+import 'package:yakku/data/datasources/check_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
+import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source_impl.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
@@ -140,6 +142,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final GuestSessionService _guestSession;
   late final LoginAuthService _loginAuth;
   late final PollApiRepository _pollApi;
+  late final CheckApiRepository _checkApi;
   late final MediaUploadRepository _mediaUploads;
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
@@ -212,6 +215,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _pollApi =
         widget.pollApiRepository ??
         PollApiRepository(PollRemoteDataSourceImpl(authenticatedDio));
+
+    _checkApi = CheckApiRepository(CheckRemoteDataSourceImpl(authenticatedDio));
 
     _mediaUploads = MediaUploadRepository(
       MediaUploadRemoteDataSourceImpl(apiDio: authenticatedDio),
@@ -289,6 +294,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         backgroundApiWorker: _backgroundApiWorker,
         polls: _polls,
         pollApi: _pollApi,
+        checkApi: _checkApi,
         mediaUploads: _mediaUploads,
         activityPolls: _activityPolls,
         userRemote: _userRemote,

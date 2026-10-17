@@ -10,6 +10,7 @@ import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
+import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
@@ -28,6 +29,7 @@ class AppScope extends InheritedWidget {
     required this.backgroundApiWorker,
     required this.polls,
     required this.pollApi,
+    required this.checkApi,
     required this.mediaUploads,
     required this.activityPolls,
     required this.userRemote,
@@ -46,6 +48,7 @@ class AppScope extends InheritedWidget {
   final BackgroundApiWorker backgroundApiWorker;
   final MockPollRepository polls;
   final PollApiRepository pollApi;
+  final CheckApiRepository checkApi;
   final MediaUploadRepository mediaUploads;
   final ActivityPollRepository activityPolls;
   final UserRemoteDataSource userRemote;
@@ -72,6 +75,7 @@ class AppScope extends InheritedWidget {
         backgroundApiWorker != oldWidget.backgroundApiWorker ||
         polls != oldWidget.polls ||
         pollApi != oldWidget.pollApi ||
+        checkApi != oldWidget.checkApi ||
         mediaUploads != oldWidget.mediaUploads ||
         activityPolls != oldWidget.activityPolls ||
         userRemote != oldWidget.userRemote ||

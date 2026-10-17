@@ -133,8 +133,8 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                 _LetteredOption(
                   option: displayOptions[i],
                   check: check,
-                  letter: displayOptions[i].letter ??
-                      String.fromCharCode(65 + i),
+                  letter:
+                      displayOptions[i].letter ?? String.fromCharCode(65 + i),
                 ),
                 const SizedBox(height: 8),
               ],
