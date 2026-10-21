@@ -10,7 +10,8 @@ abstract final class OtpErrorCodes {
       '_',
     );
     if (normalized.isEmpty) return null;
-    if (normalized == 'otp_retry_limit_exceeded') {
+    if (normalized == 'otp_retry_limit_exceeded' ||
+        normalized == 'otp_attempts_exceeded') {
       return retryLimitExceeded;
     }
     return normalized;

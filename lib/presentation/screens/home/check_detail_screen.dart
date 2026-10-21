@@ -3,8 +3,8 @@ import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
+import 'package:yakku/presentation/screens/auth/ask_login_screen.dart';
 import 'package:yakku/presentation/screens/home/created_check_screen.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
@@ -91,42 +91,35 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
         : check.title.trim();
     final options = [for (final option in answers) option.label.trim()];
 
-    // Guests must log in before the check can be created.
-    if (!AppScope.of(context).authController.isLoggedIn) {
-      await openMobileLogin(context);
-      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+    final scope = AppScope.of(context);
+    Future<Widget> createNext() =>
+        _createCheck(scope, answers[selected], selected, question, options);
+
+    // Guests log in on a screen that *replaces* this one; once verified, the
+    // login screen creates the check itself. Back there asks to discard.
+    if (!scope.authController.isLoggedIn) {
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => AskLoginScreen(
+            question: question,
+            optionCount: options.length,
+            confirmDiscard: true,
+            onLoggedIn: createNext,
+          ),
+        ),
+      );
+      return;
     }
 
     setState(() => _sending = true);
     try {
-      final checkId = check.checkId;
-      final optionId = answers[selected].id;
-      if (checkId != null && optionId != null) {
-        final made = await AppScope.of(context).checkApi.makeCheck(
-          MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
-        );
-        if (!mounted) return;
-        await Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (context) => CreatedCheckScreen(userCheck: made),
-          ),
-        );
-        return;
-      }
-
-      final poll = await AppScope.of(context).pollApi.createTextPoll(
-        question: question,
-        options: options,
-        selectedOptionIndex: selected,
-      );
+      final next = await createNext();
       if (!mounted) return;
-      // Replace the check screen so Back from the created poll doesn't return
-      // to a check that has already been sent.
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (context) => CreatedPollScreen(poll: poll),
-        ),
-      );
+      // Replace the check screen so Back from the created screen doesn't
+      // return to a check that has already been sent.
+      await Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute<void>(builder: (_) => next));
     } catch (error) {
       if (!mounted) return;
       final message = DioErrorMapper.map(
@@ -137,6 +130,32 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Creates the check/poll and returns the screen to show for it. Uses the
+  /// passed [scope] so it still works after this screen has been replaced.
+  Future<Widget> _createCheck(
+    AppScope scope,
+    AskFriendsOption answer,
+    int selected,
+    String question,
+    List<String> options,
+  ) async {
+    final checkId = check.checkId;
+    final optionId = answer.id;
+    if (checkId != null && optionId != null) {
+      final made = await scope.checkApi.makeCheck(
+        MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
+      );
+      return CreatedCheckScreen(userCheck: made);
+    }
+
+    final poll = await scope.pollApi.createTextPoll(
+      question: question,
+      options: options,
+      selectedOptionIndex: selected,
+    );
+    return CreatedPollScreen(poll: poll);
   }
 
   @override

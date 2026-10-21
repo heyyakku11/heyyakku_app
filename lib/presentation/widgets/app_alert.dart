@@ -34,6 +34,7 @@ Future<void> showAppAlert(
   BuildContext context, {
   String title = 'Notice',
   required String message,
+  String buttonLabel = 'OK',
 }) {
   return showDialog<void>(
     context: context,
@@ -45,7 +46,7 @@ Future<void> showAppAlert(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(buttonLabel),
           ),
         ],
       );

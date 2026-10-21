@@ -14,6 +14,7 @@ import 'package:yakku/data/models/poll/draft_poll.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_mobile_login.dart';
+import 'package:yakku/presentation/auth/open_ask_login.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/pick_hint_finger.dart';
@@ -629,7 +630,11 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     // Check authentication state before creating poll
     final auth = AppScope.of(context).authController;
     if (!auth.isLoggedIn) {
-      await openMobileLogin(context);
+      await openAskLogin(
+        context,
+        question: question,
+        optionCount: filled.length,
+      );
       if (!mounted || !AppScope.of(context).authController.isLoggedIn) {
         return;
       }

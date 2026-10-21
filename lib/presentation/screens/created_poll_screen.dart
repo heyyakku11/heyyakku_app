@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/core/utils/poll_card_image_service.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/core/share/share_coordinator.dart';
 import 'package:yakku/core/share/share_payload.dart';
@@ -10,7 +11,7 @@ import 'package:yakku/core/share/share_result.dart';
 import 'package:yakku/presentation/screens/instagram_story_guide_screen.dart';
 
 /// "Your card is live" screen shown right after a poll is created.
-class CreatedPollScreen extends StatelessWidget {
+class CreatedPollScreen extends StatefulWidget {
   const CreatedPollScreen({
     super.key,
     required this.poll,
@@ -25,6 +26,20 @@ class CreatedPollScreen extends StatelessWidget {
 
   static const _ink = Color(0xFF21191D);
   static const _muted = Color(0xFF7C6466);
+
+  @override
+  State<CreatedPollScreen> createState() => _CreatedPollScreenState();
+}
+
+class _CreatedPollScreenState extends State<CreatedPollScreen> {
+  static const _resultsVoteThreshold = CreatedPollScreen._resultsVoteThreshold;
+  static const _ink = CreatedPollScreen._ink;
+  static const _muted = CreatedPollScreen._muted;
+
+  final _cardKey = GlobalKey();
+  bool _downloading = false;
+
+  PollResponse get poll => widget.poll;
 
   /// Snapchat and Facebook sharing isn't implemented yet.
   void _showUnavailable(BuildContext context) {
@@ -76,91 +91,137 @@ class CreatedPollScreen extends StatelessWidget {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Renders the poll card to a PNG and saves it to the gallery.
+  Future<void> _downloadCard() async {
+    if (_downloading) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _downloading = true);
+    String message;
+    try {
+      await const PollCardImageService().download(_cardKey);
+      message = 'Card saved to your photos';
+    } on PollCardImageException catch (e) {
+      message = e.message;
+    } catch (e, st) {
+      debugPrint('Download card failed: $e\n$st');
+      message = "Couldn't save the card. Try again.";
+    }
+    if (mounted) setState(() => _downloading = false);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final optionCount = poll.options.length.clamp(2, 4);
 
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Your card is live',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _ink,
-                      fontSize: 28,
-                      height: 1.1,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Results show at $_resultsVoteThreshold votes. '
-                    'Send it to at least $_resultsVoteThreshold friends.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: _muted,
-                      fontSize: 14,
-                      height: 1.35,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  _PreviewCard(
-                    question: poll.question,
-                    optionCount: optionCount,
-                  ),
-                  const SizedBox(height: 26),
-                  _ShareRow(
-                    onInstagramDm: () =>
-                        _shareVia(context, SharePlatformId.instagramDm),
-                    onWhatsApp: () =>
-                        _shareVia(context, SharePlatformId.whatsapp),
-                    onSnapchat: () => _showUnavailable(context),
-                    onFacebook: () => _showUnavailable(context),
-                    onCopyLink: () =>
-                        _shareVia(context, SharePlatformId.copyLink),
-                  ),
-                  const SizedBox(height: 22),
-                  _StoryButton(
-                    onTap: () => _openStoryGuide(context),
-                  ),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      style: TextButton.styleFrom(
-                        foregroundColor: _muted,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                      ),
-                      child: const Text(
-                        'Share later',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          // Off-screen copy of the card rendered to a transparent PNG.
+          Positioned(
+            left: -3000,
+            top: 0,
+            width: 380,
+            child: RepaintBoundary(
+              key: _cardKey,
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: _PreviewCard(
+                  question: poll.question,
+                  optionCount: optionCount,
+                ),
               ),
             ),
           ),
-        ),
+          Positioned.fill(
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Your card is live',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 28,
+                            height: 1.1,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Results show at $_resultsVoteThreshold votes. '
+                          'Send it to at least $_resultsVoteThreshold friends.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 14,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        _PreviewCard(
+                          question: poll.question,
+                          optionCount: optionCount,
+                        ),
+                        const SizedBox(height: 26),
+                        _ShareRow(
+                          onInstagramDm: () =>
+                              _shareVia(context, SharePlatformId.instagramDm),
+                          onWhatsApp: () =>
+                              _shareVia(context, SharePlatformId.whatsapp),
+                          onSnapchat: () => _showUnavailable(context),
+                          onFacebook: () => _showUnavailable(context),
+                          onCopyLink: () =>
+                              _shareVia(context, SharePlatformId.copyLink),
+                        ),
+                        const SizedBox(height: 22),
+                        _StoryButton(onTap: () => _openStoryGuide(context)),
+                        const SizedBox(height: 12),
+                        _DownloadButton(
+                          busy: _downloading,
+                          onTap: _downloadCard,
+                        ),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            style: TextButton.styleFrom(
+                              foregroundColor: _muted,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                            ),
+                            child: const Text(
+                              'Share later',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -168,10 +229,7 @@ class CreatedPollScreen extends StatelessWidget {
 
 /// Tilted pink card previewing how friends will see the question.
 class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({
-    required this.question,
-    required this.optionCount,
-  });
+  const _PreviewCard({required this.question, required this.optionCount});
 
   final String question;
   final int optionCount;
@@ -439,6 +497,39 @@ class _StoryButton extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.onTap, required this.busy});
+
+  final VoidCallback onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: busy ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: YakkuPalette.primary,
+          side: const BorderSide(color: YakkuPalette.primary, width: 1.5),
+          shape: const StadiumBorder(),
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.download_rounded, size: 20),
+        label: const Text(
+          'Download card',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
       ),
     );
