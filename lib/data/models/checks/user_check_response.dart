@@ -1,3 +1,5 @@
+import 'package:yakku/core/constants/app_limits.dart';
+
 int? _asInt(Object? value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
@@ -47,6 +49,9 @@ class UserCheckResponse {
     this.myCustomAnswer,
     this.totalVotes,
     this.customAnswerVotes,
+    this.minVotes = AppLimits.minVotesToReveal,
+    this.voteProgress = 0,
+    this.resultsUnlocked = false,
     this.createdAt,
   });
 
@@ -62,10 +67,18 @@ class UserCheckResponse {
   final String? myCustomAnswer;
   final int? totalVotes;
   final int? customAnswerVotes;
+
+  /// Votes from others needed before results are revealed.
+  final int minVotes;
+
+  /// Votes from others so far (the owner's own answer isn't counted).
+  final int voteProgress;
+  final bool resultsUnlocked;
   final List<UserCheckOptionResponse> options;
   final DateTime? createdAt;
 
-  bool get resultsVisible => totalVotes != null;
+  /// True when the server has actually sent the results.
+  bool get resultsVisible => resultsUnlocked && totalVotes != null;
 
   factory UserCheckResponse.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['options'] as List<dynamic>? ?? const [];
@@ -82,6 +95,9 @@ class UserCheckResponse {
       myCustomAnswer: json['myCustomAnswer']?.toString(),
       totalVotes: _asInt(json['totalVotes']),
       customAnswerVotes: _asInt(json['customAnswerVotes']),
+      minVotes: _asInt(json['minVotes']) ?? AppLimits.minVotesToReveal,
+      voteProgress: _asInt(json['voteProgress']) ?? 0,
+      resultsUnlocked: json['resultsUnlocked'] as bool? ?? false,
       options: [
         for (final option in rawOptions.whereType<Map>())
           UserCheckOptionResponse.fromJson(Map<String, dynamic>.from(option)),

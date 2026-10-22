@@ -30,9 +30,6 @@ class CreatedPollScreen extends StatefulWidget {
   final UserCheckResponse? check;
   final List<String> categories;
 
-  /// Votes needed before results are revealed.
-  static const _resultsVoteThreshold = 5;
-
   static const _ink = Color(0xFF21191D);
   static const _muted = Color(0xFF7C6466);
 
@@ -41,7 +38,6 @@ class CreatedPollScreen extends StatefulWidget {
 }
 
 class _CreatedPollScreenState extends State<CreatedPollScreen> {
-  static const _resultsVoteThreshold = CreatedPollScreen._resultsVoteThreshold;
   static const _ink = CreatedPollScreen._ink;
   static const _muted = CreatedPollScreen._muted;
 
@@ -49,6 +45,10 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
   bool _downloading = false;
 
   String get _question => widget.poll?.question ?? widget.check!.question;
+
+  /// Votes needed before results are revealed, as sent by the API.
+  int get _resultsVoteThreshold =>
+      widget.poll?.minVotes ?? widget.check!.minVotes;
 
   int get _rawOptionCount =>
       widget.poll?.options.length ?? widget.check!.options.length;

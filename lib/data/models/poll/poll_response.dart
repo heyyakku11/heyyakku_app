@@ -1,3 +1,4 @@
+import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/data/models/poll/poll_media_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 
@@ -15,6 +16,13 @@ class PollResponse {
   final int totalVoteCount;
   final int customAnswerCount;
   final int totalWhyCount;
+
+  /// Votes from others needed before results are revealed.
+  final int minVotes;
+
+  /// Votes from others so far (the creator's own vote isn't counted).
+  final int voteProgress;
+  final bool resultsUnlocked;
   final List<PollOptionResponse> options;
 
   const PollResponse({
@@ -32,6 +40,9 @@ class PollResponse {
     this.media,
     this.customAnswerCount = 0,
     this.totalWhyCount = 0,
+    this.minVotes = AppLimits.minVotesToReveal,
+    this.voteProgress = 0,
+    this.resultsUnlocked = false,
   });
 
   factory PollResponse.fromJson(Map<String, dynamic> json) {
@@ -53,6 +64,12 @@ class PollResponse {
       totalVoteCount: _asInt(json['totalVoteCount']),
       customAnswerCount: _asInt(json['customAnswerCount']),
       totalWhyCount: _asInt(json['totalWhyCount']),
+      minVotes: _asInt(
+        json['minVotes'],
+        fallback: AppLimits.minVotesToReveal,
+      ),
+      voteProgress: _asInt(json['voteProgress']),
+      resultsUnlocked: json['resultsUnlocked'] as bool? ?? false,
       options: rawOptions
           .whereType<Map>()
           .map(

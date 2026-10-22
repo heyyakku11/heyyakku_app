@@ -11,6 +11,7 @@ import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
 import 'package:yakku/presentation/widgets/option_bottom_sheet.dart';
+import 'package:yakku/presentation/widgets/results_locked_view.dart';
 
 /// Results screen: a pick versus the crowd, then every option ranked by votes.
 ///
@@ -310,10 +311,50 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     );
   }
 
+  /// Under the vote limit the server sends no results, only progress.
+  Widget? _lockedBody() {
+    final check = widget.check;
+    if (check != null) {
+      if (check.resultsUnlocked) return null;
+      return ResultsLockedView(
+        question: check.question.trim().isNotEmpty
+            ? check.question
+            : check.title,
+        optionCount: check.options.length,
+        progress: check.voteProgress,
+        minVotes: check.minVotes,
+        tag: check.title,
+        backgroundColor: check.backgroundColor,
+        onShareAgain: () => _shareAgain(
+          (_) => CreatedPollScreen.check(check: check),
+        ),
+      );
+    }
+
+    final poll = widget.poll ?? _loadedPoll;
+    if (poll == null || poll.resultsUnlocked) return null;
+    return ResultsLockedView(
+      question: poll.question,
+      optionCount: poll.options.length,
+      progress: poll.voteProgress,
+      minVotes: poll.minVotes,
+      label: widget._justVoted ? 'LIVE' : 'YOUR CARD · LIVE',
+      onShareAgain: () => _shareAgain((_) => CreatedPollScreen(poll: poll)),
+    );
+  }
+
+  Future<void> _shareAgain(WidgetBuilder builder) {
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: builder));
+  }
+
   Widget _body(_ResultsData? data) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+    final locked = _lockedBody();
+    if (locked != null) return locked;
     if (data == null || data.tallies.isEmpty) {
       return Center(
         child: Column(

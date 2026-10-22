@@ -92,7 +92,9 @@ class UserCheckCard extends StatelessWidget {
       fallback: YakkuPalette.cream,
     );
     final ready = card.resultsVisible && (card.totalVotes ?? 0) > 0;
-    final label = ready ? 'Your You vs Crowd is ready' : 'Waiting for friends';
+    final label = ready
+        ? 'Your You vs Crowd is ready'
+        : '${card.voteProgress} of ${card.minVotes} votes';
     final question = card.question.isNotEmpty ? card.question : card.title;
 
     return DecoratedBox(
@@ -138,8 +140,8 @@ class UserCheckCard extends StatelessWidget {
             ),
             const Spacer(),
             FeedActionPill(
-              label: 'See result',
-              icon: Icons.bar_chart,
+              label: ready ? 'See result' : 'View card',
+              icon: ready ? Icons.bar_chart : Icons.hourglass_empty_rounded,
               filled: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
