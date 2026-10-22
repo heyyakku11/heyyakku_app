@@ -57,7 +57,7 @@ class MoreChecksSection extends StatelessWidget {
             final cardWidth = constraints.maxWidth * 0.82;
 
             return SizedBox(
-              height: 308,
+              height: 280,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,

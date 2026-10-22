@@ -12,10 +12,7 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 /// composer. Instagram doesn't let apps attach links, so the link is copied
 /// here and the user adds it as a link sticker.
 class InstagramStoryGuideScreen extends StatefulWidget {
-  const InstagramStoryGuideScreen({
-    super.key,
-    required this.payload,
-  });
+  const InstagramStoryGuideScreen({super.key, required this.payload});
 
   final SharePayload payload;
 
@@ -141,7 +138,10 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
                     subtitle: 'Put it where people will tap.',
                   ),
                   const SizedBox(height: 4),
-                  _CopiedChip(visible: _copied, label: 'Link copied: $_shortUrl'),
+                  _CopiedChip(
+                    visible: _copied,
+                    label: 'Link copied: $_shortUrl',
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 56,
@@ -180,10 +180,7 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
 
 /// Dark story-frame mock with the tilted Yakku card and link sticker.
 class _StoryPreview extends StatelessWidget {
-  const _StoryPreview({
-    required this.question,
-    required this.displayUrl,
-  });
+  const _StoryPreview({required this.question, required this.displayUrl});
 
   final String question;
   final String displayUrl;

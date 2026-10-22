@@ -150,4 +150,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw StateError(apiResponse.message ?? 'Logout failed');
     }
   }
+
+  @override
+  Future<void> deleteAccount() async {
+    final response = await dio.delete<Map<String, dynamic>>(ApiRoutes.deleteMe);
+
+    final body = response.data;
+    if (body == null) return;
+
+    final apiResponse = ApiResponse<Object?>.fromJson(body, (json) => json);
+    if (!apiResponse.success) {
+      throw ApiException(
+        kind: ApiErrorKind.badRequest,
+        message: apiResponse.message ?? 'Could not delete account',
+        code: DioErrorMapper.errorCodeFromBody(body),
+      );
+    }
+  }
 }

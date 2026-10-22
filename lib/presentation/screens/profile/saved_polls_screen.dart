@@ -62,6 +62,7 @@ PollModel _pollModelFromSavedResponse(PollResponse poll) {
 
   return PollModel(
     id: poll.id,
+    shareCode: poll.shareCode,
     question: poll.question,
     answerType: PollAnswerType.singleChoice,
     allowCustomOption: false,

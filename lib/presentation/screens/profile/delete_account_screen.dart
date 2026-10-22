@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/app_scope.dart';
 
 class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
@@ -11,12 +13,30 @@ class DeleteAccountScreen extends StatefulWidget {
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   bool _confirmed = false;
 
-  void _explainUnavailable() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text("Account deletion isn't available yet.")),
-      );
+  bool _deleting = false;
+
+  Future<void> _deleteAccount() async {
+    if (_deleting) return;
+    setState(() => _deleting = true);
+
+    final auth = AppScope.of(context).authController;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await auth.deleteAccount();
+      // Session is cleared; return to the root so the router shows onboarding.
+      navigator.popUntil((route) => route.isFirst);
+    } catch (error) {
+      final message = DioErrorMapper.map(
+        error,
+        fallback: 'Could not delete your account',
+      ).message;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+      if (mounted) setState(() => _deleting = false);
+    }
   }
 
   @override
@@ -96,7 +116,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _confirmed ? _explainUnavailable : null,
+                  onPressed: _confirmed && !_deleting ? _deleteAccount : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF9B2348),
                     disabledBackgroundColor: const Color(0xFFE7C5D0),
@@ -107,7 +127,16 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text('Delete my account'),
+                  child: _deleting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Delete my account'),
                 ),
               ),
               const SizedBox(height: 8),
@@ -115,7 +144,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 width: double.infinity,
                 height: 48,
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _deleting
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: Text(
                     'Keep my account',
                     style: TextStyle(

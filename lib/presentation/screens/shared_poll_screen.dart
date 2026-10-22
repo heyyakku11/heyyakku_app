@@ -10,12 +10,12 @@ import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 
 enum _SharedPollIssue { notFound, unavailable, closed, expired, failed }
 
-/// Destination of `https://<web host>/vote/{pollId}` links. Loads the poll
-/// through the existing poll API and hands it to [AnswerPollScreen].
+/// Destination of `https://<web host>/vote/{shareCode}` links. Loads the poll
+/// through the share-code poll API and hands it to [AnswerPollScreen].
 class SharedPollScreen extends StatefulWidget {
-  const SharedPollScreen({super.key, required this.pollId});
+  const SharedPollScreen({super.key, required this.shareCode});
 
-  final String pollId;
+  final String shareCode;
 
   @override
   State<SharedPollScreen> createState() => _SharedPollScreenState();
@@ -35,7 +35,7 @@ class _SharedPollScreenState extends State<SharedPollScreen> {
   }
 
   Future<void> _load() async {
-    if (!PollDeepLink.isValidPollId(widget.pollId)) {
+    if (!PollDeepLink.isValidShareCode(widget.shareCode)) {
       setState(() => _issue = _SharedPollIssue.notFound);
       return;
     }
@@ -45,7 +45,7 @@ class _SharedPollScreenState extends State<SharedPollScreen> {
     });
     final repo = AppScope.of(context).pollApi;
     try {
-      final poll = await repo.getPollById(widget.pollId.toLowerCase());
+      final poll = await repo.getPollByShareCode(widget.shareCode);
       if (!mounted) return;
       final issue = _issueFor(poll);
       setState(() {

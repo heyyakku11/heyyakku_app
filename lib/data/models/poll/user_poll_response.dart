@@ -23,6 +23,7 @@ class UserPollOptionResponse {
 
 class UserPollResponse {
   final String pollId;
+  final String shareCode;
   final String question;
   final String contentType;
   final String status;
@@ -42,6 +43,7 @@ class UserPollResponse {
     required this.createdAt,
     required this.totalVoteCount,
     required this.pollOptions,
+    this.shareCode = '',
     this.customAnswerCount = 0,
     this.totalWhyCount = 0,
   });
@@ -50,6 +52,7 @@ class UserPollResponse {
     final rawOptions = json['pollOptions'] as List<dynamic>? ?? const [];
     return UserPollResponse(
       pollId: json['pollId']?.toString() ?? '',
+      shareCode: json['shareCode'] as String? ?? '',
       question: json['question'] as String? ?? '',
       contentType: json['contentType'] as String? ?? 'question',
       status: json['status'] as String? ?? '',

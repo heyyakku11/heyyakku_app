@@ -9,11 +9,11 @@ import 'package:yakku/core/share/share_platform_registry.dart';
 import 'package:yakku/core/share/share_result.dart';
 import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
-const _id = '0cbe6985-219f-4ed7-b780-b93fe2be5fe1';
+const _id = 'aB3dE5gH7k';
 const _question = 'If I told you a secret, how long before someone else knows?';
 
 SharePayload _payload() =>
-    SharePayload.create(pollId: _id, question: _question);
+    SharePayload.create(shareCode: _id, question: _question);
 
 class _FakeAdapter extends SharePlatformAdapter {
   _FakeAdapter(this.id, {this.available = true, this.result});
@@ -45,7 +45,7 @@ void main() {
       final p = _payload();
       expect(p.url.toString(), 'https://heyyakku-web.vercel.app/vote/$_id');
       expect(p.question, _question);
-      expect(p.pollId, _id);
+      expect(p.shareCode, _id);
     });
 
     test('rejects invalid ids, empty question, private polls', () {
@@ -59,21 +59,24 @@ void main() {
       }
 
       expect(
-        err(() => SharePayload.create(pollId: '', question: 'q')),
-        SharePayloadError.invalidPollId,
+        err(() => SharePayload.create(shareCode: '', question: 'q')),
+        SharePayloadError.invalidShareCode,
       );
       expect(
-        err(() => SharePayload.create(pollId: 'abc', question: 'q')),
-        SharePayloadError.invalidPollId,
+        err(() => SharePayload.create(shareCode: 'abc', question: 'q')),
+        SharePayloadError.invalidShareCode,
       );
       expect(
-        err(() => SharePayload.create(pollId: _id, question: '  ')),
+        err(() => SharePayload.create(shareCode: _id, question: '  ')),
         SharePayloadError.emptyQuestion,
       );
       expect(
         err(
-          () =>
-              SharePayload.create(pollId: _id, question: 'q', isPublic: false),
+          () => SharePayload.create(
+            shareCode: _id,
+            question: 'q',
+            isPublic: false,
+          ),
         ),
         SharePayloadError.notPublic,
       );
@@ -87,7 +90,7 @@ void main() {
       ]) {
         expect(
           () => SharePayload.create(
-            pollId: _id,
+            shareCode: _id,
             question: 'q',
             websiteBaseUrl: base,
           ),
@@ -99,7 +102,7 @@ void main() {
 
     test('tolerates a trailing slash on the base URL', () {
       final p = SharePayload.create(
-        pollId: _id,
+        shareCode: _id,
         question: 'q',
         websiteBaseUrl: 'https://example.com/',
       );

@@ -4,7 +4,6 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/presentation/screens/auth/ask_login_screen.dart';
-import 'package:yakku/presentation/screens/home/created_check_screen.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
@@ -92,7 +91,7 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     final options = [for (final option in answers) option.label.trim()];
 
     final scope = AppScope.of(context);
-    Future<Widget> createNext() =>
+    Future<Widget?> createNext() =>
         _createCheck(scope, answers[selected], selected, question, options);
 
     // Guests log in on a screen that *replaces* this one; once verified, the
@@ -115,6 +114,11 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     try {
       final next = await createNext();
       if (!mounted) return;
+      if (next == null) {
+        // Check made: back to home, which reloads via the repository.
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+      }
       // Replace the check screen so Back from the created screen doesn't
       // return to a check that has already been sent.
       await Navigator.of(
@@ -132,9 +136,10 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     }
   }
 
-  /// Creates the check/poll and returns the screen to show for it. Uses the
-  /// passed [scope] so it still works after this screen has been replaced.
-  Future<Widget> _createCheck(
+  /// Creates the check/poll and returns the screen to show for it, or null
+  /// when the user should just land back on home. Uses the passed [scope] so
+  /// it still works after this screen has been replaced.
+  Future<Widget?> _createCheck(
     AppScope scope,
     AskFriendsOption answer,
     int selected,
@@ -144,10 +149,10 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     final checkId = check.checkId;
     final optionId = answer.id;
     if (checkId != null && optionId != null) {
-      final made = await scope.checkApi.makeCheck(
+      await scope.checkApi.makeCheck(
         MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
       );
-      return CreatedCheckScreen(userCheck: made);
+      return null;
     }
 
     final poll = await scope.pollApi.createTextPoll(

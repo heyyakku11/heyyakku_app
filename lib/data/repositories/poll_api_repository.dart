@@ -4,7 +4,6 @@ import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/create_poll_option_request.dart';
 import 'package:yakku/data/models/poll/create_poll_request.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
-import 'package:yakku/data/models/poll/shared_poll_response.dart';
 
 class PollApiRepository {
   PollApiRepository(this._remote);
@@ -19,9 +18,8 @@ class PollApiRepository {
     return _remote.getPollById(pollId);
   }
 
-  /// Backend currently has no share-token poll endpoint.
-  Future<SharedPollResponse> getSharedPoll(String shareToken) {
-    return _remote.getSharedPoll(shareToken);
+  Future<PollResponse> getPollByShareCode(String shareCode) {
+    return _remote.getPollByShareCode(shareCode);
   }
 
   Future<PollResponse> createTextPoll({

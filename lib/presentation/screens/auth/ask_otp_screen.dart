@@ -7,6 +7,7 @@ import 'package:yakku/core/network/api_exception.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/auth/notification_permission_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
 /// "Enter the 6-digit code" step. Verifies by itself once all 6 digits are in.
@@ -182,6 +183,9 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
         firstName: widget.firstName,
         guestToken: scope.guestTokenStore.guestToken,
       );
+      if (!mounted) return;
+      // Now logged in: ask for notifications and register this device.
+      await NotificationPermissionScreen.showIfNeeded(context);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {

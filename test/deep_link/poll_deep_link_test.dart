@@ -30,16 +30,18 @@ import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 
-const _id = '0cbe6985-219f-4ed7-b780-b93fe2be5fe1';
-const _otherId = '11111111-2222-3333-4444-555555555555';
+const _id = 'aB3dE5gH7k';
+const _otherId = 'Zq9xW2mN4p';
 
 PollResponse _poll({
   String id = _id,
+  String shareCode = _id,
   String status = 'active',
   String visibility = 'public',
   DateTime? expiresAt,
 }) => PollResponse(
   id: id,
+  shareCode: shareCode,
   question: 'Pizza or pasta?',
   contentType: 'question',
   status: status,
@@ -60,9 +62,9 @@ class _FakePollRemote extends Fake implements PollRemoteDataSource {
   final requested = <String>[];
 
   @override
-  Future<PollResponse> getPollById(String pollId) {
-    requested.add(pollId);
-    return onGet(pollId);
+  Future<PollResponse> getPollByShareCode(String shareCode) {
+    requested.add(shareCode);
+    return onGet(shareCode);
   }
 }
 
@@ -179,13 +181,11 @@ class _FakeCheckRemote extends Fake implements CheckRemoteDataSource {
 }
 
 void main() {
-  group('PollDeepLink.pollIdFromUrl', () {
-    test('accepts the canonical URL and lower-cases the id', () {
+  group('PollDeepLink.shareCodeFromUrl', () {
+    test('accepts the canonical URL and keeps the case of the code', () {
       expect(
-        PollDeepLink.pollIdFromUrl(
-          Uri.parse(
-            'https://heyyakku-web.vercel.app/vote/${_id.toUpperCase()}',
-          ),
+        PollDeepLink.shareCodeFromUrl(
+          Uri.parse('https://heyyakku-web.vercel.app/vote/$_id'),
         ),
         _id,
       );
@@ -193,7 +193,7 @@ void main() {
 
     test('ignores query and fragment', () {
       expect(
-        PollDeepLink.pollIdFromUrl(
+        PollDeepLink.shareCodeFromUrl(
           Uri.parse('https://heyyakku-web.vercel.app/vote/$_id?admin=1#x'),
         ),
         _id,
@@ -206,13 +206,13 @@ void main() {
       'https://heyyakku-web.vercel.app.evil.com/vote/$_id',
       'https://heyyakku-web.vercel.app/poll/$_id',
       'https://heyyakku-web.vercel.app/vote/',
-      'https://heyyakku-web.vercel.app/vote/not-a-uuid',
+      'https://heyyakku-web.vercel.app/vote/not-a-code',
       'https://heyyakku-web.vercel.app/vote/$_id/extra',
       'https://heyyakku-web.vercel.app/',
       'yakku://vote/$_id',
     ]) {
       test('rejects $bad', () {
-        expect(PollDeepLink.pollIdFromUrl(Uri.parse(bad)), isNull);
+        expect(PollDeepLink.shareCodeFromUrl(Uri.parse(bad)), isNull);
       });
     }
   });
@@ -245,7 +245,7 @@ void main() {
     testWidgets(
       'warm-start link switches poll; duplicate delivery is a no-op',
       (tester) async {
-        final remote = _FakePollRemote((id) async => _poll(id: id));
+        final remote = _FakePollRemote((id) async => _poll(shareCode: id));
         final h = _Harness(loggedIn: true, remote: remote);
         h.router.go('/vote/$_id');
         await tester.pumpWidget(h.build());
@@ -304,7 +304,7 @@ void main() {
     ) async {
       final remote = _FakePollRemote((_) async => _poll());
       final h = _Harness(loggedIn: true, remote: remote);
-      h.router.go('/vote/not-a-uuid');
+      h.router.go('/vote/not-a-code');
       await tester.pumpWidget(h.build());
       await tester.pumpAndSettle();
       expect(find.text('Poll not found'), findsOneWidget);

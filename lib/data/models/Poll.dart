@@ -5,6 +5,7 @@ import 'package:yakku/domain/enums/poll_status.dart';
 
 class PollModel {
   final String id;
+  final String shareCode;
   final String question;
   final String? categoryId;
   final PollAnswerType answerType;
@@ -17,6 +18,7 @@ class PollModel {
 
   const PollModel({
     required this.id,
+    this.shareCode = '',
     required this.question,
     this.categoryId,
     required this.answerType,
@@ -60,6 +62,7 @@ class PollModel {
 
     return PollModel(
       id: json['id']?.toString() ?? '',
+      shareCode: json['shareCode']?.toString() ?? '',
       question: json['question']?.toString() ?? '',
       categoryId: _asNullableString(json['categoryId']),
       answerType: PollAnswerType.fromValue(

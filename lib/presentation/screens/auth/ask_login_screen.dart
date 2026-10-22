@@ -27,7 +27,8 @@ class AskLoginScreen extends StatefulWidget {
 
   /// When set, runs after login and the screen it returns replaces this one,
   /// instead of popping `true` back to a caller.
-  final Future<Widget> Function()? onLoggedIn;
+  /// Returning null means "done, go back to the root (home)".
+  final Future<Widget?> Function()? onLoggedIn;
 
   static const countryCode = '+91';
 
@@ -138,6 +139,10 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
       try {
         final next = await onLoggedIn();
         if (!mounted) return;
+        if (next == null) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          return;
+        }
         await Navigator.of(
           context,
         ).pushReplacement(MaterialPageRoute<void>(builder: (_) => next));

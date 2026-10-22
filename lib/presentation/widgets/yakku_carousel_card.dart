@@ -133,10 +133,7 @@ class YakkuCarouselCard extends StatelessWidget {
                       label: _expiryLabel(expiresAt!),
                     ),
                   for (final name in categoryLabels)
-                    _DetailChip(
-                      tone: tone,
-                      label: '#${name.toUpperCase()}',
-                    ),
+                    _DetailChip(tone: tone, label: '#${name.toUpperCase()}'),
                 ],
               ),
             ],

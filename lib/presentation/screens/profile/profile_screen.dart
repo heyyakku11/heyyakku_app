@@ -130,13 +130,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
-                      onPressed: () =>
-                          _openWhenLoggedIn(
-                            SettingsScreen(
-                              phoneNumber: phoneNumber,
-                              planName: _planName,
-                            ),
-                          ),
+                      onPressed: () => _openWhenLoggedIn(
+                        SettingsScreen(
+                          phoneNumber: phoneNumber,
+                          planName: _planName,
+                        ),
+                      ),
                       icon: const Icon(Icons.settings_outlined),
                     ),
                   ),

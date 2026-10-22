@@ -105,6 +105,14 @@ class AuthController extends ChangeNotifier {
     );
   }
 
+  /// Deletes the account on the server, then clears the local session so the
+  /// router returns the user to onboarding. Throws if the API call fails, in
+  /// which case the user stays signed in.
+  Future<void> deleteAccount() async {
+    await _authRemote.deleteAccount();
+    await clearLocalSession();
+  }
+
   Future<void> _logoutRemote({
     required String refreshToken,
     required String? accessToken,

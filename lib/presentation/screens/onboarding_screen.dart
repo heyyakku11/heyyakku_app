@@ -12,6 +12,16 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _entering = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Warm the home feed while the user is still on onboarding.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppScope.of(context).checkApi.preloadHome(loggedIn: false);
+    });
+  }
+
   Future<void> _continueAsGuest() async {
     if (_entering) return;
     setState(() => _entering = true);

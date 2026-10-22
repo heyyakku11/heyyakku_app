@@ -62,6 +62,7 @@ class ApiActivityPollRepository implements ActivityPollRepository {
 
     return PollModel(
       id: poll.pollId,
+      shareCode: poll.shareCode,
       question: poll.question,
       answerType: PollAnswerType.singleChoice,
       allowCustomOption: false,

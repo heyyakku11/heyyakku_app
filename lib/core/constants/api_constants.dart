@@ -7,5 +7,6 @@ abstract final class ApiConstants {
 
   static const String baseUrl = isAppLive ? liveBasebaseUrl : stagingBaseUrl;
 
-  static String publicPollUrl(String shareToken) => '$webBaseUrl/p/$shareToken';
+  static String publicPollUrl(String shareCode) =>
+      '$webBaseUrl/vote/$shareCode';
 }

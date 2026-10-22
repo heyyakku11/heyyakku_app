@@ -3,6 +3,7 @@ import 'package:yakku/data/models/poll/poll_option_response.dart';
 
 class PollResponse {
   final String id;
+  final String shareCode;
   final String question;
   final String contentType;
   final String status;
@@ -26,6 +27,7 @@ class PollResponse {
     required this.totalVoteCount,
     required this.options,
     this.expiresAt,
+    this.shareCode = '',
     this.mediaReadiness = 'none',
     this.media,
     this.customAnswerCount = 0,
@@ -37,6 +39,7 @@ class PollResponse {
     final rawMedia = json['media'];
     return PollResponse(
       id: json['id']?.toString() ?? '',
+      shareCode: json['shareCode'] as String? ?? '',
       question: json['question'] as String? ?? '',
       contentType: json['contentType'] as String? ?? 'question',
       status: json['status'] as String? ?? '',

@@ -23,12 +23,12 @@ abstract final class ApiRoutes {
 
   static String pollById(String pollId) => '/api/v1/polls/$pollId';
 
-  /// Not implemented on the current backend; kept for a future share endpoint.
-  static String pollByShareToken(String shareToken) =>
-      '/api/v1/polls/share/$shareToken';
+  static String pollByShareCode(String shareCode) =>
+      '/api/v1/polls/share/$shareCode';
 
   // User
   static const String getMe = '/api/v1/users';
+  static const String deleteMe = '/api/v1/users/me';
   static const String askedPolls = '/api/v1/users/asked-polls';
   static const String answeredPolls = '/api/v1/users/answered-polls';
   static const String savedPolls = '/api/v1/users/saved-polls';

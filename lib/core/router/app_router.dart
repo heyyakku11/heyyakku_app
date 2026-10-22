@@ -28,12 +28,12 @@ abstract final class AppRouter {
 
         if (!canEnter && !onOnboarding) {
           // Keep a shared-poll destination through onboarding / login.
-          final pollId = PollDeepLink.pollIdFromPath(state.uri);
-          if (pollId == null) return AppRoutes.onboarding;
+          final shareCode = PollDeepLink.shareCodeFromPath(state.uri);
+          if (shareCode == null) return AppRoutes.onboarding;
           return Uri(
             path: AppRoutes.onboarding,
             queryParameters: {
-              PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(pollId),
+              PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(shareCode),
             },
           ).toString();
         }
@@ -60,8 +60,8 @@ abstract final class AppRouter {
           path: AppRoutes.pollVote,
           name: AppRoutes.pollVoteName,
           builder: (context, state) => SharedPollScreen(
-            key: ValueKey(state.pathParameters['pollId']),
-            pollId: state.pathParameters['pollId'] ?? '',
+            key: ValueKey(state.pathParameters['shareCode']),
+            shareCode: state.pathParameters['shareCode'] ?? '',
           ),
         ),
         GoRoute(

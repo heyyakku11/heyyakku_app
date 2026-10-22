@@ -30,7 +30,9 @@ class YourCardsScreen extends StatelessWidget {
         scrolledUnderElevation: 0,
       ),
       body: cards.isEmpty
-          ? Center(child: Text('No cards yet', style: TextStyle(color: ink)))
+          ? Center(
+              child: Text('No cards yet', style: TextStyle(color: ink)),
+            )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               itemCount: cards.length,

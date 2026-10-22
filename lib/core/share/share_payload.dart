@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:yakku/core/constants/api_constants.dart';
+import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 
 /// Why a [SharePayload] could not be built.
 enum SharePayloadError {
-  invalidPollId,
+  invalidShareCode,
   emptyQuestion,
   notPublic,
   invalidBaseUrl,
@@ -21,39 +22,35 @@ class SharePayloadException implements Exception {
 }
 
 /// Immutable description of a poll being shared. Contains only public data:
-/// the poll id, its question and the canonical public URL.
+/// the poll's share code, its question and the canonical public URL.
 @immutable
 class SharePayload {
   const SharePayload._({
-    required this.pollId,
+    required this.shareCode,
     required this.question,
     required this.url,
   });
 
-  final String pollId;
+  final String shareCode;
   final String question;
 
-  /// Canonical `https://<website>/vote/{pollId}` URL; the single link every
+  /// Canonical `https://<website>/vote/{shareCode}` URL; the single link every
   /// platform shares.
   final Uri url;
-
-  static final RegExp _uuid = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-  );
 
   /// Builds a payload, throwing [SharePayloadException] when invalid.
   /// [websiteBaseUrl] defaults to [ApiConstants.webBaseUrl], the single
   /// source of truth for the website origin.
   factory SharePayload.create({
-    required String pollId,
+    required String shareCode,
     required String question,
     String websiteBaseUrl = ApiConstants.webBaseUrl,
     bool isPublic = true,
   }) {
-    final id = pollId.trim();
+    final code = shareCode.trim();
     final text = question.trim();
-    if (!_uuid.hasMatch(id)) {
-      throw const SharePayloadException(SharePayloadError.invalidPollId);
+    if (!PollDeepLink.isValidShareCode(code)) {
+      throw const SharePayloadException(SharePayloadError.invalidShareCode);
     }
     if (text.isEmpty) {
       throw const SharePayloadException(SharePayloadError.emptyQuestion);
@@ -75,17 +72,17 @@ class SharePayload {
       pathSegments: [
         ...base.pathSegments.where((s) => s.isNotEmpty),
         'vote',
-        id.toLowerCase(),
+        code,
       ],
     );
-    return SharePayload._(pollId: id.toLowerCase(), question: text, url: url);
+    return SharePayload._(shareCode: code, question: text, url: url);
   }
 
   factory SharePayload.fromPollModel(
     PollModel poll, {
     String websiteBaseUrl = ApiConstants.webBaseUrl,
   }) => SharePayload.create(
-    pollId: poll.id,
+    shareCode: poll.shareCode,
     question: poll.question,
     websiteBaseUrl: websiteBaseUrl,
   );
@@ -94,7 +91,7 @@ class SharePayload {
     PollResponse poll, {
     String websiteBaseUrl = ApiConstants.webBaseUrl,
   }) => SharePayload.create(
-    pollId: poll.id,
+    shareCode: poll.shareCode,
     question: poll.question,
     websiteBaseUrl: websiteBaseUrl,
     isPublic: poll.visibility.toLowerCase() != 'private',

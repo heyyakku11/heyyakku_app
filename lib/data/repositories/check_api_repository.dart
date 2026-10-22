@@ -28,9 +28,44 @@ class CheckApiRepository extends ChangeNotifier {
 
   Future<List<UserCheckResponse>> getMyChecks() => _remote.getMyChecks();
 
+  static const _preloadMaxAge = Duration(minutes: 2);
+
+  Future<HomeChecks>? _preloaded;
+  DateTime? _preloadedAt;
+  bool? _preloadedLoggedIn;
+
+  /// Starts loading the home data early (e.g. on the onboarding screen) so the
+  /// home screen can show it immediately. Failures are ignored: the home
+  /// screen falls back to a normal load.
+  void preloadHome({required bool loggedIn}) {
+    final future = _fetchHome(loggedIn: loggedIn);
+    future.ignore();
+    _preloaded = future;
+    _preloadedAt = DateTime.now();
+    _preloadedLoggedIn = loggedIn;
+  }
+
+  /// Loads the home data, using a fresh matching preload once if there is one.
+  Future<HomeChecks> loadHome({required bool loggedIn}) async {
+    final preloaded = _preloaded;
+    final fresh =
+        preloaded != null &&
+        _preloadedLoggedIn == loggedIn &&
+        DateTime.now().difference(_preloadedAt!) < _preloadMaxAge;
+    _preloaded = null;
+    if (fresh) {
+      try {
+        return await preloaded;
+      } catch (_) {
+        // Preload failed (e.g. no guest token yet); fetch again below.
+      }
+    }
+    return _fetchHome(loggedIn: loggedIn);
+  }
+
   /// Loads the home data in parallel. Guests have no made checks; a failure
   /// of the "mine" call is not fatal for the feed.
-  Future<HomeChecks> loadHome({required bool loggedIn}) async {
+  Future<HomeChecks> _fetchHome({required bool loggedIn}) async {
     final checksFuture = _remote.getChecks();
     final mineFuture = loggedIn
         ? _remote.getMyChecks().catchError((_) => <UserCheckResponse>[])

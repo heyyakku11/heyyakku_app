@@ -6,7 +6,6 @@ import 'package:yakku/data/models/poll/cast_vote_request.dart';
 import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/create_poll_request.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
-import 'package:yakku/data/models/poll/shared_poll_response.dart';
 
 class PollRemoteDataSourceImpl implements PollRemoteDataSource {
   PollRemoteDataSourceImpl(this.dio);
@@ -45,16 +44,16 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
   }
 
   @override
-  Future<SharedPollResponse> getSharedPoll(String shareToken) async {
+  Future<PollResponse> getPollByShareCode(String shareCode) async {
     final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.pollByShareToken(shareToken),
+      ApiRoutes.pollByShareCode(shareCode),
     );
 
     return _unwrap(
       response.data,
       emptyMessage: 'Empty shared poll response',
       failureMessage: 'Failed to load shared poll',
-      fromJson: SharedPollResponse.fromJson,
+      fromJson: PollResponse.fromJson,
     );
   }
 
