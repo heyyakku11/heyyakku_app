@@ -19,5 +19,5 @@ abstract interface class AuthRemoteDataSource {
   Future<void> logout(LogoutRequestModel request, {String? accessToken});
 
   /// Schedules the signed-in user's account for permanent deletion.
-  Future<void> deleteAccount();
+  Future<void> deleteAccount({String? accessToken});
 }

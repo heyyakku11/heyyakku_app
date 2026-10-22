@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/poll_card_image_service.dart';
+import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/core/share/share_coordinator.dart';
 import 'package:yakku/core/share/share_payload.dart';
@@ -14,11 +15,19 @@ import 'package:yakku/presentation/screens/instagram_story_guide_screen.dart';
 class CreatedPollScreen extends StatefulWidget {
   const CreatedPollScreen({
     super.key,
-    required this.poll,
+    required PollResponse this.poll,
     this.categories = const [],
-  });
+  }) : check = null;
 
-  final PollResponse poll;
+  /// Same screen for a check the user just made.
+  const CreatedPollScreen.check({
+    super.key,
+    required UserCheckResponse this.check,
+    this.categories = const [],
+  }) : poll = null;
+
+  final PollResponse? poll;
+  final UserCheckResponse? check;
   final List<String> categories;
 
   /// Votes needed before results are revealed.
@@ -39,21 +48,25 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
   final _cardKey = GlobalKey();
   bool _downloading = false;
 
-  PollResponse get poll => widget.poll;
+  String get _question => widget.poll?.question ?? widget.check!.question;
 
-  /// Snapchat and Facebook sharing isn't implemented yet.
-  void _showUnavailable(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('Not available yet. Coming soon.')),
-      );
+  int get _rawOptionCount =>
+      widget.poll?.options.length ?? widget.check!.options.length;
+
+  SharePayload _buildPayload() {
+    final poll = widget.poll;
+    if (poll != null) return SharePayload.fromPollResponse(poll);
+    final check = widget.check!;
+    return SharePayload.create(
+      shareCode: check.shareCode,
+      question: check.question.trim().isNotEmpty ? check.question : check.title,
+    );
   }
 
   /// Opens the "link sticker" guide that precedes the Instagram story composer.
   void _openStoryGuide(BuildContext context) {
     try {
-      final payload = SharePayload.fromPollResponse(poll);
+      final payload = _buildPayload();
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => InstagramStoryGuideScreen(payload: payload),
@@ -74,7 +87,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
     final messenger = ScaffoldMessenger.of(context);
     String? message;
     try {
-      final payload = SharePayload.fromPollResponse(poll);
+      final payload = _buildPayload();
       final result = await ShareCoordinator().share(platform, payload);
       message = switch (result) {
         ShareSuccess(:final feedbackMessage) => feedbackMessage,
@@ -114,7 +127,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final optionCount = poll.options.length.clamp(2, 4);
+    final optionCount = _rawOptionCount.clamp(2, 4);
 
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
@@ -130,7 +143,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(28),
                 child: _PreviewCard(
-                  question: poll.question,
+                  question: _question,
                   optionCount: optionCount,
                 ),
               ),
@@ -172,7 +185,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
                         ),
                         const SizedBox(height: 26),
                         _PreviewCard(
-                          question: poll.question,
+                          question: _question,
                           optionCount: optionCount,
                         ),
                         const SizedBox(height: 26),
@@ -181,8 +194,10 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
                               _shareVia(context, SharePlatformId.instagramDm),
                           onWhatsApp: () =>
                               _shareVia(context, SharePlatformId.whatsapp),
-                          onSnapchat: () => _showUnavailable(context),
-                          onFacebook: () => _showUnavailable(context),
+                          onSnapchat: () =>
+                              _shareVia(context, SharePlatformId.snapchat),
+                          onFacebook: () =>
+                              _shareVia(context, SharePlatformId.facebook),
                           onCopyLink: () =>
                               _shareVia(context, SharePlatformId.copyLink),
                         ),

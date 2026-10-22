@@ -5,12 +5,16 @@ class PollOptionResponse {
   final int voteCount;
   final double percentage;
 
+  /// Voters who gave a "why" reason for this option.
+  final int whyCount;
+
   const PollOptionResponse({
     required this.id,
     required this.sortOrder,
     this.text,
     this.voteCount = 0,
     this.percentage = 0,
+    this.whyCount = 0,
   });
 
   factory PollOptionResponse.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,7 @@ class PollOptionResponse {
       sortOrder: _asInt(json['sortOrder']),
       voteCount: _asInt(json['voteCount']),
       percentage: _asDouble(json['percentage']),
+      whyCount: _asInt(json['whyCount']),
     );
   }
 }

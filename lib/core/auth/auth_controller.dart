@@ -109,7 +109,7 @@ class AuthController extends ChangeNotifier {
   /// router returns the user to onboarding. Throws if the API call fails, in
   /// which case the user stays signed in.
   Future<void> deleteAccount() async {
-    await _authRemote.deleteAccount();
+    await _authRemote.deleteAccount(accessToken: _tokenStore.accessToken);
     await clearLocalSession();
   }
 

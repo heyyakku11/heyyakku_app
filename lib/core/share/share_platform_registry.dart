@@ -1,5 +1,7 @@
 import 'package:yakku/core/share/adapters/copy_link_share_adapter.dart';
+import 'package:yakku/core/share/adapters/facebook_share_adapter.dart';
 import 'package:yakku/core/share/adapters/instagram_share_adapter.dart';
+import 'package:yakku/core/share/adapters/snapchat_share_adapter.dart';
 import 'package:yakku/core/share/adapters/whatsapp_share_adapter.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
@@ -19,6 +21,8 @@ class SharePlatformRegistry {
     WhatsAppShareAdapter(),
     InstagramShareAdapter(InstagramDestination.inbox),
     InstagramShareAdapter(InstagramDestination.story),
+    SnapchatShareAdapter(),
+    FacebookShareAdapter(),
     CopyLinkShareAdapter(),
   ]);
 

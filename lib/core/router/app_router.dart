@@ -9,7 +9,6 @@ import 'package:yakku/presentation/screens/onboarding_screen.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/screens/shared_poll_screen.dart';
-import 'package:yakku/presentation/screens/view_poll_screen.dart';
 
 abstract final class AppRouter {
   static GoRouter create(
@@ -87,25 +86,6 @@ abstract final class AppRouter {
               poll: args.poll,
               selectedOptionId: args.selectedOptionId,
             );
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.pollView,
-          name: AppRoutes.pollViewName,
-          builder: (context, state) {
-            final extra = state.extra;
-            if (extra is PollViewArgs) {
-              if (extra.pollId.isEmpty) return const Dashboard();
-              return ViewPollScreen(
-                pollId: extra.pollId,
-                canManage: extra.canManage,
-              );
-            }
-            final pollId = extra is String ? extra : null;
-            if (pollId == null || pollId.isEmpty) {
-              return const Dashboard();
-            }
-            return ViewPollScreen(pollId: pollId);
           },
         ),
       ],

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/data/models/Poll.dart';
-import 'package:yakku/presentation/screens/poll_flow_args.dart';
 import 'package:yakku/presentation/widgets/poll_card.dart';
 import 'package:yakku/presentation/widgets/poll_owner_actions_sheet.dart';
 
@@ -89,7 +86,6 @@ class _RemotePollListState extends State<RemotePollList> {
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => _openPoll(poll),
             borderRadius: BorderRadius.circular(12),
             child: PollCard(
               poll: poll,
@@ -104,16 +100,6 @@ class _RemotePollListState extends State<RemotePollList> {
         );
       },
     );
-  }
-
-  Future<void> _openPoll(PollModel poll) async {
-    if (GoRouter.maybeOf(context) == null) return;
-    final extra = widget.ownerActions
-        ? PollViewArgs(pollId: poll.id, canManage: true)
-        : poll.id;
-    final changed = await context.push<bool>(AppRoutes.pollView, extra: extra);
-    if (!mounted || changed != true) return;
-    await _load();
   }
 
   Future<void> _openOwnerActions(PollModel poll) async {

@@ -152,8 +152,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> deleteAccount() async {
-    final response = await dio.delete<Map<String, dynamic>>(ApiRoutes.deleteMe);
+  Future<void> deleteAccount({String? accessToken}) async {
+    final headers = <String, dynamic>{};
+    if (accessToken != null && accessToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $accessToken';
+    }
+
+    final response = await dio.delete<Map<String, dynamic>>(
+      ApiRoutes.deleteMe,
+      options: Options(headers: headers.isEmpty ? null : headers),
+    );
 
     final body = response.data;
     if (body == null) return;

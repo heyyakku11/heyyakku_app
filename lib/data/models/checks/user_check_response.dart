@@ -9,6 +9,7 @@ class UserCheckOptionResponse {
     required this.id,
     required this.text,
     this.votes,
+    this.whyCount,
   });
 
   final String id;
@@ -17,11 +18,15 @@ class UserCheckOptionResponse {
   /// Null until the caller is allowed to see results.
   final int? votes;
 
+  /// Voters who gave a reason; null until results are visible.
+  final int? whyCount;
+
   factory UserCheckOptionResponse.fromJson(Map<String, dynamic> json) {
     return UserCheckOptionResponse(
       id: json['id']?.toString() ?? '',
       text: json['text']?.toString() ?? '',
       votes: _asInt(json['votes']),
+      whyCount: _asInt(json['whyCount']),
     );
   }
 }

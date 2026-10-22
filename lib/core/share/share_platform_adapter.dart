@@ -11,6 +11,8 @@ class SharePlatformId {
   static const whatsapp = SharePlatformId('whatsapp');
   static const instagramDm = SharePlatformId('instagram_dm');
   static const instagramStory = SharePlatformId('instagram_story');
+  static const snapchat = SharePlatformId('snapchat');
+  static const facebook = SharePlatformId('facebook');
   static const copyLink = SharePlatformId('copy_link');
 
   final String value;

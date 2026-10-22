@@ -3,7 +3,6 @@ abstract final class AppRoutes {
   static const main = '/main';
   static const pollAnswer = '/polls/answer';
   static const pollResults = '/polls/results';
-  static const pollView = '/polls/view';
 
   /// Canonical shared-poll path, identical to the website's `/vote/{shareCode}`.
   static const pollVote = '/vote/:shareCode';
@@ -13,6 +12,5 @@ abstract final class AppRoutes {
   static const mainName = 'main';
   static const pollAnswerName = 'pollAnswer';
   static const pollResultsName = 'pollResults';
-  static const pollViewName = 'pollView';
   static const pollVoteName = 'pollVote';
 }

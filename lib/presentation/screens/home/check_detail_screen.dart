@@ -149,10 +149,10 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     final checkId = check.checkId;
     final optionId = answer.id;
     if (checkId != null && optionId != null) {
-      await scope.checkApi.makeCheck(
+      final made = await scope.checkApi.makeCheck(
         MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
       );
-      return null;
+      return CreatedPollScreen.check(check: made);
     }
 
     final poll = await scope.pollApi.createTextPoll(

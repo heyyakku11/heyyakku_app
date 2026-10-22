@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/poll_flow_args.dart';
+import 'package:yakku/presentation/screens/poll_results_screen.dart';
 
 enum _AskFilter { live, closed }
 
@@ -54,11 +52,11 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
     }
   }
 
-  Future<void> _openPoll(PollModel poll) async {
-    if (GoRouter.maybeOf(context) == null) return;
-    final changed = await context.push<bool>(
-      AppRoutes.pollView,
-      extra: PollViewArgs(pollId: poll.id, canManage: true),
+  Future<void> _openResults(PollModel poll) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => PollResultsScreen.byPollId(pollId: poll.id),
+      ),
     );
     if (!mounted || changed != true) return;
     await _load();
@@ -152,7 +150,7 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
           return _AskCard(
             poll: visible[index],
             accent: _accents[index % _accents.length],
-            onTap: () => _openPoll(visible[index]),
+            onTap: () => _openResults(visible[index]),
           );
         },
       ),
@@ -186,7 +184,6 @@ class _FilterPill extends StatelessWidget {
       color: background,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
-        onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
