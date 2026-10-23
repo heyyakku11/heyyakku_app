@@ -13,23 +13,6 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
   final Dio dio;
 
   @override
-  Future<PollsPage> getPolls({String? cursor}) async {
-    final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.polls,
-      queryParameters: _cursorQuery(cursor),
-    );
-
-    final apiResponse = _unwrapList(
-      response.data,
-      emptyMessage: 'Empty polls response',
-      failureMessage: 'Failed to load polls',
-      itemFromJson: PollResponse.fromJson,
-    );
-
-    return _toPollsPage(apiResponse);
-  }
-
-  @override
   Future<PollResponse> getPollById(String pollId) async {
     final response = await dio.get<Map<String, dynamic>>(
       ApiRoutes.pollById(pollId),
@@ -86,20 +69,6 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
       fromJson: CastVoteResponse.fromJson,
     );
   }
-
-  PollsPage _toPollsPage(ApiResponse<List<PollResponse>> apiResponse) {
-    final cursor = cursorFromMeta(apiResponse.meta);
-    return PollsPage(
-      items: apiResponse.data!,
-      nextCursor: cursor.nextCursor,
-      hasMore: cursor.hasMore,
-    );
-  }
-}
-
-Map<String, dynamic>? _cursorQuery(String? cursor) {
-  if (cursor == null || cursor.isEmpty) return null;
-  return <String, dynamic>{'cursor': cursor};
 }
 
 T _unwrap<T>(
@@ -123,29 +92,4 @@ T _unwrap<T>(
   }
 
   return data as T;
-}
-
-ApiResponse<List<T>> _unwrapList<T>(
-  Map<String, dynamic>? body, {
-  required String emptyMessage,
-  required String failureMessage,
-  required T Function(Map<String, dynamic> json) itemFromJson,
-}) {
-  if (body == null) {
-    throw StateError(emptyMessage);
-  }
-
-  final apiResponse = ApiResponse<List<T>>.fromJson(body, (json) {
-    if (json is! List) return <T>[];
-    return json
-        .whereType<Map>()
-        .map((item) => itemFromJson(Map<String, dynamic>.from(item)))
-        .toList(growable: false);
-  });
-
-  if (!apiResponse.success || apiResponse.data == null) {
-    throw StateError(apiResponse.message ?? failureMessage);
-  }
-
-  return apiResponse;
 }

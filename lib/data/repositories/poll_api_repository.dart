@@ -10,10 +10,6 @@ class PollApiRepository {
 
   final PollRemoteDataSource _remote;
 
-  Future<PollsPage> getPolls({String? cursor}) {
-    return _remote.getPolls(cursor: cursor);
-  }
-
   Future<PollResponse> getPollById(String pollId) {
     return _remote.getPollById(pollId);
   }

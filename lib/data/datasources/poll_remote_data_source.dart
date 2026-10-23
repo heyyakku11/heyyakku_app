@@ -4,8 +4,6 @@ import 'package:yakku/data/models/poll/create_poll_request.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 
 abstract interface class PollRemoteDataSource {
-  Future<PollsPage> getPolls({String? cursor});
-
   Future<PollResponse> getPollById(String pollId);
 
   Future<PollResponse> getPollByShareCode(String shareCode);

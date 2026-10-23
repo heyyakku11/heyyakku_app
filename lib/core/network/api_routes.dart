@@ -17,7 +17,6 @@ abstract final class ApiRoutes {
   static const String myChecks = '/api/v1/checks/mine';
 
   // Polls
-  static const String polls = '/api/v1/polls';
   static const String createPoll = '/api/v1/users/poll/create';
   static const String castVote = '/api/v1/polls/vote';
 
