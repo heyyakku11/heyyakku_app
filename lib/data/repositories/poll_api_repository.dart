@@ -22,14 +22,12 @@ class PollApiRepository {
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-    String visibility = 'public',
   }) {
     return _createPoll(
       question: question,
       options: options,
       selectedOptionIndex: selectedOptionIndex,
       contentType: 'question',
-      visibility: visibility,
     );
   }
 
@@ -38,7 +36,6 @@ class PollApiRepository {
     required List<String> options,
     required int selectedOptionIndex,
     required String mediaUploadSessionId,
-    String visibility = 'public',
   }) {
     return _createPoll(
       question: question,
@@ -46,7 +43,6 @@ class PollApiRepository {
       selectedOptionIndex: selectedOptionIndex,
       contentType: 'image',
       mediaUploadSessionId: mediaUploadSessionId,
-      visibility: visibility,
     );
   }
 
@@ -55,7 +51,6 @@ class PollApiRepository {
     required List<String> options,
     required int selectedOptionIndex,
     required String contentType,
-    String visibility = 'public',
     String? mediaUploadSessionId,
   }) async {
     if (selectedOptionIndex < 0 || selectedOptionIndex >= options.length) {
@@ -70,7 +65,6 @@ class PollApiRepository {
       CreatePollRequest(
         question: question,
         contentType: contentType,
-        visibility: visibility,
         mediaUploadSessionId: mediaUploadSessionId,
         options: [
           for (var i = 0; i < options.length; i++)
@@ -85,8 +79,8 @@ class PollApiRepository {
     if (selectedOptionIndex < sortedOptions.length) {
       await _remote.castVote(
         CastVoteRequest(
-          pollId: poll.id,
-          pollOptionId: sortedOptions[selectedOptionIndex].id,
+          shareCode: poll.shareCode,
+          optionId: sortedOptions[selectedOptionIndex].id,
         ),
       );
     }
@@ -95,11 +89,11 @@ class PollApiRepository {
   }
 
   Future<CastVoteResponse> castVote({
-    required String pollId,
+    required String shareCode,
     required String optionId,
   }) {
     return _remote.castVote(
-      CastVoteRequest(pollId: pollId, pollOptionId: optionId),
+      CastVoteRequest(shareCode: shareCode, optionId: optionId),
     );
   }
 }

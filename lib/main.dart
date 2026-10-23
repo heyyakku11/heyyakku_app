@@ -210,6 +210,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       tokenStore: tokenStore,
       tokenRefreshService: tokenRefreshService,
       onSessionExpired: () => _authController.clearLocalSession(),
+      guestTokenStore: _guestTokenStore,
     );
 
     _pollApi =

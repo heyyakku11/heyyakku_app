@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
+import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/token_refresh_service.dart';
 import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/core/network/api_performance_interceptor.dart';
@@ -29,6 +30,7 @@ abstract final class ApiClient {
     required AuthTokenStore tokenStore,
     required TokenRefreshService tokenRefreshService,
     required SessionExpiredCallback onSessionExpired,
+    GuestTokenStore? guestTokenStore,
   }) {
     final dio = Dio(_baseOptions);
     dio.interceptors.add(ApiPerformanceInterceptor());
@@ -38,6 +40,7 @@ abstract final class ApiClient {
         tokenStore: tokenStore,
         tokenRefreshService: tokenRefreshService,
         onSessionExpired: onSessionExpired,
+        guestTokenStore: guestTokenStore,
       ),
     );
     return dio;

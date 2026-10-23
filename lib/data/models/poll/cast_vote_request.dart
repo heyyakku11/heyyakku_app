@@ -1,20 +1,20 @@
 class CastVoteRequest {
-  final String pollId;
-  final String? pollOptionId;
+  final String shareCode;
+  final String? optionId;
   final String? customAnswer;
   final String? reason;
 
   const CastVoteRequest({
-    required this.pollId,
-    this.pollOptionId,
+    required this.shareCode,
+    this.optionId,
     this.customAnswer,
     this.reason,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'pollId': pollId,
-      if (pollOptionId != null) 'pollOptionId': pollOptionId,
+      'shareCode': shareCode,
+      if (optionId != null) 'optionId': optionId,
       if (customAnswer != null) 'customAnswer': customAnswer,
       if (reason != null) 'reason': reason,
     };

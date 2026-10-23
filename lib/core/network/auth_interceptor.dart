@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
+import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/token_refresh_service.dart';
 import 'package:yakku/core/network/api_performance_interceptor.dart';
 import 'package:yakku/core/network/api_routes.dart';
@@ -19,17 +20,21 @@ class AuthInterceptor extends Interceptor {
     required AuthTokenStore tokenStore,
     required TokenRefreshService tokenRefreshService,
     required SessionExpiredCallback onSessionExpired,
+    GuestTokenStore? guestTokenStore,
   }) : _dio = dio,
        _tokenStore = tokenStore,
        _tokenRefreshService = tokenRefreshService,
-       _onSessionExpired = onSessionExpired;
+       _onSessionExpired = onSessionExpired,
+       _guestTokenStore = guestTokenStore;
 
   final Dio _dio;
   final AuthTokenStore _tokenStore;
+  final GuestTokenStore? _guestTokenStore;
   final TokenRefreshService _tokenRefreshService;
   final SessionExpiredCallback _onSessionExpired;
 
   static const _retriedKey = 'auth_retried';
+  static const _guestTokenHeader = 'X-Guest-Token';
 
   static final _skipAuthPaths = <String>{
     ApiRoutes.sendOtp,
@@ -55,6 +60,16 @@ class AuthInterceptor extends Interceptor {
       final accessToken = _tokenStore.accessToken;
       if (accessToken != null && accessToken.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $accessToken';
+      } else {
+        // Shares, votes and media uploads also accept a guest identity.
+        final guestStore = _guestTokenStore;
+        if (guestStore != null && !guestStore.isHydrated) {
+          await guestStore.hydrate();
+        }
+        final guestToken = guestStore?.guestToken;
+        if (guestToken != null && guestToken.isNotEmpty) {
+          options.headers[_guestTokenHeader] = guestToken;
+        }
       }
     }
     handler.next(options);

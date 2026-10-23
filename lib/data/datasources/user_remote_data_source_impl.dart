@@ -111,7 +111,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   @override
   Future<UserPollDetailResponse> getOwnedPollDetails(String pollId) async {
     final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.viewPoll(pollId),
+      ApiRoutes.pollById(pollId),
     );
 
     final body = response.data;

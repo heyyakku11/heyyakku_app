@@ -322,11 +322,6 @@ void main() {
         (_) async => _poll(expiresAt: DateTime.utc(2020)),
         'Poll expired',
       ),
-      (
-        'private',
-        (_) async => _poll(visibility: 'private'),
-        'Poll unavailable',
-      ),
     ]) {
       testWidgets('error state: ${c.$1}', (tester) async {
         final h = _Harness(loggedIn: true, remote: _FakePollRemote(c.$2));

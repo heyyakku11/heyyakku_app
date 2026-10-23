@@ -6,6 +6,8 @@ import 'package:yakku/data/models/poll/cast_vote_request.dart';
 import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/create_poll_request.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
+import 'package:yakku/data/models/poll/shared_content_response.dart';
+import 'package:yakku/data/models/user/user_poll_detail_response.dart';
 
 class PollRemoteDataSourceImpl implements PollRemoteDataSource {
   PollRemoteDataSourceImpl(this.dio);
@@ -18,26 +20,28 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
       ApiRoutes.pollById(pollId),
     );
 
-    return _unwrap(
+    final detail = _unwrap(
       response.data,
       emptyMessage: 'Empty poll response',
       failureMessage: 'Failed to load poll',
-      fromJson: PollResponse.fromJson,
+      fromJson: UserPollDetailResponse.fromJson,
     );
+    return detail.toPollResponse();
   }
 
   @override
   Future<PollResponse> getPollByShareCode(String shareCode) async {
     final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.pollByShareCode(shareCode),
+      ApiRoutes.sharedContent(shareCode),
     );
 
-    return _unwrap(
+    final content = _unwrap(
       response.data,
       emptyMessage: 'Empty shared poll response',
       failureMessage: 'Failed to load shared poll',
-      fromJson: PollResponse.fromJson,
+      fromJson: SharedContentResponse.fromJson,
     );
+    return content.toPollResponse();
   }
 
   @override
@@ -62,12 +66,13 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
       data: request.toJson(),
     );
 
-    return _unwrap(
+    final content = _unwrap(
       response.data,
       emptyMessage: 'Empty cast vote response',
       failureMessage: 'Cast vote failed',
-      fromJson: CastVoteResponse.fromJson,
+      fromJson: SharedContentResponse.fromJson,
     );
+    return CastVoteResponse.fromShared(content);
   }
 }
 

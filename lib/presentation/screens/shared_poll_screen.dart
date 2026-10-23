@@ -73,9 +73,6 @@ class _SharedPollScreenState extends State<SharedPollScreen> {
     if (poll.id.isEmpty || poll.options.isEmpty) {
       return _SharedPollIssue.notFound;
     }
-    if (poll.visibility.toLowerCase() != 'public') {
-      return _SharedPollIssue.unavailable;
-    }
     final status = poll.status.toLowerCase();
     if (status == 'closed') return _SharedPollIssue.closed;
     if (status == 'expired') return _SharedPollIssue.expired;

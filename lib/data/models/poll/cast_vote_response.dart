@@ -1,3 +1,7 @@
+import 'package:yakku/data/models/poll/shared_content_response.dart';
+
+/// The caller's vote, derived from the `POST /api/v1/votes` response (the
+/// content as the voter now sees it).
 class CastVoteResponse {
   final String id;
   final String pollId;
@@ -15,16 +19,15 @@ class CastVoteResponse {
     this.reason,
   });
 
-  factory CastVoteResponse.fromJson(Map<String, dynamic> json) {
+  factory CastVoteResponse.fromShared(SharedContentResponse content) {
+    final vote = content.voting.myVote;
     return CastVoteResponse(
-      id: json['id']?.toString() ?? '',
-      pollId: json['pollId']?.toString() ?? '',
-      pollOptionId: json['pollOptionId']?.toString(),
-      customAnswer: json['customAnswer'] as String?,
-      reason: json['reason'] as String?,
-      createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now().toUtc(),
+      id: content.contentId,
+      pollId: content.contentId,
+      pollOptionId: vote?.optionId,
+      customAnswer: vote?.customAnswer,
+      reason: vote?.reason,
+      createdAt: vote?.votedAt ?? DateTime.now().toUtc(),
     );
   }
 }

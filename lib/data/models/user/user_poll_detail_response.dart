@@ -1,3 +1,5 @@
+import 'package:yakku/data/models/poll/poll_option_response.dart';
+import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/poll_why.dart';
 
 class UserPollDetailOptionResponse {
@@ -60,13 +62,16 @@ class YouVsCrowdResponse {
 
 class UserPollDetailResponse {
   final String pollId;
+  final String shareCode;
   final String question;
   final String contentType;
   final String status;
-  final String visibility;
   final DateTime? expiresAt;
   final DateTime createdAt;
   final int totalVoteCount;
+  final int minVotes;
+  final int voteProgress;
+  final bool resultsUnlocked;
   final int customAnswerCount;
   final int totalWhyCount;
   final List<UserPollDetailOptionResponse> pollOptions;
@@ -80,11 +85,14 @@ class UserPollDetailResponse {
     required this.question,
     required this.contentType,
     required this.status,
-    required this.visibility,
     required this.createdAt,
     required this.totalVoteCount,
     required this.pollOptions,
     required this.youVsCrowd,
+    this.shareCode = '',
+    this.minVotes = 0,
+    this.voteProgress = 0,
+    this.resultsUnlocked = false,
     this.expiresAt,
     this.customAnswerCount = 0,
     this.totalWhyCount = 0,
@@ -96,13 +104,16 @@ class UserPollDetailResponse {
     final rawYouVsCrowd = json['youVsCrowd'];
     return UserPollDetailResponse(
       pollId: json['pollId']?.toString() ?? '',
+      shareCode: json['shareCode'] as String? ?? '',
       question: json['question'] as String? ?? '',
       contentType: json['contentType'] as String? ?? 'question',
       status: json['status'] as String? ?? '',
-      visibility: json['visibility'] as String? ?? '',
       expiresAt: _parseDate(json['expiresAt']),
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now().toUtc(),
       totalVoteCount: _asInt(json['totalVoteCount']),
+      minVotes: _asInt(json['minVotes']),
+      voteProgress: _asInt(json['voteProgress']),
+      resultsUnlocked: json['resultsUnlocked'] as bool? ?? false,
       customAnswerCount: _asInt(json['customAnswerCount']),
       totalWhyCount: _asInt(json['totalWhyCount']),
       pollOptions: rawOptions
@@ -118,6 +129,36 @@ class UserPollDetailResponse {
               Map<String, dynamic>.from(rawYouVsCrowd),
             )
           : const YouVsCrowdResponse(),
+    );
+  }
+
+  /// Adapts the owner's detail view to the poll model the results screen uses.
+  PollResponse toPollResponse() {
+    return PollResponse(
+      id: pollId,
+      shareCode: shareCode,
+      question: question,
+      contentType: contentType,
+      status: status,
+      visibility: '',
+      expiresAt: expiresAt,
+      createdAt: createdAt,
+      totalVoteCount: totalVoteCount,
+      customAnswerCount: customAnswerCount,
+      totalWhyCount: totalWhyCount,
+      minVotes: minVotes,
+      voteProgress: voteProgress,
+      resultsUnlocked: resultsUnlocked,
+      options: [
+        for (final option in pollOptions)
+          PollOptionResponse(
+            id: option.id,
+            text: option.text,
+            sortOrder: option.sortOrder,
+            voteCount: option.voteCount,
+            percentage: option.percentage,
+          ),
+      ],
     );
   }
 }
