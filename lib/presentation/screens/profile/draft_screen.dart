@@ -115,7 +115,6 @@ class _DraftWorthAskingCard extends StatelessWidget {
                     style: const TextStyle(
                       color: YakkuPalette.textPrimary,
                       fontSize: 18,
-                      height: 1.15,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4,
                     ),
@@ -123,7 +122,6 @@ class _DraftWorthAskingCard extends StatelessWidget {
                 ),
                 PopupMenuButton<_DraftMenuAction>(
                   tooltip: 'Draft actions',
-                  padding: EdgeInsets.zero,
                   icon: const Icon(
                     Icons.more_vert,
                     color: YakkuPalette.textPrimary,
@@ -160,7 +158,7 @@ class _DraftWorthAskingCard extends StatelessWidget {
               ],
             ),
             if (options.isNotEmpty) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 6),
               FeedOptionChips(
                 labels: options,
                 chipColor: _chipColor,
