@@ -10,6 +10,10 @@ class UpdateDeviceRequest {
   final String? timezone;
   final String? notificationPermission;
 
+  /// The in-app push switch for this installation. The server only turns it on
+  /// while the notification permission is granted.
+  final bool? isPushAllowed;
+
   const UpdateDeviceRequest({
     this.pushToken,
     this.deviceModel,
@@ -19,6 +23,7 @@ class UpdateDeviceRequest {
     this.locale,
     this.timezone,
     this.notificationPermission,
+    this.isPushAllowed,
   });
 
   Map<String, dynamic> toJson() {
@@ -32,6 +37,7 @@ class UpdateDeviceRequest {
       if (timezone != null) 'timezone': timezone,
       if (notificationPermission != null)
         'notificationPermission': notificationPermission,
+      if (isPushAllowed != null) 'isPushAllowed': isPushAllowed,
     };
   }
 }

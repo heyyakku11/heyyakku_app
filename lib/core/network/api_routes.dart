@@ -38,7 +38,6 @@ abstract final class ApiRoutes {
   // User
   static const String getMe = '/api/v1/users';
   static const String deleteMe = '/api/v1/users/me';
-  static const String pushAllowed = '/api/v1/users/push';
 
   // Media upload sessions
   static const String mediaUploadSessions = '/api/v1/media-upload-sessions';

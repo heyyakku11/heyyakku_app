@@ -11,6 +11,30 @@ class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
   final Dio dio;
 
   @override
+  Future<DeviceResponse> getCurrentDevice(String installationId) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.currentDevice,
+      options: Options(headers: {'X-Installation-Id': installationId}),
+    );
+
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty device response');
+    }
+
+    final apiResponse = ApiResponse<DeviceResponse>.fromJson(
+      body,
+      (json) => DeviceResponse.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(apiResponse.message ?? 'Failed to load device');
+    }
+
+    return apiResponse.data!;
+  }
+
+  @override
   Future<DeviceResponse> updateCurrentDevice(
     String installationId,
     UpdateDeviceRequest request,

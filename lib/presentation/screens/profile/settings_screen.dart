@@ -18,9 +18,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  /// Whether the account allows push notifications (the server's
-  /// `isPushAllowed`, on by default).
-  bool _pushAllowed = true;
+  /// Whether push is switched on for THIS device (the server's per-installation
+  /// `isPushAllowed`; off until this device has been granted the permission).
+  bool _pushAllowed = false;
   bool _pushReady = false;
   bool _pushUpdating = false;
 
@@ -34,10 +34,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadPushSetting() async {
     try {
-      final me = await AppScope.of(context).userRemote.getMe();
+      final device = await AppScope.of(
+        context,
+      ).deviceRegistration.loadCurrentDevice();
       if (!mounted) return;
       setState(() {
-        _pushAllowed = me.account.isPushAllowed;
+        _pushAllowed = device.isPushAllowed;
         _pushReady = true;
       });
     } catch (error) {
@@ -59,10 +61,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final updated = await AppScope.of(
         context,
-      ).userRemote.setPushAllowed(value);
+      ).deviceRegistration.setPushAllowed(value);
       if (!mounted) return;
       setState(() {
-        _pushAllowed = updated.account.isPushAllowed;
+        _pushAllowed = updated.isPushAllowed;
         _pushUpdating = false;
       });
     } catch (error) {
@@ -127,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const _SectionLabel('NOTIFICATIONS'),
             _SwitchRow(
               title: 'Push notifications',
-              subtitle: 'Allow Yakku to send push alerts to your account',
+              subtitle: 'Allow Yakku to send push alerts on this device',
               value: _pushAllowed,
               onChanged: _pushReady && !_pushUpdating ? _setPushAllowed : null,
             ),

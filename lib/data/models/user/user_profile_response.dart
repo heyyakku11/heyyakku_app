@@ -25,8 +25,7 @@ class UserPlanResponse {
 }
 
 /// `data` of `GET /api/v1/users`, grouped by what the fields describe:
-/// `profile` (how the user appears), `account` (status, phone, plan and the
-/// push switch) and `stats` (counts and streak).
+/// `profile` (how the user appears), `account` (status, phone, plan) and `stats` (counts and streak).
 class UserProfileResponse {
   final UserProfileDetails profile;
   final UserAccountDetails account;
@@ -72,15 +71,12 @@ class UserAccountDetails {
   final String phoneNumber;
   final DateTime? loginAt;
 
-  /// The account-level push switch (on by default).
-  final bool isPushAllowed;
   final UserPlanResponse? currentPlan;
 
   const UserAccountDetails({
     required this.status,
     required this.phoneNumber,
     this.loginAt,
-    this.isPushAllowed = true,
     this.currentPlan,
   });
 
@@ -90,7 +86,6 @@ class UserAccountDetails {
       status: json['status'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String? ?? '',
       loginAt: _parseDate(json['loginAt']),
-      isPushAllowed: json['isPushAllowed'] as bool? ?? true,
       currentPlan: plan is Map<String, dynamic>
           ? UserPlanResponse.fromJson(plan)
           : null,

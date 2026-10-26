@@ -8,6 +8,7 @@ import 'package:yakku/core/device/notification_permission_service.dart';
 import 'package:yakku/core/device/push_token_provider.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/device_remote_data_source.dart';
+import 'package:yakku/data/models/device/device_response.dart';
 import 'package:yakku/data/models/device/login_device_model.dart';
 import 'package:yakku/data/models/device/update_device_request.dart';
 
@@ -29,6 +30,16 @@ abstract class DeviceRegistrationService {
 
   /// Sends the current permission, FCM token and metadata to the server.
   Future<void> syncDevice();
+
+  /// The server's view of this installation: its notification permission and
+  /// whether push is switched on. Both are per device.
+  Future<DeviceResponse> loadCurrentDevice();
+
+  /// Switches push on or off for this installation only (other devices of the
+  /// account are unaffected). Turning it on asks for the OS permission first
+  /// when it has not been granted. Returns the server state, whose
+  /// `isPushAllowed` stays false if the user did not grant the permission.
+  Future<DeviceResponse> setPushAllowed(bool allowed);
 
   Future<bool> shouldPromptForPermission();
 
@@ -142,7 +153,7 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
     }
   }
 
-  Future<void> _syncOnce() async {
+  Future<DeviceResponse> _syncOnce({bool? isPushAllowed}) async {
     final installationId = await _installationIdStore.getOrCreate();
     final metadata = await _metadataProvider.collect();
     final permission = await _permissionForSync();
@@ -162,6 +173,7 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
       locale: metadata.locale,
       timezone: metadata.timezone,
       notificationPermission: permission,
+      isPushAllowed: isPushAllowed,
     );
 
     if (kDebugMode) {
@@ -172,7 +184,27 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
       );
     }
 
-    await _deviceRemote.updateCurrentDevice(installationId, request);
+    return _deviceRemote.updateCurrentDevice(installationId, request);
+  }
+
+  @override
+  Future<DeviceResponse> loadCurrentDevice() async {
+    final installationId = await _installationIdStore.getOrCreate();
+    return _deviceRemote.getCurrentDevice(installationId);
+  }
+
+  @override
+  Future<DeviceResponse> setPushAllowed(bool allowed) async {
+    if (allowed) {
+      final status = await _permissionService.currentPermissionStatus();
+      if (status != NotificationPermissionValues.granted) {
+        final result = await _permissionService.requestOsPermission();
+        await _permissionService.markAsked(
+          allowed: result == NotificationPermissionValues.granted,
+        );
+      }
+    }
+    return _syncOnce(isPushAllowed: allowed);
   }
 
   /// Skip / local deny must report [denied] even if OS is still notDetermined.
@@ -224,6 +256,21 @@ class NoOpDeviceRegistrationService implements DeviceRegistrationService {
 
   @override
   Future<void> syncDevice() async {}
+
+  @override
+  Future<DeviceResponse> loadCurrentDevice() async => const DeviceResponse(
+    installationId: 'test-installation',
+    platform: 'android',
+    isActive: true,
+  );
+
+  @override
+  Future<DeviceResponse> setPushAllowed(bool allowed) async => DeviceResponse(
+    installationId: 'test-installation',
+    platform: 'android',
+    isActive: true,
+    isPushAllowed: allowed,
+  );
 
   @override
   Future<bool> shouldPromptForPermission() async => false;
