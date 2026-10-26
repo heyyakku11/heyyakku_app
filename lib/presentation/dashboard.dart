@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
 import 'package:yakku/presentation/screens/home/home_screen.dart';
@@ -66,22 +65,18 @@ class _DashboardState extends State<Dashboard> {
       if (!mounted) return;
 
       if (!shouldPrompt) {
-        registration.registerDeviceInBackground();
+        registration.syncDeviceInBackground();
         return;
       }
 
       final allow = await showNotificationPermissionDialog(context);
       if (!mounted || allow == null) return;
 
-      final granted = allow ? await registration.applyAllowChoice() : false;
-      if (!allow) {
+      if (allow) {
+        await registration.applyAllowChoice();
+      } else {
         await registration.applySkipChoice();
       }
-      if (!mounted) return;
-
-      await scope.notificationPreferences.updatePreferences(
-        UpdateNotificationPreferenceRequest(pushEnabled: granted),
-      );
     } catch (error) {
       if (!mounted) return;
       final message = DioErrorMapper.map(

@@ -1,7 +1,7 @@
-class RegisterDeviceRequest {
-  final String installationId;
+/// Body of `PATCH /devices/me`. Only non-null fields are sent; the server
+/// leaves everything else unchanged.
+class UpdateDeviceRequest {
   final String? pushToken;
-  final String platform;
   final String? deviceModel;
   final String? osVersion;
   final String? appVersion;
@@ -10,9 +10,7 @@ class RegisterDeviceRequest {
   final String? timezone;
   final String? notificationPermission;
 
-  const RegisterDeviceRequest({
-    required this.installationId,
-    required this.platform,
+  const UpdateDeviceRequest({
     this.pushToken,
     this.deviceModel,
     this.osVersion,
@@ -25,9 +23,7 @@ class RegisterDeviceRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'installationId': installationId,
       if (pushToken != null) 'pushToken': pushToken,
-      'platform': platform,
       if (deviceModel != null) 'deviceModel': deviceModel,
       if (osVersion != null) 'osVersion': osVersion,
       if (appVersion != null) 'appVersion': appVersion,

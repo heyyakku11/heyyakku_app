@@ -30,8 +30,6 @@ import 'package:yakku/data/datasources/auth_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/device_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source_impl.dart';
-import 'package:yakku/data/datasources/notification_preference_remote_data_source.dart';
-import 'package:yakku/data/datasources/notification_preference_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/media_upload_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/check_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
@@ -146,7 +144,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final MediaUploadRepository _mediaUploads;
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
-  late final NotificationPreferenceRemoteDataSource _notificationPreferences;
   late final DeviceRegistrationService _deviceRegistration;
   late final GoRouter _router;
   late final InternetCubit _internetCubit;
@@ -233,10 +230,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         widget.userRemoteDataSource ??
         UserRemoteDataSourceImpl(authenticatedDio);
 
-    _notificationPreferences = NotificationPreferenceRemoteDataSourceImpl(
-      authenticatedDio,
-    );
-
     _deviceRegistration =
         widget.deviceRegistrationService ??
         DeviceRegistrationServiceImpl(
@@ -299,7 +292,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         mediaUploads: _mediaUploads,
         activityPolls: _activityPolls,
         userRemote: _userRemote,
-        notificationPreferences: _notificationPreferences,
         deviceRegistration: _deviceRegistration,
         draftPolls: widget.draftPolls,
         child: ListenableBuilder(

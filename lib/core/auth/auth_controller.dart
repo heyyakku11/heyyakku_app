@@ -9,6 +9,7 @@ import 'package:yakku/data/models/auth/logout_request.dart';
 import 'package:yakku/data/models/auth/send_otp_data.dart';
 import 'package:yakku/data/models/auth/send_otp_request_model.dart';
 import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
+import 'package:yakku/data/models/device/login_device_model.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController({
@@ -66,21 +67,24 @@ class AuthController extends ChangeNotifier {
     required String otp,
     String? firstName,
     String? guestToken,
+    LoginDeviceModel? device,
   }) async {
     final data = await _authRemote.verifyOtp(
-      VerifyOtpRequestModel(phoneNumber: phone, otp: otp),
+      VerifyOtpRequestModel(phoneNumber: phone, otp: otp, device: device),
       guestToken: guestToken,
     );
 
     await _tokenStore.saveTokens(
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
+      accessToken: data.auth.accessToken,
+      refreshToken: data.auth.refreshToken,
     );
 
     final trimmedName = firstName?.trim() ?? '';
     final displayName = trimmedName.isNotEmpty
         ? trimmedName
-        : (data.name.isNotEmpty ? data.name : data.anonymousName);
+        : (data.user.name.isNotEmpty
+              ? data.user.name
+              : data.user.anonymousName);
 
     await userPreferences.setPhoneNumber(phone);
     await userPreferences.setDisplayName(displayName);

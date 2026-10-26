@@ -8,22 +8,33 @@ import 'package:yakku/core/device/notification_permission_service.dart';
 import 'package:yakku/core/device/push_token_provider.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/device_remote_data_source.dart';
-import 'package:yakku/data/models/device/register_device_request.dart';
+import 'package:yakku/data/models/device/login_device_model.dart';
+import 'package:yakku/data/models/device/update_device_request.dart';
 
-/// Coordinates installation ID, FCM token, metadata, and backend registration.
+/// Coordinates installation ID, notification permission, FCM token and the
+/// backend device record.
+///
+/// The device is created by the server during verify-OTP (the installation id
+/// and platform travel inside that request, see [loginDevice]). This service
+/// only *updates* that record afterwards with `PATCH /devices/me`: the
+/// notification permission, the FCM token and device metadata.
 abstract class DeviceRegistrationService {
   Future<void> initialize();
 
-  /// Fire-and-forget registration; safe to call from UI without awaiting.
-  void registerDeviceInBackground();
+  /// The installation id and platform to send with verify-OTP.
+  Future<LoginDeviceModel> loginDevice();
 
-  Future<void> registerDevice();
+  /// Fire-and-forget device update; safe to call from UI without awaiting.
+  void syncDeviceInBackground();
+
+  /// Sends the current permission, FCM token and metadata to the server.
+  Future<void> syncDevice();
 
   Future<bool> shouldPromptForPermission();
 
   Future<bool> isNotificationAllowed();
 
-  /// Requests OS permission, stores the result, and registers the device.
+  /// Requests OS permission, stores the result, and updates the device.
   /// Returns whether the OS granted notification permission.
   Future<bool> applyAllowChoice();
 
@@ -55,7 +66,8 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
 
   StreamSubscription<String>? _tokenRefreshSubscription;
   bool _initialized = false;
-  bool _registerInFlight = false;
+  bool _syncInFlight = false;
+  bool _syncAgain = false;
 
   @override
   Future<void> initialize() async {
@@ -68,17 +80,24 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
       if (kDebugMode) {
         debugPrint('[FCM] Token refreshed (len=${newToken.length})');
       }
-      registerDeviceInBackground();
+      syncDeviceInBackground();
     });
   }
 
   @override
-  void registerDeviceInBackground() {
-    unawaited(_safeRegister());
+  Future<LoginDeviceModel> loginDevice() async {
+    final installationId = await _installationIdStore.getOrCreate();
+    final metadata = await _metadataProvider.collect();
+    return LoginDeviceModel(
+      installationId: installationId,
+      platform: metadata.platform,
+    );
   }
 
   @override
-  Future<void> registerDevice() => _safeRegister();
+  void syncDeviceInBackground() {
+    unawaited(syncDevice());
+  }
 
   @override
   Future<bool> shouldPromptForPermission() async {
@@ -91,36 +110,51 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
     return _permissionService.isNotificationAllowed();
   }
 
-  Future<void> _safeRegister() async {
+  @override
+  Future<void> syncDevice() async {
     if (!_authController.isLoggedIn) return;
-    if (_registerInFlight) return;
+    if (_syncInFlight) {
+      // A change arrived mid-request (for example the user just answered the
+      // permission prompt); run once more so the latest state is what ends up
+      // on the server.
+      _syncAgain = true;
+      return;
+    }
 
-    _registerInFlight = true;
+    _syncInFlight = true;
     try {
-      await _registerOnce();
-    } catch (error) {
-      if (kDebugMode) {
-        final mapped = DioErrorMapper.map(
-          error,
-          fallback: 'Device registration failed',
-        );
-        debugPrint('[Device] Register failed: ${mapped.message}');
-      }
+      do {
+        _syncAgain = false;
+        try {
+          await _syncOnce();
+        } catch (error) {
+          if (kDebugMode) {
+            final mapped = DioErrorMapper.map(
+              error,
+              fallback: 'Device update failed',
+            );
+            debugPrint('[Device] Update failed: ${mapped.message}');
+          }
+        }
+      } while (_syncAgain && _authController.isLoggedIn);
     } finally {
-      _registerInFlight = false;
+      _syncInFlight = false;
     }
   }
 
-  Future<void> _registerOnce() async {
+  Future<void> _syncOnce() async {
     final installationId = await _installationIdStore.getOrCreate();
-    final pushToken = await _pushTokenProvider.getToken();
     final metadata = await _metadataProvider.collect();
-    final permission = await _permissionForRegistration();
+    final permission = await _permissionForSync();
 
-    final request = RegisterDeviceRequest(
-      installationId: installationId,
+    // A token is only worth sending once the user has allowed notifications;
+    // the server ignores it for a denied permission anyway.
+    final pushToken = permission == NotificationPermissionValues.granted
+        ? await _pushTokenProvider.getToken()
+        : null;
+
+    final request = UpdateDeviceRequest(
       pushToken: pushToken,
-      platform: metadata.platform,
       deviceModel: metadata.deviceModel,
       osVersion: metadata.osVersion,
       appVersion: metadata.appVersion,
@@ -132,18 +166,17 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
 
     if (kDebugMode) {
       debugPrint(
-        '[Device] Registering '
-        'platform=${request.platform} '
+        '[Device] Updating '
         'permission=${request.notificationPermission} '
         'hasToken=${request.pushToken != null}',
       );
     }
 
-    await _deviceRemote.registerDevice(request);
+    await _deviceRemote.updateCurrentDevice(installationId, request);
   }
 
   /// Skip / local deny must report [denied] even if OS is still notDetermined.
-  Future<String> _permissionForRegistration() async {
+  Future<String> _permissionForSync() async {
     final asked = await _permissionService.hasAsked();
     final allowed = await _permissionService.isNotificationAllowed();
     if (asked && !allowed) {
@@ -157,14 +190,14 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
     final status = await _permissionService.requestOsPermission();
     final allowed = status == NotificationPermissionValues.granted;
     await _permissionService.markAsked(allowed: allowed);
-    registerDeviceInBackground();
+    syncDeviceInBackground();
     return allowed;
   }
 
   @override
   Future<void> applySkipChoice() async {
     await _permissionService.markAsked(allowed: false);
-    registerDeviceInBackground();
+    syncDeviceInBackground();
   }
 
   @override
@@ -181,10 +214,16 @@ class NoOpDeviceRegistrationService implements DeviceRegistrationService {
   Future<void> initialize() async {}
 
   @override
-  void registerDeviceInBackground() {}
+  Future<LoginDeviceModel> loginDevice() async => const LoginDeviceModel(
+    installationId: 'test-installation',
+    platform: 'android',
+  );
 
   @override
-  Future<void> registerDevice() async {}
+  void syncDeviceInBackground() {}
+
+  @override
+  Future<void> syncDevice() async {}
 
   @override
   Future<bool> shouldPromptForPermission() async => false;

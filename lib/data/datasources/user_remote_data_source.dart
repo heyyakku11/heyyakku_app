@@ -6,6 +6,10 @@ import 'package:yakku/data/models/user/user_profile_response.dart';
 abstract interface class UserRemoteDataSource {
   Future<UserProfileResponse> getMe();
 
+  /// `PATCH /api/v1/users/push`: turns push notifications on or off for the
+  /// signed-in account and returns the updated profile.
+  Future<UserProfileResponse> setPushAllowed(bool isPushAllowed);
+
   Future<PollsPage> getSavedPolls({String? cursor});
 
   Future<SavedPollStateResponse> savePoll(String pollId);

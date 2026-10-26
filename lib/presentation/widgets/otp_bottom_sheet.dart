@@ -217,6 +217,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
         otp: _otp,
         firstName: widget.firstName,
         guestToken: scope.guestTokenStore.guestToken,
+        device: await scope.deviceRegistration.loginDevice(),
       );
       if (!mounted) return;
       _closeSheet();

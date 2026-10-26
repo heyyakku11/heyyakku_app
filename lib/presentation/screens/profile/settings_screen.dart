@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/notification/notification_preference_response.dart';
-import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
 
@@ -20,64 +18,60 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  NotificationPreferenceResponse _notifications =
-      NotificationPreferenceResponse.defaults;
-  bool _notificationsReady = false;
-  bool _updatingNotifications = false;
+  /// Whether the account allows push notifications (the server's
+  /// `isPushAllowed`, on by default).
+  bool _pushAllowed = true;
+  bool _pushReady = false;
+  bool _pushUpdating = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadNotifications();
+      _loadPushSetting();
     });
   }
 
-  Future<void> _loadNotifications() async {
+  Future<void> _loadPushSetting() async {
     try {
-      final prefs = await AppScope.of(
-        context,
-      ).notificationPreferences.getPreferences();
+      final me = await AppScope.of(context).userRemote.getMe();
       if (!mounted) return;
       setState(() {
-        _notifications = prefs;
-        _notificationsReady = true;
+        _pushAllowed = me.isPushAllowed;
+        _pushReady = true;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _notificationsReady = true);
-      _showError(error, fallback: 'Could not load notification preferences');
+      setState(() => _pushReady = true);
+      _showError(error, fallback: 'Could not load notification setting');
     }
   }
 
-  Future<void> _updateNotification(
-    NotificationPreferenceResponse optimistic,
-    UpdateNotificationPreferenceRequest request,
-  ) async {
-    if (_updatingNotifications) return;
+  Future<void> _setPushAllowed(bool value) async {
+    if (_pushUpdating) return;
 
-    final previous = _notifications;
+    final previous = _pushAllowed;
     setState(() {
-      _notifications = optimistic;
-      _updatingNotifications = true;
+      _pushAllowed = value;
+      _pushUpdating = true;
     });
 
     try {
       final updated = await AppScope.of(
         context,
-      ).notificationPreferences.updatePreferences(request);
+      ).userRemote.setPushAllowed(value);
       if (!mounted) return;
       setState(() {
-        _notifications = updated;
-        _updatingNotifications = false;
+        _pushAllowed = updated.isPushAllowed;
+        _pushUpdating = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _notifications = previous;
-        _updatingNotifications = false;
+        _pushAllowed = previous;
+        _pushUpdating = false;
       });
-      _showError(error, fallback: 'Could not update notification preference');
+      _showError(error, fallback: 'Could not update notification setting');
     }
   }
 
@@ -115,16 +109,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await auth.logout();
   }
 
-  ValueChanged<bool>? _notificationToggle(
-    NotificationPreferenceResponse Function(bool value) applyOptimistic,
-    UpdateNotificationPreferenceRequest Function(bool value) request,
-  ) {
-    if (!_notificationsReady || _updatingNotifications) return null;
-    return (value) {
-      _updateNotification(applyOptimistic(value), request(value));
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -132,7 +116,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         widget.phoneNumber ?? AppScope.of(context).authController.phoneNumber;
     final maskedPhone = _maskPhoneNumber(phoneNumber);
     final dividerColor = theme.dividerColor.withValues(alpha: 0.55);
-    final n = _notifications;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: true),
@@ -144,34 +127,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const _SectionLabel('NOTIFICATIONS'),
             _SwitchRow(
               title: 'Push notifications',
-              subtitle: 'Allow Yakku to send push alerts on this device',
-              value: n.pushEnabled,
-              onChanged: _notificationToggle(
-                (value) => n.copyWith(pushEnabled: value),
-                (value) =>
-                    UpdateNotificationPreferenceRequest(pushEnabled: value),
-              ),
-            ),
-            _SwitchRow(
-              title: 'Poll activity',
-              subtitle: 'Votes, reasons, and updates on your polls',
-              value: n.pollActivityEnabled,
-              onChanged: _notificationToggle(
-                (value) => n.copyWith(pollActivityEnabled: value),
-                (value) => UpdateNotificationPreferenceRequest(
-                  pollActivityEnabled: value,
-                ),
-              ),
-            ),
-            _SwitchRow(
-              title: 'Offers',
-              subtitle: 'Promotions and special offers from Yakku',
-              value: n.offersEnabled,
-              onChanged: _notificationToggle(
-                (value) => n.copyWith(offersEnabled: value),
-                (value) =>
-                    UpdateNotificationPreferenceRequest(offersEnabled: value),
-              ),
+              subtitle: 'Allow Yakku to send push alerts to your account',
+              value: _pushAllowed,
+              onChanged: _pushReady && !_pushUpdating ? _setPushAllowed : null,
             ),
             const SizedBox(height: 22),
             const _SectionLabel('PRIVACY AND SAFETY'),

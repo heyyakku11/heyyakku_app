@@ -34,6 +34,30 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
+  Future<UserProfileResponse> setPushAllowed(bool isPushAllowed) async {
+    final response = await dio.patch<Map<String, dynamic>>(
+      ApiRoutes.pushAllowed,
+      data: {'isPushAllowed': isPushAllowed},
+    );
+
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty push setting response');
+    }
+
+    final apiResponse = ApiResponse<UserProfileResponse>.fromJson(
+      body,
+      (json) => UserProfileResponse.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(apiResponse.message ?? 'Failed to update push setting');
+    }
+
+    return apiResponse.data!;
+  }
+
+  @override
   Future<PollsPage> getSavedPolls({String? cursor}) async {
     final response = await dio.get<Map<String, dynamic>>(
       ApiRoutes.savedPolls,

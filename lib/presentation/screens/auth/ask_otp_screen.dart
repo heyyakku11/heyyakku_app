@@ -182,6 +182,7 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
         otp: otp,
         firstName: widget.firstName,
         guestToken: scope.guestTokenStore.guestToken,
+        device: await scope.deviceRegistration.loginDevice(),
       );
       if (!mounted) return;
       // Now logged in: ask for notifications and register this device.

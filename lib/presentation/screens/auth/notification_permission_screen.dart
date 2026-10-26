@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/data/models/notification/update_notification_preference_request.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
 
@@ -17,7 +16,7 @@ class NotificationPermissionScreen extends StatefulWidget {
         .shouldPromptForPermission();
     if (!context.mounted) return;
     if (!shouldPrompt) {
-      scope.deviceRegistration.registerDeviceInBackground();
+      scope.deviceRegistration.syncDeviceInBackground();
       return;
     }
     await Navigator.of(context).push<bool>(
@@ -67,12 +66,9 @@ class _NotificationPermissionScreenState
       } else {
         await registration.applySkipChoice();
       }
-      await scope.notificationPreferences.updatePreferences(
-        UpdateNotificationPreferenceRequest(pushEnabled: granted),
-      );
     } catch (_) {
-      // The choice is stored locally and the device registers in the
-      // background; a failed preference sync must not block the user.
+      // The choice is stored locally and the device is updated in the
+      // background; a failed sync must not block the user.
     }
     if (mounted) Navigator.of(context).pop(granted);
   }

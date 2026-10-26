@@ -34,6 +34,9 @@ class UserProfileResponse {
   final String? avatarUrl;
   final UserPlanResponse? currentPlan;
 
+  /// The account-level push switch (on by default).
+  final bool isPushAllowed;
+
   const UserProfileResponse({
     required this.id,
     required this.status,
@@ -43,6 +46,7 @@ class UserProfileResponse {
     this.loginAt,
     this.avatarUrl,
     this.currentPlan,
+    this.isPushAllowed = true,
   });
 
   factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,7 @@ class UserProfileResponse {
       currentPlan: plan is Map<String, dynamic>
           ? UserPlanResponse.fromJson(plan)
           : null,
+      isPushAllowed: json['isPushAllowed'] as bool? ?? true,
     );
   }
 }

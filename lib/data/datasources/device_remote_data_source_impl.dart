@@ -3,7 +3,7 @@ import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/device_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
 import 'package:yakku/data/models/device/device_response.dart';
-import 'package:yakku/data/models/device/register_device_request.dart';
+import 'package:yakku/data/models/device/update_device_request.dart';
 
 class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
   DeviceRemoteDataSourceImpl(this.dio);
@@ -11,15 +11,19 @@ class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
   final Dio dio;
 
   @override
-  Future<DeviceResponse> registerDevice(RegisterDeviceRequest request) async {
-    final response = await dio.post<Map<String, dynamic>>(
-      ApiRoutes.registerDevice,
+  Future<DeviceResponse> updateCurrentDevice(
+    String installationId,
+    UpdateDeviceRequest request,
+  ) async {
+    final response = await dio.patch<Map<String, dynamic>>(
+      ApiRoutes.currentDevice,
       data: request.toJson(),
+      options: Options(headers: {'X-Installation-Id': installationId}),
     );
 
     final body = response.data;
     if (body == null) {
-      throw StateError('Empty device registration response');
+      throw StateError('Empty device update response');
     }
 
     final apiResponse = ApiResponse<DeviceResponse>.fromJson(
@@ -28,7 +32,7 @@ class DeviceRemoteDataSourceImpl implements DeviceRemoteDataSource {
     );
 
     if (!apiResponse.success || apiResponse.data == null) {
-      throw StateError(apiResponse.message ?? 'Device registration failed');
+      throw StateError(apiResponse.message ?? 'Device update failed');
     }
 
     return apiResponse.data!;

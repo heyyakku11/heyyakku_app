@@ -9,7 +9,7 @@ abstract final class ApiRoutes {
   static const String guests = '/api/v1/guests';
 
   // Devices
-  static const String registerDevice = '/api/v1/devices/register';
+  static const String currentDevice = '/api/v1/devices/me';
 
   // Checks
   static const String checks = '/api/v1/checks';
@@ -38,10 +38,7 @@ abstract final class ApiRoutes {
   // User
   static const String getMe = '/api/v1/users';
   static const String deleteMe = '/api/v1/users/me';
-
-  // Notification preferences
-  static const String notificationPreferences =
-      '/api/v1/notifications/preferences';
+  static const String pushAllowed = '/api/v1/users/push';
 
   // Media upload sessions
   static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
