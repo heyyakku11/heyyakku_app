@@ -4,7 +4,7 @@
 /// {
 ///   "purpose": "Registration",
 ///   "accountRestored": false,
-///   "user": { "name": "...", "anonymousName": "...", "isPushAllowed": true },
+///   "user": { "name": "...", "anonymousName": "..." },
 ///   "auth": { "accessToken": "...", "refreshToken": "...", ... }
 /// }
 /// ```
@@ -37,22 +37,12 @@ class VerifyOtpUser {
   final String name;
   final String anonymousName;
 
-  /// Whether the account allows push notifications (the in-app switch, on by
-  /// default). Not the phone's OS permission; that is reported through
-  /// `PATCH /devices/me`.
-  final bool isPushAllowed;
-
-  const VerifyOtpUser({
-    required this.name,
-    required this.anonymousName,
-    required this.isPushAllowed,
-  });
+  const VerifyOtpUser({required this.name, required this.anonymousName});
 
   factory VerifyOtpUser.fromJson(Map<String, dynamic> json) {
     return VerifyOtpUser(
       name: json['name'] as String? ?? '',
       anonymousName: json['anonymousName'] as String? ?? '',
-      isPushAllowed: json['isPushAllowed'] as bool? ?? true,
     );
   }
 }
