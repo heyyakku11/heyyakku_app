@@ -11,7 +11,11 @@ import 'package:yakku/presentation/screens/profile/settings_screen.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.isActive = true});
+
+  /// True while the profile tab is the visible one; the profile is reloaded each
+  /// time it becomes visible so the stats reflect what the user just did.
+  final bool isActive;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -21,8 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   String? _phoneNumber;
   String? _planName;
-  int _asks = 0;
+  int _cards = 0;
   int _votes = 0;
+  int _streak = 0;
   AuthController? _authController;
 
   @override
@@ -34,6 +39,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _authController!.addListener(_onAuthChanged);
       _loadProfile();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive && _authController != null) {
+      _loadProfile();
+    }
   }
 
   @override
@@ -50,8 +63,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _name = null;
         _phoneNumber = null;
         _planName = null;
-        _asks = 0;
+        _cards = 0;
         _votes = 0;
+        _streak = 0;
       });
       return;
     }
@@ -78,18 +92,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (phone != null) _phoneNumber = phone;
         final plan = _nonEmpty(me.account.currentPlan?.name);
         if (plan != null) _planName = plan;
-      });
-    } catch (_) {}
-
-    try {
-      final results = await Future.wait([
-        scope.activityPolls.getCreatedPolls(),
-        scope.activityPolls.getAnsweredPolls(),
-      ]);
-      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
-      setState(() {
-        _asks = results[0].length;
-        _votes = results[1].length;
+        // The server computes these (cards = polls + checks made, votes = votes cast
+        // on other people's cards, streak = the running day streak).
+        _cards = me.stats.cardsMade;
+        _votes = me.stats.votesCast;
+        _streak = me.stats.streak.currentStreak;
       });
     } catch (_) {}
   }
@@ -175,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     //   ),
                     // ],
                     const SizedBox(height: 18),
-                    _StatsCard(asks: _asks, votes: _votes),
+                    _StatsCard(cards: _cards, votes: _votes, streak: _streak),
                   ] else ...[
                     const _GuestLoginPrompt(),
                   ],
@@ -279,10 +286,15 @@ class _GuestLoginPrompt extends StatelessWidget {
 }
 
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.asks, required this.votes});
+  const _StatsCard({
+    required this.cards,
+    required this.votes,
+    required this.streak,
+  });
 
-  final int asks;
+  final int cards;
   final int votes;
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
@@ -294,9 +306,9 @@ class _StatsCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
         child: Row(
           children: [
-            _Stat(value: '$asks', label: 'Asks'),
+            _Stat(value: '$cards', label: 'Cards'),
             _Stat(value: '$votes', label: 'Votes'),
-            const _Stat(value: '0', label: 'Day streak'),
+            _Stat(value: '$streak', label: 'Day streak'),
           ],
         ),
       ),

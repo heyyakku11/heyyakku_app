@@ -98,6 +98,9 @@ class _DashboardState extends State<Dashboard> {
   int _pageToNav(int pageIndex) =>
       pageIndex >= _createNavIndex ? pageIndex + 1 : pageIndex;
 
+  /// The page index of the profile tab in the [PageView].
+  static const int _profilePage = 2;
+
   int _navToPage(int navIndex) =>
       navIndex > _createNavIndex ? navIndex - 1 : navIndex;
 
@@ -129,7 +132,7 @@ class _DashboardState extends State<Dashboard> {
         children: [
           const HomeScreen(),
           const InboxScreen(),
-          const ProfileScreen(),
+          ProfileScreen(isActive: _navToPage(_navIndex) == _profilePage),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

@@ -53,6 +53,11 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
   }
 
   Future<void> _openResults(PollModel poll) async {
+    if (poll.isCheck) {
+      await _openCheck(poll);
+      return;
+    }
+
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => PollResultsScreen.byPollId(pollId: poll.id),
@@ -60,6 +65,33 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
     );
     if (!mounted || changed != true) return;
     await _load();
+  }
+
+  /// A made check opens the owner's check view, which needs the full check
+  /// (colour, sticker, options), so it is loaded from the user's checks.
+  Future<void> _openCheck(PollModel poll) async {
+    try {
+      final checks = await AppScope.of(context).checkApi.getMyChecks();
+      if (!mounted) return;
+      final check = checks.where((item) => item.id == poll.id).firstOrNull;
+      if (check == null) {
+        throw StateError('Check not found');
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => PollResultsScreen.check(check: check),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final message = DioErrorMapper.map(
+        error,
+        fallback: 'Could not open this check',
+      ).message;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   @override

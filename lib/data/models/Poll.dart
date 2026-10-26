@@ -16,6 +16,9 @@ class PollModel {
   final List<PollWhy> whys;
   final DateTime? expiresAt;
 
+  /// True for a check the user made (shown alongside polls in "My asks").
+  final bool isCheck;
+
   const PollModel({
     required this.id,
     this.shareCode = '',
@@ -28,6 +31,7 @@ class PollModel {
     this.totalVoteCount = 0,
     this.whys = const [],
     this.expiresAt,
+    this.isCheck = false,
   });
 
   int get totalWhyCount => whys.length;

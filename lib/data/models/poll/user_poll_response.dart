@@ -22,6 +22,8 @@ class UserPollOptionResponse {
 }
 
 class UserPollResponse {
+  /// "poll" or "check": the asks list holds both, newest first.
+  final String kind;
   final String pollId;
   final String shareCode;
   final String question;
@@ -35,6 +37,7 @@ class UserPollResponse {
   final List<UserPollOptionResponse> pollOptions;
 
   const UserPollResponse({
+    this.kind = 'poll',
     required this.pollId,
     required this.question,
     required this.contentType,
@@ -51,6 +54,7 @@ class UserPollResponse {
   factory UserPollResponse.fromJson(Map<String, dynamic> json) {
     final rawOptions = json['pollOptions'] as List<dynamic>? ?? const [];
     return UserPollResponse(
+      kind: json['kind'] as String? ?? 'poll',
       pollId: json['pollId']?.toString() ?? '',
       shareCode: json['shareCode'] as String? ?? '',
       question: json['question'] as String? ?? '',

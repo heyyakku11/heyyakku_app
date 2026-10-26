@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/device/device_metadata_provider.dart';
 import 'package:yakku/core/device/installation_id_store.dart';
@@ -54,7 +55,9 @@ abstract class DeviceRegistrationService {
   void dispose();
 }
 
-class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
+class DeviceRegistrationServiceImpl
+    with WidgetsBindingObserver
+    implements DeviceRegistrationService {
   DeviceRegistrationServiceImpl({
     required this._authController,
     required this._deviceRemote,
@@ -84,6 +87,7 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+    WidgetsBinding.instance.addObserver(this);
 
     _tokenRefreshSubscription ??= _pushTokenProvider.onTokenRefresh.listen((
       newToken,
@@ -207,14 +211,26 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
     return _syncOnce(isPushAllowed: allowed);
   }
 
-  /// Skip / local deny must report [denied] even if OS is still notDetermined.
+  /// The permission to report. The OS is the source of truth whenever it has an
+  /// answer, so enabling notifications in the system settings is picked up even
+  /// after the user skipped the in-app prompt. Only while the OS has not been
+  /// asked (notDetermined) does a skipped prompt count as [denied].
   Future<String> _permissionForSync() async {
+    final os = await _permissionService.currentPermissionStatus();
+    if (os != NotificationPermissionValues.unknown) {
+      // Keep the local flags in step so they never contradict the OS.
+      final granted = os == NotificationPermissionValues.granted;
+      if (granted != await _permissionService.isNotificationAllowed()) {
+        await _permissionService.markAsked(allowed: granted);
+      }
+      return os;
+    }
+
     final asked = await _permissionService.hasAsked();
     final allowed = await _permissionService.isNotificationAllowed();
-    if (asked && !allowed) {
-      return NotificationPermissionValues.denied;
-    }
-    return _permissionService.currentPermissionStatus();
+    return asked && !allowed
+        ? NotificationPermissionValues.denied
+        : NotificationPermissionValues.unknown;
   }
 
   @override
@@ -232,8 +248,18 @@ class DeviceRegistrationServiceImpl implements DeviceRegistrationService {
     syncDeviceInBackground();
   }
 
+  /// The user may have changed the notification permission in the system settings
+  /// while the app was in the background; report it as soon as the app is back.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      syncDeviceInBackground();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_tokenRefreshSubscription?.cancel());
     _tokenRefreshSubscription = null;
     _initialized = false;

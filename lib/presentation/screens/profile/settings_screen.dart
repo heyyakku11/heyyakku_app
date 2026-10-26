@@ -49,8 +49,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<bool> _confirmTurnOffPush() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Turn off push notifications?'),
+          content: const Text(
+            'You will stop getting alerts on this device, like when your '
+            'friends answer your asks. You can turn them back on any time.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep on'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Turn off'),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed == true;
+  }
+
   Future<void> _setPushAllowed(bool value) async {
     if (_pushUpdating) return;
+
+    // Switching on needs no confirmation; switching off does. The switch is
+    // controlled, so it stays on until the user confirms.
+    if (!value && !await _confirmTurnOffPush()) return;
+    if (!mounted) return;
 
     final previous = _pushAllowed;
     setState(() {
