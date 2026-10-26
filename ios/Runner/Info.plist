@@ -47,6 +47,17 @@
 				</array>
 			</dict>
 		</dict>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>com.example.yakku</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>yakku</string>
+				</array>
+			</dict>
+		</array>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
