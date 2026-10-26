@@ -39,6 +39,11 @@ abstract final class ApiRoutes {
   static const String getMe = '/api/v1/users';
   static const String deleteMe = '/api/v1/users/me';
 
+  // Notifications
+  static const String notifications = '/api/v1/notifications';
+
+  static String notificationRead(String id) => '$notifications/$id/read';
+
   // Media upload sessions
   static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
 

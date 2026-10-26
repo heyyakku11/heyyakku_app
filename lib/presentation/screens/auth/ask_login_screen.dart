@@ -217,7 +217,7 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
                         onPressed: _isSubmitting
                             ? null
                             : () => Navigator.of(context).maybePop(false),
-                        icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                         color: YakkuPalette.textPrimary,
                         padding: EdgeInsets.zero,
                         alignment: Alignment.centerLeft,

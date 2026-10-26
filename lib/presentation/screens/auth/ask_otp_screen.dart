@@ -220,7 +220,7 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
                 onPressed: _isVerifying
                     ? null
                     : () => Navigator.of(context).pop(false),
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                 color: YakkuPalette.textPrimary,
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,

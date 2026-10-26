@@ -22,6 +22,11 @@ ThemeData buildDarkTheme() {
     brightness: Brightness.dark,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: YakkuPalette.night,
+    // Every AppBar back button (and any BackButton) uses this one icon.
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (context) =>
+          const Icon(Icons.arrow_back_ios_new_rounded),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: YakkuPalette.night,
       foregroundColor: YakkuPalette.nightText,

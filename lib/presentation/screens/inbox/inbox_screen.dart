@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_mobile_login.dart';
-import 'package:yakku/presentation/widgets/remote_poll_list.dart';
+import 'package:yakku/presentation/screens/inbox/notification_list.dart';
 
 class InboxScreen extends StatelessWidget {
   const InboxScreen({super.key});
@@ -19,13 +19,7 @@ class InboxScreen extends StatelessWidget {
             if (!auth.isLoggedIn) {
               return const _LoggedOutActivity();
             }
-            return RemotePollList(
-              emptyMessage: 'No polls asked yet',
-              errorFallback: 'Could not load asked polls',
-              ownerActions: true,
-              loadPolls: () =>
-                  AppScope.of(context).activityPolls.getCreatedPolls(),
-            );
+            return NotificationList(source: AppScope.of(context).notifications);
           },
         ),
       ),
@@ -56,7 +50,7 @@ class _LoggedOutActivity extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your asks and updates will show up here once you\'re signed in.',
+              'Your notifications will show up here once you\'re signed in.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

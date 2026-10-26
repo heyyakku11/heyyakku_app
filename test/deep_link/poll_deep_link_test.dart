@@ -12,6 +12,7 @@ import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source.dart';
+import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
@@ -136,6 +137,7 @@ class _Scope extends StatelessWidget {
       mediaUploads: _F8(),
       activityPolls: _F9(),
       userRemote: _F10(),
+      notifications: _F15(),
       deviceRegistration: _F12(),
       draftPolls: _F13(),
       child: child,
@@ -163,6 +165,7 @@ class _F9 extends Fake implements ActivityPollRepository {}
 
 class _F10 extends Fake implements UserRemoteDataSource {}
 
+class _F15 extends Fake implements NotificationRemoteDataSource {}
 
 class _F12 extends Fake implements DeviceRegistrationService {}
 
