@@ -71,11 +71,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final me = await scope.userRemote.getMe();
       if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
       setState(() {
-        final name = _nonEmpty(me.name) ?? _nonEmpty(me.anonymousName);
-        final phone = _nonEmpty(me.phoneNumber);
+        final name =
+            _nonEmpty(me.profile.name) ?? _nonEmpty(me.profile.anonymousName);
+        final phone = _nonEmpty(me.account.phoneNumber);
         if (name != null) _name = name;
         if (phone != null) _phoneNumber = phone;
-        final plan = _nonEmpty(me.currentPlan?.name);
+        final plan = _nonEmpty(me.account.currentPlan?.name);
         if (plan != null) _planName = plan;
       });
     } catch (_) {}

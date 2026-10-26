@@ -37,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final me = await AppScope.of(context).userRemote.getMe();
       if (!mounted) return;
       setState(() {
-        _pushAllowed = me.isPushAllowed;
+        _pushAllowed = me.account.isPushAllowed;
         _pushReady = true;
       });
     } catch (error) {
@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ).userRemote.setPushAllowed(value);
       if (!mounted) return;
       setState(() {
-        _pushAllowed = updated.isPushAllowed;
+        _pushAllowed = updated.account.isPushAllowed;
         _pushUpdating = false;
       });
     } catch (error) {

@@ -24,47 +24,123 @@ class UserPlanResponse {
   }
 }
 
+/// `data` of `GET /api/v1/users`, grouped by what the fields describe:
+/// `profile` (how the user appears), `account` (status, phone, plan and the
+/// push switch) and `stats` (counts and streak).
 class UserProfileResponse {
-  final String id;
-  final String status;
-  final String phoneNumber;
-  final String name;
-  final String anonymousName;
-  final DateTime? loginAt;
-  final String? avatarUrl;
-  final UserPlanResponse? currentPlan;
-
-  /// The account-level push switch (on by default).
-  final bool isPushAllowed;
+  final UserProfileDetails profile;
+  final UserAccountDetails account;
+  final UserStatsDetails stats;
 
   const UserProfileResponse({
-    required this.id,
-    required this.status,
-    required this.phoneNumber,
-    required this.name,
-    required this.anonymousName,
-    this.loginAt,
-    this.avatarUrl,
-    this.currentPlan,
-    this.isPushAllowed = true,
+    required this.profile,
+    required this.account,
+    required this.stats,
   });
 
   factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
-    final plan = json['currentPlan'];
     return UserProfileResponse(
-      id: json['id']?.toString() ?? '',
-      status: json['status'] as String? ?? '',
-      phoneNumber: json['phoneNumber'] as String? ?? '',
+      profile: UserProfileDetails.fromJson(_asMap(json['profile'])),
+      account: UserAccountDetails.fromJson(_asMap(json['account'])),
+      stats: UserStatsDetails.fromJson(_asMap(json['stats'])),
+    );
+  }
+}
+
+class UserProfileDetails {
+  final String name;
+  final String anonymousName;
+  final String? avatarUrl;
+
+  const UserProfileDetails({
+    required this.name,
+    required this.anonymousName,
+    this.avatarUrl,
+  });
+
+  factory UserProfileDetails.fromJson(Map<String, dynamic> json) {
+    return UserProfileDetails(
       name: json['name'] as String? ?? '',
       anonymousName: json['anonymousName'] as String? ?? '',
-      loginAt: _parseDate(json['loginAt']),
       avatarUrl: json['avatarUrl'] as String?,
+    );
+  }
+}
+
+class UserAccountDetails {
+  final String status;
+  final String phoneNumber;
+  final DateTime? loginAt;
+
+  /// The account-level push switch (on by default).
+  final bool isPushAllowed;
+  final UserPlanResponse? currentPlan;
+
+  const UserAccountDetails({
+    required this.status,
+    required this.phoneNumber,
+    this.loginAt,
+    this.isPushAllowed = true,
+    this.currentPlan,
+  });
+
+  factory UserAccountDetails.fromJson(Map<String, dynamic> json) {
+    final plan = json['currentPlan'];
+    return UserAccountDetails(
+      status: json['status'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      loginAt: _parseDate(json['loginAt']),
+      isPushAllowed: json['isPushAllowed'] as bool? ?? true,
       currentPlan: plan is Map<String, dynamic>
           ? UserPlanResponse.fromJson(plan)
           : null,
-      isPushAllowed: json['isPushAllowed'] as bool? ?? true,
     );
   }
+}
+
+class UserStatsDetails {
+  /// Polls created plus checks made.
+  final int cardsMade;
+
+  /// Votes cast on other people's polls and checks.
+  final int votesCast;
+  final UserStreakSummary streak;
+
+  const UserStatsDetails({
+    required this.cardsMade,
+    required this.votesCast,
+    required this.streak,
+  });
+
+  factory UserStatsDetails.fromJson(Map<String, dynamic> json) {
+    return UserStatsDetails(
+      cardsMade: json['cardsMade'] as int? ?? 0,
+      votesCast: json['votesCast'] as int? ?? 0,
+      streak: UserStreakSummary.fromJson(_asMap(json['streak'])),
+    );
+  }
+}
+
+class UserStreakSummary {
+  /// The running streak today; zero once a whole day has been missed.
+  final int currentStreak;
+  final int longestStreak;
+
+  const UserStreakSummary({
+    required this.currentStreak,
+    required this.longestStreak,
+  });
+
+  factory UserStreakSummary.fromJson(Map<String, dynamic> json) {
+    return UserStreakSummary(
+      currentStreak: json['currentStreak'] as int? ?? 0,
+      longestStreak: json['longestStreak'] as int? ?? 0,
+    );
+  }
+}
+
+Map<String, dynamic> _asMap(Object? value) {
+  return value is Map<String, dynamic> ? value : const <String, dynamic>{};
 }
 
 DateTime? _parseDate(Object? value) {
