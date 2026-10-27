@@ -7,7 +7,8 @@ abstract final class AppLimits {
 
   /// Fallback for votes needed before results are revealed; the API sends
   /// the real value as `minVotes`.
-  static const int minVotesToReveal = 5;
+
+  static const int minVotesToReveal = 1;
   static const String somethingElseHint = 'something else';
   static const String somethingElseLabel = 'Something else';
 }
