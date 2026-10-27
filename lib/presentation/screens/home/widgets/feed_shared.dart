@@ -58,12 +58,8 @@ class FeedActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     const ink = Color(0xFF1B1418);
     final foreground = filled ? Colors.white : ink;
-    final background = filled
-        ? ink
-        : textOnly
-        ? Colors.transparent
-        : Colors.white;
-    final borderColor = textOnly ? Colors.transparent : const Color(0xFFE4D7DC);
+    final background = Colors.transparent;
+    final borderColor = textOnly ? Colors.transparent : Colors.black;
 
     return Material(
       color: Colors.transparent,
@@ -73,7 +69,7 @@ class FeedActionPill extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: borderColor, width: textOnly ? 0 : 1),
           ),
           child: Padding(

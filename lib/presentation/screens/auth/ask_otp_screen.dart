@@ -13,11 +13,21 @@ import 'package:yakku/presentation/widgets/app_alert.dart';
 /// "Enter the 6-digit code" step. Verifies by itself once all 6 digits are in.
 /// Pops `true` when the user is logged in, `false` for "Wrong number?" / back.
 class AskOtpScreen extends StatefulWidget {
-  const AskOtpScreen({super.key, required this.phone, required this.firstName});
+  const AskOtpScreen({
+    super.key,
+    required this.phone,
+    required this.firstName,
+    this.onLoggedIn,
+  });
 
   /// Full E.164 phone, e.g. +919876543210.
   final String phone;
   final String firstName;
+
+  /// When set, runs after login while this screen stays up; the widget it
+  /// returns replaces this screen and the login screen (null = back to root).
+  /// When null, this screen just pops `true`.
+  final Future<Widget?> Function()? onLoggedIn;
 
   @override
   State<AskOtpScreen> createState() => _AskOtpScreenState();
@@ -188,7 +198,41 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
       // Now logged in: ask for notifications and register this device.
       await NotificationPermissionScreen.showIfNeeded(context);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+
+      final onLoggedIn = widget.onLoggedIn;
+      if (onLoggedIn == null) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+
+      // Keep this screen up (spinner) while the follow-up runs, so the login
+      // form never flashes back; then replace both with the next screen.
+      try {
+        final next = await onLoggedIn();
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        if (next == null) {
+          navigator.popUntil((route) => route.isFirst);
+        } else {
+          unawaited(
+            navigator.pushAndRemoveUntil(
+              MaterialPageRoute<void>(builder: (_) => next),
+              (route) => route.isFirst,
+            ),
+          );
+        }
+        return;
+      } catch (error) {
+        if (!mounted) return;
+        final message = DioErrorMapper.map(
+          error,
+          fallback: 'Could not send this check. Please try again.',
+        ).message;
+        await showAppAlert(context, title: "Couldn't send", message: message);
+        if (!mounted) return;
+        Navigator.of(context).pop(false);
+        return;
+      }
     } catch (e) {
       if (!mounted) return;
       await _handleVerifyFailure(e);
@@ -208,170 +252,173 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
   Widget build(BuildContext context) {
     final code = _controller.text;
 
-    return Scaffold(
-      backgroundColor: YakkuPalette.cream,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: _isVerifying
-                    ? null
-                    : () => Navigator.of(context).pop(false),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                color: YakkuPalette.textPrimary,
-                padding: EdgeInsets.zero,
-                alignment: Alignment.centerLeft,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Enter the 6-digit code',
-                style: TextStyle(
-                  fontSize: 28,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
+    return PopScope(
+      canPop: !_isVerifying,
+      child: Scaffold(
+        backgroundColor: YakkuPalette.cream,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: _isVerifying
+                      ? null
+                      : () => Navigator.of(context).pop(false),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                   color: YakkuPalette.textPrimary,
-                  letterSpacing: -0.6,
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerLeft,
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text.rich(
-                TextSpan(
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.35,
-                    color: YakkuPalette.textSecondary,
-                    fontWeight: FontWeight.w500,
+                const SizedBox(height: 12),
+                const Text(
+                  'Enter the 6-digit code',
+                  style: TextStyle(
+                    fontSize: 28,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: YakkuPalette.textPrimary,
+                    letterSpacing: -0.6,
                   ),
-                  children: [
-                    TextSpan(text: 'Sent an otp to $_maskedPhone. '),
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.baseline,
-                      baseline: TextBaseline.alphabetic,
-                      child: GestureDetector(
-                        onTap: _isVerifying
-                            ? null
-                            : () => Navigator.of(context).pop(false),
-                        child: const Text(
-                          'Wrong number?',
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.35,
-                            color: YakkuPalette.primary,
-                            fontWeight: FontWeight.w800,
+                ),
+                const SizedBox(height: 10),
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.35,
+                      color: YakkuPalette.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    children: [
+                      TextSpan(text: 'Sent an otp to $_maskedPhone. '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: GestureDetector(
+                          onTap: _isVerifying
+                              ? null
+                              : () => Navigator.of(context).pop(false),
+                          child: const Text(
+                            'Wrong number?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.35,
+                              color: YakkuPalette.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (_isWaitingForSend) ...[
-                const SizedBox(height: 14),
-                const LinearProgressIndicator(
-                  minHeight: 2,
-                  color: YakkuPalette.primary,
+                if (_isWaitingForSend) ...[
+                  const SizedBox(height: 14),
+                  const LinearProgressIndicator(
+                    minHeight: 2,
+                    color: YakkuPalette.primary,
+                  ),
+                ],
+                const SizedBox(height: 28),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _inputEnabled ? _focusNode.requestFocus : null,
+                  child: Stack(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (var i = 0; i < _length; i++)
+                            _DigitBox(
+                              digit: i < code.length ? code[i] : '',
+                              active:
+                                  _focusNode.hasFocus &&
+                                  i == code.length.clamp(0, _length - 1) &&
+                                  _inputEnabled,
+                            ),
+                        ],
+                      ),
+                      // Real input: invisible, drives the boxes above (also
+                      // handles paste and SMS/WhatsApp autofill).
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 0,
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            enabled: _inputEnabled,
+                            autofocus: false,
+                            showCursor: false,
+                            enableInteractiveSelection: false,
+                            keyboardType: TextInputType.number,
+                            autofillHints: const [AutofillHints.oneTimeCode],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(_length),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFDDE5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.shield_outlined,
+                        size: 16,
+                        color: YakkuPalette.primary,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Your number keeps Yakku safe. Friends never see it.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color: YakkuPalette.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Center(
+                  child: _isVerifying
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: YakkuPalette.primary,
+                          ),
+                        )
+                      : const Text(
+                          'Checks by itself when all 6 digits are in',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: YakkuPalette.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ],
-              const SizedBox(height: 28),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _inputEnabled ? _focusNode.requestFocus : null,
-                child: Stack(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        for (var i = 0; i < _length; i++)
-                          _DigitBox(
-                            digit: i < code.length ? code[i] : '',
-                            active:
-                                _focusNode.hasFocus &&
-                                i == code.length.clamp(0, _length - 1) &&
-                                _inputEnabled,
-                          ),
-                      ],
-                    ),
-                    // Real input: invisible, drives the boxes above (also
-                    // handles paste and SMS/WhatsApp autofill).
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: 0,
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          enabled: _inputEnabled,
-                          autofocus: false,
-                          showCursor: false,
-                          enableInteractiveSelection: false,
-                          keyboardType: TextInputType.number,
-                          autofillHints: const [AutofillHints.oneTimeCode],
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(_length),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFDDE5),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.shield_outlined,
-                      size: 16,
-                      color: YakkuPalette.primary,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Your number keeps Yakku safe. Friends never see it.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: YakkuPalette.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Center(
-                child: _isVerifying
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: YakkuPalette.primary,
-                        ),
-                      )
-                    : const Text(
-                        'Checks by itself when all 6 digits are in',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: YakkuPalette.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

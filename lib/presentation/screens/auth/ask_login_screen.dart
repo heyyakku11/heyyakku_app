@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/auth/ask_otp_screen.dart';
@@ -126,37 +125,21 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
 
     final verified = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => AskOtpScreen(phone: phone, firstName: name),
+        builder: (_) => AskOtpScreen(
+          phone: phone,
+          firstName: name,
+          onLoggedIn: widget.onLoggedIn,
+        ),
       ),
     );
     if (!mounted) return;
+    // With onLoggedIn set, the OTP screen runs it and replaces this screen,
+    // so we only get here on a plain login (or if the user came back).
     if (verified == true) {
-      final onLoggedIn = widget.onLoggedIn;
-      if (onLoggedIn == null) {
-        Navigator.of(context).pop(true);
-        return;
-      }
-      try {
-        final next = await onLoggedIn();
-        if (!mounted) return;
-        if (next == null) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          return;
-        }
-        await Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute<void>(builder: (_) => next));
-        return;
-      } catch (error) {
-        if (!mounted) return;
-        final message = DioErrorMapper.map(
-          error,
-          fallback: 'Could not send this check. Please try again.',
-        ).message;
-        await showAppAlert(context, title: "Couldn't send", message: message);
-      }
+      Navigator.of(context).pop(true);
+      return;
     }
-    if (mounted) setState(() => _isSubmitting = false);
+    setState(() => _isSubmitting = false);
   }
 
   Future<void> _confirmLeave() async {
@@ -217,7 +200,10 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
                         onPressed: _isSubmitting
                             ? null
                             : () => Navigator.of(context).maybePop(false),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                        ),
                         color: YakkuPalette.textPrimary,
                         padding: EdgeInsets.zero,
                         alignment: Alignment.centerLeft,

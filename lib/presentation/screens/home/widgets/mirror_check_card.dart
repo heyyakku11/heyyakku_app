@@ -94,13 +94,13 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (check.sticker != null) ...[
-                    const SizedBox(width: 8),
-                    _CurrentCheckSticker(
-                      text: check.sticker!,
-                      color: check.accentColor,
+                  if (check.sticker != null)
+                    Expanded(
+                      child: _CurrentCheckSticker(
+                        text: check.sticker!,
+                        color: check.accentColor,
+                      ),
                     ),
-                  ],
                 ],
               ),
               const SizedBox(height: 16),
@@ -225,20 +225,20 @@ class _AskMyFriendsButton extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFF1B1418),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(22),
           ),
           child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.ios_share, size: 16, color: Colors.white),
+                Icon(Icons.ios_share, size: 20, color: Colors.white),
                 SizedBox(width: 6),
                 Text(
                   'Ask my friends',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

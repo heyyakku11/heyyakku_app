@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/poll_card_image_service.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
@@ -369,10 +370,10 @@ class _ShareRow extends StatelessWidget {
               ],
             ),
           ),
-          child: const Icon(
-            Icons.photo_camera_outlined,
+          child: const FaIcon(
+            FontAwesomeIcons.instagram,
             color: Colors.white,
-            size: 22,
+            size: 24,
           ),
         ),
         _ShareTarget(
@@ -382,10 +383,10 @@ class _ShareRow extends StatelessWidget {
             shape: BoxShape.circle,
             color: Color(0xFF25D366),
           ),
-          child: const Icon(
-            Icons.chat_bubble_outline_rounded,
-            color: Color(0xFF0B3D1E),
-            size: 22,
+          child: const FaIcon(
+            FontAwesomeIcons.whatsapp,
+            color: Colors.white,
+            size: 24,
           ),
         ),
         _ShareTarget(
@@ -395,7 +396,11 @@ class _ShareRow extends StatelessWidget {
             shape: BoxShape.circle,
             color: Color(0xFFFFFC00),
           ),
-          child: const Text('👻', style: TextStyle(fontSize: 22, height: 1)),
+          child: const FaIcon(
+            FontAwesomeIcons.snapchat,
+            color: Colors.white,
+            size: 24,
+          ),
         ),
         _ShareTarget(
           label: 'Facebook',
@@ -404,14 +409,10 @@ class _ShareRow extends StatelessWidget {
             shape: BoxShape.circle,
             color: Color(0xFF1877F2),
           ),
-          child: const Text(
-            'f',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              height: 1,
-              fontWeight: FontWeight.w800,
-            ),
+          child: const FaIcon(
+            FontAwesomeIcons.facebookF,
+            color: Colors.white,
+            size: 22,
           ),
         ),
         _ShareTarget(
@@ -421,7 +422,11 @@ class _ShareRow extends StatelessWidget {
             shape: BoxShape.circle,
             color: Color(0xFF1B1418),
           ),
-          child: const Icon(Icons.link_rounded, color: Colors.white, size: 22),
+          child: const FaIcon(
+            FontAwesomeIcons.link,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
       ],
     );
