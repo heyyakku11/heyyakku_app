@@ -5,9 +5,12 @@ import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
 
 /// Replaces the featured card once the user has made this week's check.
 class CheckDoneCard extends StatelessWidget {
-  const CheckDoneCard({super.key, required this.check});
+  const CheckDoneCard({super.key, required this.check, this.onViewCard});
 
   final MirrorCheck check;
+
+  /// Shows a "View card" button when set.
+  final VoidCallback? onViewCard;
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +19,8 @@ class CheckDoneCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
+          // Centered when the card is stretched to a fixed height (carousel).
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -108,6 +113,15 @@ class CheckDoneCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (onViewCard != null) ...[
+              const SizedBox(height: 12),
+              FeedActionPill(
+                label: 'View card',
+                icon: Icons.visibility_outlined,
+                filled: true,
+                onTap: onViewCard!,
+              ),
+            ],
           ],
         ),
       ),

@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
+import 'package:yakku/presentation/screens/home/widgets/check_done_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
 
 class MoreChecksSection extends StatelessWidget {
-  const MoreChecksSection({super.key, required this.checks});
+  const MoreChecksSection({super.key, required this.checks, this.onViewCard});
 
   final List<MirrorCheck> checks;
+
+  /// Opens the user's card for a made check.
+  final void Function(MirrorCheck check)? onViewCard;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +70,14 @@ class MoreChecksSection extends StatelessWidget {
                 itemBuilder: (context, index) {
                   return SizedBox(
                     width: cardWidth,
-                    child: SubMirrorCheckCard(check: checks[index]),
+                    child: checks[index].used
+                        ? CheckDoneCard(
+                            check: checks[index],
+                            onViewCard: onViewCard == null
+                                ? null
+                                : () => onViewCard!(checks[index]),
+                          )
+                        : SubMirrorCheckCard(check: checks[index]),
                   );
                 },
               ),

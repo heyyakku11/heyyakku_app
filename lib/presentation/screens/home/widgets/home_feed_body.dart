@@ -4,6 +4,7 @@ import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/models/home/question_worth_asking.dart';
 import 'package:yakku/presentation/screens/home/widgets/check_done_card.dart';
+import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/screens/home/widgets/mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/your_cards_section.dart';
 import 'package:yakku/presentation/screens/home/widgets/question_worth_asking_card.dart';
@@ -24,14 +25,29 @@ class HomeFeedBody extends StatelessWidget {
   final String? errorMessage;
   final List<QuestionWorthAsking> questionsWorthAsking;
 
+  /// Opens the user's own card made from [check], if it has loaded.
+  void _viewCard(BuildContext context, MirrorCheck check) {
+    final matches = myChecks.where((c) => c.checkId == check.id);
+    if (matches.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PollResultsScreen.check(check: matches.first),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final featured = mirrorChecks.isEmpty ? null : mirrorChecks.first;
-    // Made checks drop out of "More checks"; a made featured check shows as done.
-    final moreChecks = [
-      for (final check in mirrorChecks.skip(1))
+    // Keep the API order, but move checks the user already made to the end.
+    final ordered = [
+      for (final check in mirrorChecks)
         if (!check.used) check,
+      for (final check in mirrorChecks)
+        if (check.used) check,
     ];
+    // The featured slot only shows as done once every check has been made.
+    final featured = ordered.isEmpty ? null : ordered.first;
+    final moreChecks = ordered.skip(1).toList();
     final returning = myChecks.isNotEmpty;
     final theme = Theme.of(context);
     final ink = theme.brightness == Brightness.dark
@@ -63,12 +79,18 @@ class HomeFeedBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            CheckDoneCard(check: featured),
+            CheckDoneCard(
+              check: featured,
+              onViewCard: () => _viewCard(context, featured),
+            ),
           ] else
             CurrentMirrorCheckCard(check: featured),
           const SizedBox(height: 28),
         ],
-        MoreChecksSection(checks: moreChecks),
+        MoreChecksSection(
+          checks: moreChecks,
+          onViewCard: (check) => _viewCard(context, check),
+        ),
         const SizedBox(height: 28),
         QuestionsWorthAskingSection(questions: questionsWorthAsking),
         const SizedBox(height: 14),

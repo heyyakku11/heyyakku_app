@@ -58,7 +58,7 @@ class FeedActionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     const ink = Color(0xFF1B1418);
     final foreground = filled ? Colors.white : ink;
-    final background = Colors.transparent;
+    final background = filled ? ink : Colors.transparent;
     final borderColor = textOnly ? Colors.transparent : Colors.black;
 
     return Material(
