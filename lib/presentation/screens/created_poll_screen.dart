@@ -354,7 +354,7 @@ class _ShareRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _ShareTarget(
-          label: 'Instagram\nDM',
+          label: 'Instagram',
           onTap: onInstagramDm,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
@@ -373,7 +373,7 @@ class _ShareRow extends StatelessWidget {
           child: const FaIcon(
             FontAwesomeIcons.instagram,
             color: Colors.white,
-            size: 24,
+            size: 26,
           ),
         ),
         _ShareTarget(
@@ -386,7 +386,7 @@ class _ShareRow extends StatelessWidget {
           child: const FaIcon(
             FontAwesomeIcons.whatsapp,
             color: Colors.white,
-            size: 24,
+            size: 26,
           ),
         ),
         _ShareTarget(
@@ -399,7 +399,7 @@ class _ShareRow extends StatelessWidget {
           child: const FaIcon(
             FontAwesomeIcons.snapchat,
             color: Colors.white,
-            size: 24,
+            size: 26,
           ),
         ),
         _ShareTarget(
@@ -412,7 +412,7 @@ class _ShareRow extends StatelessWidget {
           child: const FaIcon(
             FontAwesomeIcons.facebookF,
             color: Colors.white,
-            size: 22,
+            size: 24,
           ),
         ),
         _ShareTarget(
@@ -425,7 +425,7 @@ class _ShareRow extends StatelessWidget {
           child: const FaIcon(
             FontAwesomeIcons.link,
             color: Colors.white,
-            size: 20,
+            size: 18,
           ),
         ),
       ],
