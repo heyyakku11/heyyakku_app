@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/poll_card_image_service.dart';
@@ -74,18 +75,13 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
         ),
       );
     } on SharePayloadException {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text("This poll can't be shared right now.")),
-        );
+      AppToast.show("This poll can't be shared right now.");
     }
   }
 
   /// Runs WhatsApp / Copy link through the share module and reports the
   /// real outcome.
   Future<void> _shareVia(BuildContext context, SharePlatformId platform) async {
-    final messenger = ScaffoldMessenger.of(context);
     String? message;
     try {
       final payload = _buildPayload();
@@ -100,15 +96,12 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
       message = "This poll can't be shared right now.";
     }
     if (message == null) return;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(message);
   }
 
   /// Renders the poll card to a PNG and saves it to the gallery.
   Future<void> _downloadCard() async {
     if (_downloading) return;
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _downloading = true);
     String message;
     try {
@@ -121,9 +114,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
       message = "Couldn't save the card. Try again.";
     }
     if (mounted) setState(() => _downloading = false);
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(message);
   }
 
   @override

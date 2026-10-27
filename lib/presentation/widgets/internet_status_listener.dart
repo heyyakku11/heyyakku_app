@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:yakku/core/network/internet_status.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
@@ -35,16 +36,10 @@ class _InternetStatusListenerState extends State<InternetStatusListener> {
           return;
         }
 
-        final messenger = ScaffoldMessenger.maybeOf(context);
-        if (messenger == null) return;
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              content: Text('Internet connection restored'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+        AppToast.show(
+          'Internet connection restored',
+          duration: const Duration(seconds: 2),
+        );
       },
       builder: (context, status) {
         final content = widget.child ?? const SizedBox.shrink();

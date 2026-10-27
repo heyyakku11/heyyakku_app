@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
@@ -62,9 +63,7 @@ Future<bool> showPollOwnerActionsSheet(
       error,
       fallback: closing ? 'Could not close poll' : 'Could not delete poll',
     ).message;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(message);
     return false;
   }
 }

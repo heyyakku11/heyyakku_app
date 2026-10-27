@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:yakku/core/share/share_coordinator.dart';
 import 'package:yakku/core/share/share_payload.dart';
@@ -54,7 +55,6 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
   Future<void> _openInstagram() async {
     if (_opening) return;
     setState(() => _opening = true);
-    final messenger = ScaffoldMessenger.of(context);
     final result = await ShareCoordinator().share(
       SharePlatformId.instagramStory,
       widget.payload,
@@ -68,9 +68,7 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
       ShareFailure(:final userMessage) => userMessage,
     };
     if (message != null) {
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      AppToast.show(message);
     }
   }
 

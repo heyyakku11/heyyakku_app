@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/widgets/app_button.dart';
@@ -36,11 +37,8 @@ class _ReviewFeedbackSheetState extends State<ReviewFeedbackSheet> {
 
   void _send() {
     if (_rating == 0) return;
-    final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Thanks for your feedback')));
+    AppToast.show('Thanks for your feedback');
   }
 
   @override

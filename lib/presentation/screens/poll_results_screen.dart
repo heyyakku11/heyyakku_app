@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
@@ -117,9 +118,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     };
 
     if (message != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      AppToast.show(message);
     }
   }
 
@@ -213,13 +212,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       await run(AppScope.of(context).userRemote);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(DioErrorMapper.map(error, fallback: failure).message),
-          ),
-        );
+      AppToast.show(DioErrorMapper.map(error, fallback: failure).message);
     }
   }
 

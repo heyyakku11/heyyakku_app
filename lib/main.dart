@@ -46,6 +46,7 @@ import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/background_job_effects.dart';
 import 'package:yakku/presentation/widgets/internet_status_listener.dart';
 
@@ -247,6 +248,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         );
     unawaited(_deviceRegistration.initialize());
 
+    AppToast.attach(_rootNavigatorKey);
     _router = AppRouter.create(
       _authController,
       navigatorKey: _rootNavigatorKey,

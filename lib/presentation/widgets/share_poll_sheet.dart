@@ -7,6 +7,7 @@ import 'package:yakku/core/share/share_platform_adapter.dart';
 import 'package:yakku/core/share/share_result.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 
 /// Opens the custom share sheet for [payload]. After a successful action the
 /// sheet closes and, if the adapter provided one, a confirmation is shown.
@@ -15,7 +16,6 @@ Future<ShareResult?> showSharePollSheet(
   required SharePayload payload,
   ShareCoordinator? coordinator,
 }) async {
-  final messenger = ScaffoldMessenger.maybeOf(context);
   final result = await showModalBottomSheet<ShareResult>(
     context: context,
     isScrollControlled: true,
@@ -29,9 +29,7 @@ Future<ShareResult?> showSharePollSheet(
     ),
   );
   if (result is ShareSuccess && result.feedbackMessage != null) {
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(result.feedbackMessage!)));
+    AppToast.show(result.feedbackMessage!);
   }
   return result;
 }
@@ -54,11 +52,7 @@ Future<ShareResult?> _shareFrom(
   try {
     payload = build();
   } on SharePayloadException {
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text("This poll can't be shared right now.")),
-      );
+    AppToast.show("This poll can't be shared right now.");
     return null;
   }
   if (!context.mounted) return null;

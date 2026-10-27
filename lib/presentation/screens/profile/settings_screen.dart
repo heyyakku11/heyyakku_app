@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -110,9 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showError(Object error, {required String fallback}) {
     final message = DioErrorMapper.map(error, fallback: fallback).message;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(message);
   }
 
   Future<void> _logOut() async {
@@ -174,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _PlanRow(
                   planLabel: widget.planName ?? 'Free',
-                  actionLabel: 'See Yakku Love',
+                  actionLabel: 'See yakku plan',
                   onActionTap: () {},
                 ),
                 _ChevronRow(

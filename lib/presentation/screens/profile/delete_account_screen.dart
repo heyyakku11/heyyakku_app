@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -21,7 +22,6 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
     final auth = AppScope.of(context).authController;
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       await auth.deleteAccount();
@@ -32,9 +32,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         error,
         fallback: 'Could not delete your account',
       ).message;
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      AppToast.show(message);
       if (mounted) setState(() => _deleting = false);
     }
   }

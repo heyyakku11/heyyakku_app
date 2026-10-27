@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -88,9 +89,7 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
         error,
         fallback: 'Could not open this check',
       ).message;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      AppToast.show(message);
     }
   }
 
