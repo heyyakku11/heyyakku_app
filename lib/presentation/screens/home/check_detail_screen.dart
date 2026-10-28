@@ -706,7 +706,11 @@ class _FriendsCanAddOwnButton extends StatelessWidget {
                   color: tones.border,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.add, size: 16, color: YakkuPalette.white),
+                child: const Icon(
+                  Icons.add,
+                  size: 16,
+                  color: YakkuPalette.white,
+                ),
               ),
               const SizedBox(width: 10),
               Flexible(

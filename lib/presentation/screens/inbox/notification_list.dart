@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/screens/inbox/open_notification_target.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
@@ -115,6 +118,14 @@ class _NotificationListState extends State<NotificationList> {
     }
   }
 
+  /// Marks the notification read and opens the card's results screen.
+  Future<void> _open(AppNotification item) async {
+    unawaited(_markRead(item));
+    final target = item.target;
+    if (target == null) return;
+    await openNotificationTarget(context, target);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -174,7 +185,7 @@ class _NotificationListState extends State<NotificationList> {
           return _NotificationTile(
             item: item,
             showDivider: row.showDivider,
-            onTap: () => _markRead(item),
+            onTap: () => _open(item),
           );
         },
       ),

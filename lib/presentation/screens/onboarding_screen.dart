@@ -320,7 +320,9 @@ class _PreviewCard extends StatelessWidget {
     final chipColor = lightChips
         ? YakkuPalette.white.withValues(alpha: 0.22)
         : YakkuPalette.white.withValues(alpha: 0.72);
-    final chipText = lightChips ? YakkuPalette.white : YakkuPalette.textSecondary;
+    final chipText = lightChips
+        ? YakkuPalette.white
+        : YakkuPalette.textSecondary;
 
     return Container(
       width: width,

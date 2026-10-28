@@ -7,7 +7,9 @@ import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
 import 'package:yakku/presentation/screens/home/home_screen.dart';
+import 'package:yakku/data/models/notification/app_notification.dart';
 import 'package:yakku/presentation/screens/inbox/inbox_screen.dart';
+import 'package:yakku/presentation/screens/inbox/open_notification_target.dart';
 import 'package:yakku/presentation/screens/profile/profile_screen.dart';
 import 'package:yakku/presentation/widgets/notification_permission_dialog.dart';
 
@@ -29,6 +31,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   /// Unread notifications, shown as a badge on the Activity tab.
   int _unreadCount = 0;
   StreamSubscription<RemoteMessage>? _pushSub;
+  StreamSubscription<RemoteMessage>? _pushOpenedSub;
 
   @override
   void initState() {
@@ -105,10 +108,48 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     AppScope.of(context).authController.addListener(_refreshUnread);
     try {
       _pushSub = FirebaseMessaging.onMessage.listen((_) => _refreshUnread());
+      // A tap on a push while the app is in the background...
+      _pushOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen(
+        _openFromPush,
+      );
+      // ...or the push that launched the app from a closed state.
+      FirebaseMessaging.instance.getInitialMessage().then((message) {
+        if (message != null) _openFromPush(message);
+      });
     } catch (_) {
       // Firebase is optional here; the badge still refreshes on resume.
     }
     _refreshUnread();
+  }
+
+  /// Tapping a push opens the results screen of the card it is about: the
+  /// payload carries `contentType` (poll|check) and `contentId`.
+  void _openFromPush(RemoteMessage message) {
+    if (!mounted) return;
+    final scope = AppScope.of(context);
+    if (!scope.authController.isLoggedIn) return;
+
+    final data = message.data;
+    final notificationId = data['notificationId']?.toString();
+    if (notificationId != null && notificationId.isNotEmpty) {
+      scope.notifications
+          .markRead(notificationId)
+          .then((_) {
+            _refreshUnread();
+          })
+          .catchError((_) {});
+    }
+
+    final target = NotificationTarget.tryParse({
+      'contentId': data['contentId'],
+      'contentType': data['contentType'],
+    });
+    if (target == null) {
+      // No card attached: land on the Activity tab instead.
+      _onNavTap(_activityNavIndex);
+      return;
+    }
+    openNotificationTarget(context, target);
   }
 
   Future<void> _refreshUnread() async {
@@ -137,6 +178,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pushSub?.cancel();
+    _pushOpenedSub?.cancel();
     _pageController.dispose();
     super.dispose();
   }

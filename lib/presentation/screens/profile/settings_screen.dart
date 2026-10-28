@@ -185,8 +185,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onActionTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (context) =>
-                            YakkuPlanScreen(planName: widget.planName ?? 'Free'),
+                        builder: (context) => YakkuPlanScreen(
+                          planName: widget.planName ?? 'Free',
+                        ),
                       ),
                     );
                   },

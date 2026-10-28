@@ -71,7 +71,9 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: YakkuPalette.white.withValues(alpha: 0.72),
+                                    color: YakkuPalette.white.withValues(
+                                      alpha: 0.72,
+                                    ),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.7,

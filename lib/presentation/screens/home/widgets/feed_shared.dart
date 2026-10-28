@@ -60,7 +60,9 @@ class FeedActionPill extends StatelessWidget {
     const ink = YakkuPalette.charcoal;
     final foreground = filled ? YakkuPalette.white : ink;
     final background = filled ? ink : YakkuPalette.transparent;
-    final borderColor = textOnly ? YakkuPalette.transparent : YakkuPalette.black;
+    final borderColor = textOnly
+        ? YakkuPalette.transparent
+        : YakkuPalette.black;
 
     return Material(
       color: YakkuPalette.transparent,
@@ -146,7 +148,11 @@ BoxDecoration feedCardDecoration(Color background, {double radius = 22}) {
     color: background,
     borderRadius: BorderRadius.circular(radius),
     boxShadow: const [
-      BoxShadow(color: YakkuPalette.shadowInk08, blurRadius: 18, offset: Offset(0, 8)),
+      BoxShadow(
+        color: YakkuPalette.shadowInk08,
+        blurRadius: 18,
+        offset: Offset(0, 8),
+      ),
     ],
   );
 }

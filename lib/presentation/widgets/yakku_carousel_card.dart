@@ -355,12 +355,20 @@ class _CarouselTone {
     LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [YakkuPalette.iceBlue, YakkuPalette.violetTint, YakkuPalette.orchid],
+      colors: [
+        YakkuPalette.iceBlue,
+        YakkuPalette.violetTint,
+        YakkuPalette.orchid,
+      ],
     ),
     LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [YakkuPalette.mintBright, YakkuPalette.skyBlue, YakkuPalette.violet],
+      colors: [
+        YakkuPalette.mintBright,
+        YakkuPalette.skyBlue,
+        YakkuPalette.violet,
+      ],
     ),
   ];
 

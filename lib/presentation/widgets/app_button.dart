@@ -59,7 +59,10 @@ class AppOutlinedButton extends StatelessWidget {
           ),
           backgroundColor: YakkuPalette.red500,
         ),
-        child: Text(label, style: TextStyle(color: YakkuPalette.white, fontSize: 16)),
+        child: Text(
+          label,
+          style: TextStyle(color: YakkuPalette.white, fontSize: 16),
+        ),
       ),
     );
   }

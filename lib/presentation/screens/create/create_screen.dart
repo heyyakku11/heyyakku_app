@@ -1400,7 +1400,9 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                   child: Text(
                     _letter,
                     style: textTheme.labelLarge?.copyWith(
-                      color: selected ? YakkuPalette.white : YakkuPalette.primary,
+                      color: selected
+                          ? YakkuPalette.white
+                          : YakkuPalette.primary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1415,7 +1417,9 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                     textCapitalization: TextCapitalization.sentences,
                     cursorColor: YakkuPalette.primary,
                     style: textTheme.titleMedium?.copyWith(
-                      color: selected ? YakkuPalette.white : YakkuPalette.textPrimary,
+                      color: selected
+                          ? YakkuPalette.white
+                          : YakkuPalette.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     onSubmitted: (_) => widget.onSubmitted(),
@@ -1548,7 +1552,9 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
             padding: const EdgeInsets.only(left: 12, top: 4),
             child: Text(
               widget.errorText!,
-              style: textTheme.bodySmall?.copyWith(color: YakkuPalette.redAccent),
+              style: textTheme.bodySmall?.copyWith(
+                color: YakkuPalette.redAccent,
+              ),
             ),
           ),
       ],
