@@ -318,7 +318,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
         question: check.question.trim().isNotEmpty
             ? check.question
             : check.title,
-        optionCount: check.options.length,
+        options: check.options.map((o) => o.text).toList(growable: false),
         progress: check.voteProgress,
         minVotes: check.minVotes,
         tag: check.title,
@@ -332,7 +332,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     if (poll == null || poll.resultsUnlocked) return null;
     return ResultsLockedView(
       question: poll.question,
-      optionCount: poll.options.length,
+      options: poll.options.map((o) => o.text ?? '').toList(growable: false),
       progress: poll.voteProgress,
       minVotes: poll.minVotes,
       label: widget._justVoted ? 'LIVE' : 'YOUR CARD · LIVE',

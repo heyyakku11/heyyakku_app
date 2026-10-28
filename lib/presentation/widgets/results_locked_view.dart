@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
@@ -10,7 +10,7 @@ class ResultsLockedView extends StatelessWidget {
   const ResultsLockedView({
     super.key,
     required this.question,
-    required this.optionCount,
+    required this.options,
     required this.progress,
     required this.minVotes,
     required this.onShareAgain,
@@ -20,7 +20,9 @@ class ResultsLockedView extends StatelessWidget {
   });
 
   final String question;
-  final int optionCount;
+
+  /// Option labels shown on the card (the first four are used).
+  final List<String> options;
 
   /// Votes received so far, not counting the owner's own answer.
   final int progress;
@@ -60,7 +62,7 @@ class ResultsLockedView extends StatelessWidget {
           const SizedBox(height: 18),
           _LockedCard(
             question: question,
-            optionCount: optionCount.clamp(2, 4),
+            options: options.take(4).toList(growable: false),
             tag: tag,
             color: cardColor,
           ),
@@ -148,13 +150,13 @@ class ResultsLockedView extends StatelessWidget {
 class _LockedCard extends StatelessWidget {
   const _LockedCard({
     required this.question,
-    required this.optionCount,
+    required this.options,
     required this.color,
     this.tag,
   });
 
   final String question;
-  final int optionCount;
+  final List<String> options;
   final Color color;
   final String? tag;
 
@@ -213,15 +215,30 @@ class _LockedCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                for (var i = 0; i < optionCount; i++) ...[
+                for (var i = 0; i < options.length; i++) ...[
                   Container(
-                    height: 24,
+                    height: 28,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: _ink.withValues(alpha: 0.12),
+                      color: _ink.withAlpha(10),
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                      child: Text(
+                        options[i],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                  if (i < optionCount - 1) const SizedBox(height: 8),
+                  if (i < options.length - 1) const SizedBox(height: 8),
                 ],
               ],
             ),
