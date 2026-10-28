@@ -109,7 +109,6 @@ abstract final class YakkuPalette {
 
   // Brand colors of third-party share targets
   static const Color whatsappGreen = Color(0xFF25D366);
-  static const Color facebookBlue = Color(0xFF1877F2);
   static const Color snapchatYellow = Color(0xFFFFFC00);
   static const Color instagramPink = Color(0xFFD62976);
   static const Color instagramYellow = Color(0xFFFEDA75);

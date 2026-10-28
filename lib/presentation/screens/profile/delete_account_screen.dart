@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
@@ -37,6 +39,14 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     }
   }
 
+  Future<void> _openPolicy() async {
+    final opened = await launchUrl(
+      Uri.parse(ApiConstants.policyUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) AppToast.show('Could not open the policy page');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -49,34 +59,67 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Delete your account?',
-                style: TextStyle(
-                  fontSize: 28,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Delete your account?',
+                        style: TextStyle(
+                          fontSize: 28,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your account will be permanently deleted after 30 days.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      const _CheckLine(
+                        'Your account stays pending deletion for 30 days. '
+                        'Sign in again during that time and the deletion is cancelled.',
+                      ),
+                      const SizedBox(height: 16),
+                      const _CheckLine(
+                        'During those 30 days, your asks stay visible to other people.',
+                      ),
+                      const SizedBox(height: 16),
+                      const _CheckLine(
+                        'After 30 days, your account, phone number and asks are permanently deleted.',
+                      ),
+                      const SizedBox(height: 16),
+                      const _CheckLine(
+                        'Limited logs and payment records may be kept where needed for '
+                        'security, accounting or legal reasons.',
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _openPolicy,
+                        style: TextButton.styleFrom(
+                          foregroundColor: YakkuPalette.primary,
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Read the full privacy policy',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                "This can't be undone.",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 28),
-              const _CheckLine(
-                'Your asks, results and reasons are deleted for good.',
-              ),
-              const SizedBox(height: 16),
-              const _CheckLine(
-                "Votes you gave stay anonymous and can't be traced back to you.",
-              ),
-              const SizedBox(height: 16),
-              const _CheckLine('Your phone number is removed within 30 days.'),
-              const Spacer(),
               Row(
                 children: [
                   SizedBox(

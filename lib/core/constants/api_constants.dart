@@ -7,6 +7,9 @@ abstract final class ApiConstants {
 
   static const String baseUrl = isAppLive ? liveBasebaseUrl : stagingBaseUrl;
 
+  /// Public privacy policy and terms page on the website.
+  static const String policyUrl = '$webBaseUrl/policy';
+
   static String publicPollUrl(String shareCode) =>
       '$webBaseUrl/vote/$shareCode';
 }

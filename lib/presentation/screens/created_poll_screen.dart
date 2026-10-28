@@ -4,14 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
-import 'package:yakku/core/utils/poll_card_image_service.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/core/share/share_coordinator.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
 import 'package:yakku/core/share/share_result.dart';
-import 'package:yakku/presentation/screens/instagram_story_guide_screen.dart';
 
 /// "Your card is live" screen shown right after a poll is created.
 class CreatedPollScreen extends StatefulWidget {
@@ -43,9 +41,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
   static const _ink = CreatedPollScreen._ink;
   static const _muted = CreatedPollScreen._muted;
 
-  final _cardKey = GlobalKey();
-  bool _downloading = false;
-
   String get _question => widget.poll?.question ?? widget.check!.question;
 
   /// Votes needed before results are revealed, as sent by the API.
@@ -63,20 +58,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
       shareCode: check.shareCode,
       question: check.question.trim().isNotEmpty ? check.question : check.title,
     );
-  }
-
-  /// Opens the "link sticker" guide that precedes the Instagram story composer.
-  void _openStoryGuide(BuildContext context) {
-    try {
-      final payload = _buildPayload();
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => InstagramStoryGuideScreen(payload: payload),
-        ),
-      );
-    } on SharePayloadException {
-      AppToast.show("This poll can't be shared right now.");
-    }
   }
 
   /// Runs WhatsApp / Copy link through the share module and reports the
@@ -99,24 +80,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
     AppToast.show(message);
   }
 
-  /// Renders the poll card to a PNG and saves it to the gallery.
-  Future<void> _downloadCard() async {
-    if (_downloading) return;
-    setState(() => _downloading = true);
-    String message;
-    try {
-      await const PollCardImageService().download(_cardKey);
-      message = 'Card saved to your photos';
-    } on PollCardImageException catch (e) {
-      message = e.message;
-    } catch (e, st) {
-      debugPrint('Download card failed: $e\n$st');
-      message = "Couldn't save the card. Try again.";
-    }
-    if (mounted) setState(() => _downloading = false);
-    AppToast.show(message);
-  }
-
   @override
   Widget build(BuildContext context) {
     final optionCount = _rawOptionCount.clamp(2, 4);
@@ -125,22 +88,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
       backgroundColor: YakkuPalette.cream,
       body: Stack(
         children: [
-          // Off-screen copy of the card rendered to a transparent PNG.
-          Positioned(
-            left: -3000,
-            top: 0,
-            width: 380,
-            child: RepaintBoundary(
-              key: _cardKey,
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: _PreviewCard(
-                  question: _question,
-                  optionCount: optionCount,
-                ),
-              ),
-            ),
-          ),
           Positioned.fill(
             child: SafeArea(
               child: Center(
@@ -188,17 +135,8 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
                               _shareVia(context, SharePlatformId.whatsapp),
                           onSnapchat: () =>
                               _shareVia(context, SharePlatformId.snapchat),
-                          onFacebook: () =>
-                              _shareVia(context, SharePlatformId.facebook),
                           onCopyLink: () =>
                               _shareVia(context, SharePlatformId.copyLink),
-                        ),
-                        const SizedBox(height: 22),
-                        _StoryButton(onTap: () => _openStoryGuide(context)),
-                        const SizedBox(height: 12),
-                        _DownloadButton(
-                          busy: _downloading,
-                          onTap: _downloadCard,
                         ),
                         const SizedBox(height: 14),
                         Center(
@@ -328,21 +266,19 @@ class _ShareRow extends StatelessWidget {
     required this.onInstagramDm,
     required this.onWhatsApp,
     required this.onSnapchat,
-    required this.onFacebook,
     required this.onCopyLink,
   });
 
   final VoidCallback onInstagramDm;
   final VoidCallback onWhatsApp;
   final VoidCallback onSnapchat;
-  final VoidCallback onFacebook;
   final VoidCallback onCopyLink;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _ShareTarget(
           label: 'Instagram',
@@ -391,19 +327,6 @@ class _ShareRow extends StatelessWidget {
             FontAwesomeIcons.snapchat,
             color: YakkuPalette.white,
             size: 26,
-          ),
-        ),
-        _ShareTarget(
-          label: 'Facebook',
-          onTap: onFacebook,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: YakkuPalette.facebookBlue,
-          ),
-          child: const FaIcon(
-            FontAwesomeIcons.facebookF,
-            color: YakkuPalette.white,
-            size: 24,
           ),
         ),
         _ShareTarget(
@@ -465,82 +388,6 @@ class _ShareTarget extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StoryButton extends StatelessWidget {
-  const _StoryButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: YakkuPalette.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(30),
-        child: Ink(
-          height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            gradient: const LinearGradient(
-              colors: [YakkuPalette.primary, YakkuPalette.primaryDeep],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: YakkuPalette.primary.withValues(alpha: 0.28),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Text(
-              'Share to Instagram Story',
-              style: TextStyle(
-                color: YakkuPalette.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DownloadButton extends StatelessWidget {
-  const _DownloadButton({required this.onTap, required this.busy});
-
-  final VoidCallback onTap;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: busy ? null : onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: YakkuPalette.primary,
-          side: const BorderSide(color: YakkuPalette.primary, width: 1.5),
-          shape: const StadiumBorder(),
-        ),
-        icon: busy
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.download_rounded, size: 20),
-        label: const Text(
-          'Download card',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
       ),
     );

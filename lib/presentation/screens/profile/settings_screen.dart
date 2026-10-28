@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
+import 'package:yakku/presentation/screens/profile/yakku_plan_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, this.phoneNumber, this.planName});
@@ -114,6 +117,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     AppToast.show(message);
   }
 
+  Future<void> _openPolicy() async {
+    final opened = await launchUrl(
+      Uri.parse(ApiConstants.policyUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) AppToast.show('Could not open the policy page');
+  }
+
   Future<void> _logOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -164,9 +175,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: _pushReady && !_pushUpdating ? _setPushAllowed : null,
             ),
             const SizedBox(height: 22),
-            const _SectionLabel('PRIVACY AND SAFETY'),
-            const _ChevronRow(title: 'Help and safety'),
-            const SizedBox(height: 22),
             const _SectionLabel('ACCOUNT'),
             _AccountGroup(
               dividerColor: dividerColor,
@@ -174,13 +182,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _PlanRow(
                   planLabel: widget.planName ?? 'Free',
                   actionLabel: 'See yakku plan',
-                  onActionTap: () {},
+                  onActionTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) =>
+                            YakkuPlanScreen(planName: widget.planName ?? 'Free'),
+                      ),
+                    );
+                  },
                 ),
                 _ChevronRow(
                   title: 'Phone number',
                   subtitle: maskedPhone ?? 'Signed in',
+                  showChevron: false,
                 ),
-                const _ChevronRow(title: 'Terms and privacy'),
+                _ChevronRow(title: 'Terms and privacy', onTap: _openPolicy),
                 _ChevronRow(title: 'Log out', onTap: _logOut),
                 _ChevronRow(
                   title: 'Delete account',
@@ -194,15 +210,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
               ],
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Yakku is for people 18 and over.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
             ),
           ],
         ),
@@ -288,7 +295,14 @@ class _SwitchRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Switch(value: value, onChanged: onChanged),
+          Transform.scale(
+            scale: 0.8,
+            child: Switch(
+              value: value,
+              onChanged: onChanged,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ],
       ),
     );
@@ -380,12 +394,14 @@ class _ChevronRow extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.titleColor,
+    this.showChevron = true,
   });
 
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
   final Color? titleColor;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -421,10 +437,11 @@ class _ChevronRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            if (showChevron)
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
           ],
         ),
       ),

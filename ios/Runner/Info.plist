@@ -83,7 +83,5 @@
 		<string>Yakku needs camera access so you can attach a photo to your poll.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Yakku needs photo library access so you can attach a photo to your poll.</string>
-		<key>NSPhotoLibraryAddUsageDescription</key>
-		<string>Yakku needs permission to save your card to your photos.</string>
 	</dict>
 </plist>
