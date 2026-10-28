@@ -11,4 +11,10 @@ abstract class CheckRemoteDataSource {
 
   /// The caller's made checks (login required).
   Future<List<UserCheckResponse>> getMyChecks();
+
+  /// Closes one of the caller's made checks so it stops taking answers.
+  Future<void> closeMyCheck(String id);
+
+  /// Permanently deletes one of the caller's made checks.
+  Future<void> deleteMyCheck(String id);
 }

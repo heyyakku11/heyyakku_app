@@ -52,6 +52,30 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
       itemFromJson: UserCheckResponse.fromJson,
     );
   }
+
+  @override
+  Future<void> closeMyCheck(String id) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.closeMyCheck(id),
+    );
+    _expectSuccess(response.data, 'Could not close this check');
+  }
+
+  @override
+  Future<void> deleteMyCheck(String id) async {
+    final response = await dio.delete<Map<String, dynamic>>(
+      ApiRoutes.deleteMyCheck(id),
+    );
+    _expectSuccess(response.data, 'Could not delete this check');
+  }
+}
+
+void _expectSuccess(Map<String, dynamic>? body, String failureMessage) {
+  if (body == null) throw StateError(failureMessage);
+  final apiResponse = ApiResponse<Object?>.fromJson(body, null);
+  if (!apiResponse.success) {
+    throw StateError(apiResponse.message ?? failureMessage);
+  }
 }
 
 List<T> _unwrapList<T>(

@@ -28,6 +28,17 @@ class CheckApiRepository extends ChangeNotifier {
 
   Future<List<UserCheckResponse>> getMyChecks() => _remote.getMyChecks();
 
+  Future<void> closeMyCheck(String id) async {
+    await _remote.closeMyCheck(id);
+    notifyListeners();
+  }
+
+  /// Deleting frees the underlying check, so it can be made again.
+  Future<void> deleteMyCheck(String id) async {
+    await _remote.deleteMyCheck(id);
+    notifyListeners();
+  }
+
   static const _preloadMaxAge = Duration(minutes: 2);
 
   Future<HomeChecks>? _preloaded;

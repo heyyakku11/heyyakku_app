@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
-import 'package:yakku/presentation/screens/home/home_feed_dummy.dart';
+import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/presentation/widgets/ask_next_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
@@ -71,6 +71,9 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
   bool _loading = false;
   String? _error;
 
+  /// A check of the week this user has not made yet, offered under a check's results.
+  AskFriendsCheck? _nextCheckCard;
+
   @override
   void initState() {
     super.initState();
@@ -78,10 +81,31 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       _loading = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadPoll());
     }
+    if (widget.check != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadNextCheck());
+    }
     if (widget._justVoted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _openShareSheet();
       });
+    }
+  }
+
+  /// Picks a check of the week the user has not made yet; none (or a failed
+  /// load) simply leaves the card hidden.
+  Future<void> _loadNextCheck() async {
+    try {
+      final checks = await AppScope.of(context).checkApi.getChecks();
+      if (!mounted) return;
+      final unused = checks.where((check) => !check.used).toList();
+      if (unused.isEmpty) return;
+      setState(() {
+        _nextCheckCard = AskFriendsCheck.fromMirrorCheck(
+          MirrorCheck.fromCheck(unused.first),
+        );
+      });
+    } catch (_) {
+      // The suggestion is optional.
     }
   }
 
@@ -367,15 +391,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     );
   }
 
-  /// The next suggested check: the first one that isn't this question.
-  AskFriendsCheck _nextCheck(String currentQuestion) {
-    final next = mirrorChecks.firstWhere(
-      (check) => check.question.trim() != currentQuestion.trim(),
-      orElse: () => mirrorChecks.first,
-    );
-    return AskFriendsCheck.fromMirrorCheck(next);
-  }
-
   Future<void> _shareAgain(WidgetBuilder builder) {
     return Navigator.of(
       context,
@@ -468,8 +483,10 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
             const SizedBox(height: 10),
           ],
           _OwnOptionsRow(count: data.customCount, total: data.voters),
-          const SizedBox(height: 24),
-          AskNextCard(check: _nextCheck(data.question)),
+          if (_nextCheckCard != null) ...[
+            const SizedBox(height: 24),
+            AskNextCard(check: _nextCheckCard!),
+          ],
         ],
       ),
     );

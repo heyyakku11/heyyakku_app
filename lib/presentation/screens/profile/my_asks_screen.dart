@@ -5,6 +5,9 @@ import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
+import 'package:yakku/presentation/widgets/app_alert.dart';
+import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
+import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
 enum _AskFilter { live, closed }
 
@@ -91,6 +94,66 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
         fallback: 'Could not open this check',
       ).message;
       AppToast.show(message);
+    }
+  }
+
+  /// Owner menu for a live ask: share, close, delete.
+  Future<void> _openMenu(PollModel poll) async {
+    final action = await showCardActionsSheet(
+      context,
+      question: poll.question,
+      isLive: true,
+    );
+    if (action == null || !mounted) return;
+
+    switch (action) {
+      case CardAction.shareAgain:
+        await sharePollModel(context, poll);
+      case CardAction.closeNow:
+        await _confirmAndRun(
+          title: 'Close this card?',
+          message: 'People will no longer be able to answer it.',
+          confirmLabel: 'Close',
+          failure: 'Could not close the card',
+          run: (context) => poll.isCheck
+              ? AppScope.of(context).checkApi.closeMyCheck(poll.id)
+              : AppScope.of(context).userRemote.closePoll(poll.id),
+        );
+      case CardAction.delete:
+        await _confirmAndRun(
+          title: 'Delete this card?',
+          message: 'This card will be removed.',
+          confirmLabel: 'Delete',
+          failure: 'Could not delete the card',
+          run: (context) => poll.isCheck
+              ? AppScope.of(context).checkApi.deleteMyCheck(poll.id)
+              : AppScope.of(context).userRemote.deletePoll(poll.id),
+        );
+    }
+  }
+
+  Future<void> _confirmAndRun({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required String failure,
+    required Future<void> Function(BuildContext context) run,
+  }) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      cancelLabel: 'Cancel',
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await run(context);
+      if (!mounted) return;
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(DioErrorMapper.map(error, fallback: failure).message);
     }
   }
 
@@ -183,6 +246,9 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
             poll: visible[index],
             accent: _accents[index % _accents.length],
             onTap: () => _openResults(visible[index]),
+            onMenu: _isLive(visible[index])
+                ? () => _openMenu(visible[index])
+                : null,
           );
         },
       ),
@@ -238,11 +304,15 @@ class _AskCard extends StatelessWidget {
     required this.poll,
     required this.accent,
     required this.onTap,
+    this.onMenu,
   });
 
   final PollModel poll;
   final Color accent;
   final VoidCallback onTap;
+
+  /// Opens the owner menu; null for closed asks.
+  final VoidCallback? onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +390,19 @@ class _AskCard extends StatelessWidget {
                   ),
                 ),
               ],
+              if (onMenu != null)
+                InkResponse(
+                  onTap: onMenu,
+                  radius: 20,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Icon(
+                      Icons.more_vert,
+                      size: 22,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

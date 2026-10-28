@@ -15,6 +15,8 @@ abstract final class ApiRoutes {
   static const String checks = '/api/v1/checks';
   static const String makeCheck = '/api/v1/checks/make';
   static const String myChecks = '/api/v1/checks/mine';
+  static String closeMyCheck(String id) => '/api/v1/checks/mine/$id/close';
+  static String deleteMyCheck(String id) => '/api/v1/checks/mine/$id';
 
   // Polls (owner)
   static const String createPoll = '/api/v1/polls';
