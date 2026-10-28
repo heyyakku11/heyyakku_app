@@ -25,6 +25,11 @@ class PollResponse {
   final bool resultsUnlocked;
   final List<PollOptionResponse> options;
 
+  /// The asker's own pick (owner view only): an option id, or the text of a
+  /// custom answer when no option was picked.
+  final String? yourOptionId;
+  final String? yourOptionText;
+
   const PollResponse({
     required this.id,
     required this.question,
@@ -43,6 +48,8 @@ class PollResponse {
     this.minVotes = AppLimits.minVotesToReveal,
     this.voteProgress = 0,
     this.resultsUnlocked = false,
+    this.yourOptionId,
+    this.yourOptionText,
   });
 
   factory PollResponse.fromJson(Map<String, dynamic> json) {
@@ -64,10 +71,7 @@ class PollResponse {
       totalVoteCount: _asInt(json['totalVoteCount']),
       customAnswerCount: _asInt(json['customAnswerCount']),
       totalWhyCount: _asInt(json['totalWhyCount']),
-      minVotes: _asInt(
-        json['minVotes'],
-        fallback: AppLimits.minVotesToReveal,
-      ),
+      minVotes: _asInt(json['minVotes'], fallback: AppLimits.minVotesToReveal),
       voteProgress: _asInt(json['voteProgress']),
       resultsUnlocked: json['resultsUnlocked'] as bool? ?? false,
       options: rawOptions

@@ -1,3 +1,4 @@
+import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
@@ -27,6 +28,19 @@ class CheckApiRepository extends ChangeNotifier {
   }
 
   Future<List<UserCheckResponse>> getMyChecks() => _remote.getMyChecks();
+
+  Future<List<PollReason>> getOptionReasons(String id, String optionId) =>
+      _remote.getCheckOptionReasons(id, optionId);
+
+  Future<List<PollCustomAnswer>> getCustomAnswers(String id) =>
+      _remote.getCheckCustomAnswers(id);
+
+  /// Reporting changes the check's reason counts, so listeners reload.
+  Future<ReasonReportResult> reportReason(String id, String reasonId) async {
+    final result = await _remote.reportCheckReason(id, reasonId);
+    notifyListeners();
+    return result;
+  }
 
   Future<void> closeMyCheck(String id) async {
     await _remote.closeMyCheck(id);

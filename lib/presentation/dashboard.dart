@@ -17,6 +17,7 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   static const _createNavIndex = 1;
+  static const _activityNavIndex = 2;
 
   int _navIndex = 0;
   late final PageController _pageController;
@@ -107,8 +108,22 @@ class _DashboardState extends State<Dashboard> {
     showCreatePollSheet(context);
   }
 
+  /// Leaving the Activity tab reads every unread notification.
+  void _markActivityReadOnExit(int nextNavIndex) {
+    if (_navIndex != _activityNavIndex || nextNavIndex == _activityNavIndex) {
+      return;
+    }
+    final scope = AppScope.of(context);
+    if (!scope.authController.isLoggedIn) return;
+    scope.notifications.markAllRead().catchError((_) {
+      // Best effort: they stay unread and are read on the next exit.
+    });
+  }
+
   void _onPageChanged(int pageIndex) {
-    setState(() => _navIndex = _pageToNav(pageIndex));
+    final next = _pageToNav(pageIndex);
+    _markActivityReadOnExit(next);
+    setState(() => _navIndex = next);
   }
 
   void _onNavTap(int navIndex) {
@@ -117,8 +132,9 @@ class _DashboardState extends State<Dashboard> {
       return;
     }
     final pageIndex = _navToPage(navIndex);
-    _pageController.jumpToPage(pageIndex);
+    _markActivityReadOnExit(navIndex);
     setState(() => _navIndex = navIndex);
+    _pageController.jumpToPage(pageIndex);
   }
 
   @override

@@ -48,6 +48,19 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   }
 
   @override
+  Future<void> markAllRead() async {
+    final response = await dio.patch<Map<String, dynamic>>(
+      ApiRoutes.notificationsReadAll,
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty mark-all-read response');
+    final apiResponse = ApiResponse<Object?>.fromJson(body, null);
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Failed to mark all as read');
+    }
+  }
+
+  @override
   Future<AppNotification> markRead(String id) async {
     final response = await dio.patch<Map<String, dynamic>>(
       ApiRoutes.notificationRead(id),

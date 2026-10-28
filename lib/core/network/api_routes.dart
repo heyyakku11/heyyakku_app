@@ -17,6 +17,14 @@ abstract final class ApiRoutes {
   static const String myChecks = '/api/v1/checks/mine';
   static String closeMyCheck(String id) => '/api/v1/checks/mine/$id/close';
   static String deleteMyCheck(String id) => '/api/v1/checks/mine/$id';
+  static String checkOptionReasons(String checkId, String optionId) =>
+      '/api/v1/checks/mine/$checkId/options/$optionId/reasons';
+  static String checkCustomAnswers(String checkId) =>
+      '/api/v1/checks/mine/$checkId/custom-answers';
+  static String pollCustomAnswers(String pollId) =>
+      '/api/v1/polls/$pollId/custom-answers';
+  static String reportCheckReason(String checkId, String reasonId) =>
+      '/api/v1/checks/mine/$checkId/reasons/$reasonId/report';
 
   // Polls (owner)
   static const String createPoll = '/api/v1/polls';
@@ -28,6 +36,10 @@ abstract final class ApiRoutes {
 
   static String closePoll(String pollId) => '/api/v1/polls/$pollId/close';
 
+  static String pollOptionReasons(String pollId, String optionId) =>
+      '/api/v1/polls/$pollId/options/$optionId/reasons';
+  static String reportPollReason(String pollId, String reasonId) =>
+      '/api/v1/polls/$pollId/reasons/$reasonId/report';
   static String deletePoll(String pollId) => '/api/v1/polls/$pollId';
 
   static String savePoll(String pollId) => '/api/v1/polls/$pollId/save';
@@ -44,6 +56,7 @@ abstract final class ApiRoutes {
   // Notifications
   static const String notifications = '/api/v1/notifications';
 
+  static const String notificationsReadAll = '$notifications/read-all';
   static String notificationRead(String id) => '$notifications/$id/read';
 
   // Media upload sessions

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
+import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
 import 'package:yakku/data/models/user/user_poll_detail_response.dart';
@@ -152,6 +153,36 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     }
 
     return apiResponse.data!;
+  }
+
+  @override
+  Future<List<PollReason>> getPollOptionReasons(
+    String pollId,
+    String optionId,
+  ) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.pollOptionReasons(pollId, optionId),
+    );
+    return parseReasons(response.data);
+  }
+
+  @override
+  Future<List<PollCustomAnswer>> getPollCustomAnswers(String pollId) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.pollCustomAnswers(pollId),
+    );
+    return parseCustomAnswers(response.data);
+  }
+
+  @override
+  Future<ReasonReportResult> reportPollReason(
+    String pollId,
+    String reasonId,
+  ) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.reportPollReason(pollId, reasonId),
+    );
+    return parseReportResult(response.data);
   }
 
   @override

@@ -8,12 +8,14 @@ class UserPollDetailOptionResponse {
   final int sortOrder;
   final int voteCount;
   final double percentage;
+  final int whyCount;
 
   const UserPollDetailOptionResponse({
     required this.id,
     required this.sortOrder,
     required this.voteCount,
     required this.percentage,
+    this.whyCount = 0,
     this.text,
   });
 
@@ -24,6 +26,7 @@ class UserPollDetailOptionResponse {
       sortOrder: _asInt(json['sortOrder']),
       voteCount: _asInt(json['voteCount']),
       percentage: _asDouble(json['percentage']),
+      whyCount: _asInt(json['whyCount']),
     );
   }
 }
@@ -157,8 +160,11 @@ class UserPollDetailResponse {
             sortOrder: option.sortOrder,
             voteCount: option.voteCount,
             percentage: option.percentage,
+            whyCount: option.whyCount,
           ),
       ],
+      yourOptionId: youVsCrowd.yourOptionId,
+      yourOptionText: youVsCrowd.yourOptionText,
     );
   }
 }

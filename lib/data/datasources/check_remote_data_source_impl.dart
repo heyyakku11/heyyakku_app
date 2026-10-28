@@ -5,6 +5,7 @@ import 'package:yakku/data/models/auth/api_response.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
+import 'package:yakku/data/models/poll/poll_reason.dart';
 
 class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   CheckRemoteDataSourceImpl(this.dio);
@@ -59,6 +60,36 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
       ApiRoutes.closeMyCheck(id),
     );
     _expectSuccess(response.data, 'Could not close this check');
+  }
+
+  @override
+  Future<List<PollReason>> getCheckOptionReasons(
+    String id,
+    String optionId,
+  ) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.checkOptionReasons(id, optionId),
+    );
+    return parseReasons(response.data);
+  }
+
+  @override
+  Future<List<PollCustomAnswer>> getCheckCustomAnswers(String id) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.checkCustomAnswers(id),
+    );
+    return parseCustomAnswers(response.data);
+  }
+
+  @override
+  Future<ReasonReportResult> reportCheckReason(
+    String id,
+    String reasonId,
+  ) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.reportCheckReason(id, reasonId),
+    );
+    return parseReportResult(response.data);
   }
 
   @override

@@ -4,10 +4,10 @@ import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
-import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
 enum _AskFilter { live, closed }
 
@@ -108,7 +108,7 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
 
     switch (action) {
       case CardAction.shareAgain:
-        await sharePollModel(context, poll);
+        await _shareAgain(poll);
       case CardAction.closeNow:
         await _confirmAndRun(
           title: 'Close this card?',
@@ -129,6 +129,35 @@ class _MyAsksScreenState extends State<MyAsksScreen> {
               ? AppScope.of(context).checkApi.deleteMyCheck(poll.id)
               : AppScope.of(context).userRemote.deletePoll(poll.id),
         );
+    }
+  }
+
+  /// "Share again" opens the card's share screen (the one shown after creating it).
+  Future<void> _shareAgain(PollModel poll) async {
+    try {
+      final scope = AppScope.of(context);
+      final Widget screen;
+      if (poll.isCheck) {
+        final checks = await scope.checkApi.getMyChecks();
+        final check = checks.where((item) => item.id == poll.id).firstOrNull;
+        if (check == null) throw StateError('Check not found');
+        screen = CreatedPollScreen.check(check: check);
+      } else {
+        final full = await scope.pollApi.getPollById(poll.id);
+        screen = CreatedPollScreen(poll: full);
+      }
+      if (!mounted) return;
+      await Navigator.of(
+        context,
+      ).push<void>(MaterialPageRoute<void>(builder: (_) => screen));
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        DioErrorMapper.map(
+          error,
+          fallback: "This card can't be shared right now",
+        ).message,
+      );
     }
   }
 
@@ -282,6 +311,7 @@ class _FilterPill extends StatelessWidget {
       color: background,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
