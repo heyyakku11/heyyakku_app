@@ -48,6 +48,23 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   }
 
   @override
+  Future<int> getUnreadCount() async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.notificationsUnreadCount,
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty unread count response');
+    final apiResponse = ApiResponse<int>.fromJson(body, (json) {
+      final count = json is Map ? json['count'] : null;
+      return count is num ? count.toInt() : 0;
+    });
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Failed to load unread count');
+    }
+    return apiResponse.data ?? 0;
+  }
+
+  @override
   Future<void> markAllRead() async {
     final response = await dio.patch<Map<String, dynamic>>(
       ApiRoutes.notificationsReadAll,

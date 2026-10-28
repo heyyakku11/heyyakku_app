@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
@@ -15,45 +18,51 @@ class Dashboard extends StatefulWidget {
   State<Dashboard> createState() => _DashboardState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   static const _createNavIndex = 1;
   static const _activityNavIndex = 2;
 
   int _navIndex = 0;
   late final PageController _pageController;
-  late final List<BottomNavigationBarItem> _navItems;
   bool _notificationPromptStarted = false;
+
+  /// Unread notifications, shown as a badge on the Activity tab.
+  int _unreadCount = 0;
+  StreamSubscription<RemoteMessage>? _pushSub;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncDeviceAndNotifications();
+      _listenForUnread();
     });
     _pageController = PageController();
-    _navItems = const [
-      BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_rounded),
-        label: 'Home',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.add_circle_outline),
-        activeIcon: Icon(Icons.add_circle),
-        label: 'Create',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.notifications),
-        activeIcon: Icon(Icons.notifications),
-        label: 'Activity',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline_rounded),
-        activeIcon: Icon(Icons.person_rounded),
-        label: 'You',
-      ),
-    ];
   }
+
+  List<BottomNavigationBarItem> get _navItems => [
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.home_outlined),
+      activeIcon: Icon(Icons.home_rounded),
+      label: 'Home',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.add_circle_outline),
+      activeIcon: Icon(Icons.add_circle),
+      label: 'Create',
+    ),
+    BottomNavigationBarItem(
+      icon: _ActivityIcon(count: _unreadCount),
+      activeIcon: _ActivityIcon(count: _unreadCount),
+      label: 'Activity',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline_rounded),
+      activeIcon: Icon(Icons.person_rounded),
+      label: 'You',
+    ),
+  ];
 
   Future<void> _syncDeviceAndNotifications() async {
     if (!mounted || _notificationPromptStarted) return;
@@ -89,8 +98,45 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
+  /// Keeps the Activity badge fresh: on start, on sign-in/out, when the app
+  /// returns to the foreground, and when a push arrives while it is open.
+  void _listenForUnread() {
+    if (!mounted) return;
+    AppScope.of(context).authController.addListener(_refreshUnread);
+    try {
+      _pushSub = FirebaseMessaging.onMessage.listen((_) => _refreshUnread());
+    } catch (_) {
+      // Firebase is optional here; the badge still refreshes on resume.
+    }
+    _refreshUnread();
+  }
+
+  Future<void> _refreshUnread() async {
+    if (!mounted) return;
+    final scope = AppScope.of(context);
+    if (!scope.authController.isLoggedIn) {
+      if (_unreadCount != 0) setState(() => _unreadCount = 0);
+      return;
+    }
+    try {
+      final count = await scope.notifications.getUnreadCount();
+      if (!mounted) return;
+      // Nothing is unread while the user is reading the Activity tab's list.
+      if (count != _unreadCount) setState(() => _unreadCount = count);
+    } catch (_) {
+      // Keep the last known count.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshUnread();
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pushSub?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -115,6 +161,7 @@ class _DashboardState extends State<Dashboard> {
     }
     final scope = AppScope.of(context);
     if (!scope.authController.isLoggedIn) return;
+    if (_unreadCount != 0) setState(() => _unreadCount = 0);
     scope.notifications.markAllRead().catchError((_) {
       // Best effort: they stay unread and are read on the next exit.
     });
@@ -155,6 +202,22 @@ class _DashboardState extends State<Dashboard> {
         onTap: _onNavTap,
         items: _navItems,
       ),
+    );
+  }
+}
+
+/// The Activity tab icon with a bubble showing how many notifications are unread.
+class _ActivityIcon extends StatelessWidget {
+  const _ActivityIcon({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text(count > 99 ? '99+' : '$count'),
+      child: const Icon(Icons.notifications),
     );
   }
 }

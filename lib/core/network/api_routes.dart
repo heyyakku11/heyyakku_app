@@ -56,6 +56,7 @@ abstract final class ApiRoutes {
   // Notifications
   static const String notifications = '/api/v1/notifications';
 
+  static const String notificationsUnreadCount = '$notifications/unread-count';
   static const String notificationsReadAll = '$notifications/read-all';
   static String notificationRead(String id) => '$notifications/$id/read';
 
