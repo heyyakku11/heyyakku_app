@@ -1,6 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -89,7 +88,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
       body: Stack(
@@ -244,15 +242,11 @@ class _PreviewCard extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: YakkuPalette.white.withValues(alpha: 0.1),
+                      color: Colors.white.withAlpha(40),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ImageFiltered(
-                      imageFilter: ImageFilter.blur(
-                        sigmaX: 4,
-                        sigmaY: 4,
-                        tileMode: TileMode.decal,
-                      ),
+                      imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 2),
                       child: Text(
                         option,
                         maxLines: 1,
