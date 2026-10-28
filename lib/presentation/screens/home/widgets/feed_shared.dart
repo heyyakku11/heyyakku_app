@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
@@ -16,9 +17,9 @@ class FeedSticker extends StatelessWidget {
       angle: -0.08,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.8),
+          color: YakkuPalette.white.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withValues(alpha: 1)),
+          border: Border.all(color: YakkuPalette.black.withValues(alpha: 1)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -56,13 +57,13 @@ class FeedActionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ink = Color(0xFF1B1418);
-    final foreground = filled ? Colors.white : ink;
-    final background = filled ? ink : Colors.transparent;
-    final borderColor = textOnly ? Colors.transparent : Colors.black;
+    const ink = YakkuPalette.charcoal;
+    final foreground = filled ? YakkuPalette.white : ink;
+    final background = filled ? ink : YakkuPalette.transparent;
+    final borderColor = textOnly ? YakkuPalette.transparent : YakkuPalette.black;
 
     return Material(
-      color: Colors.transparent,
+      color: YakkuPalette.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
@@ -145,7 +146,7 @@ BoxDecoration feedCardDecoration(Color background, {double radius = 22}) {
     color: background,
     borderRadius: BorderRadius.circular(radius),
     boxShadow: const [
-      BoxShadow(color: Color(0x1421191D), blurRadius: 18, offset: Offset(0, 8)),
+      BoxShadow(color: YakkuPalette.shadowInk08, blurRadius: 18, offset: Offset(0, 8)),
     ],
   );
 }

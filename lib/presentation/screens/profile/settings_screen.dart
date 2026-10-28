@@ -212,12 +212,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 final _pinkSwitchTheme = SwitchThemeData(
-  thumbColor: WidgetStateProperty.all(Colors.white),
+  thumbColor: WidgetStateProperty.all(YakkuPalette.white),
   trackColor: WidgetStateProperty.resolveWith((states) {
     if (states.contains(WidgetState.selected)) return YakkuPalette.primary;
-    return const Color(0xFFE6D5DA);
+    return YakkuPalette.settingsTile;
   }),
-  trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+  trackOutlineColor: WidgetStateProperty.all(YakkuPalette.transparent),
 );
 
 class _SectionLabel extends StatelessWidget {
@@ -380,14 +380,12 @@ class _ChevronRow extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.titleColor,
-    this.showChevron = true,
   });
 
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
   final Color? titleColor;
-  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -423,11 +421,10 @@ class _ChevronRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (showChevron)
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),

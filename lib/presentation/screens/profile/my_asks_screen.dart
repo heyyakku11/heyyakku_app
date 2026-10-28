@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
@@ -205,10 +206,10 @@ class _FilterPill extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final background = selected
-        ? (isDark ? Colors.white : const Color(0xFF111111))
-        : Colors.transparent;
+        ? (isDark ? YakkuPalette.white : YakkuPalette.nearBlack)
+        : YakkuPalette.transparent;
     final foreground = selected
-        ? (isDark ? const Color(0xFF111111) : Colors.white)
+        ? (isDark ? YakkuPalette.nearBlack : YakkuPalette.white)
         : theme.colorScheme.onSurface.withValues(alpha: 0.55);
 
     return Material(
@@ -250,7 +251,7 @@ class _AskCard extends StatelessWidget {
     final almost = timeLabel == 'Almost';
 
     return Material(
-      color: theme.cardTheme.color ?? Colors.white,
+      color: theme.cardTheme.color ?? YakkuPalette.white,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -303,8 +304,8 @@ class _AskCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: almost
-                        ? const Color(0xFFFFE7A3)
-                        : const Color(0xFFF8D3E0),
+                        ? YakkuPalette.butter
+                        : YakkuPalette.blushSoft,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -313,8 +314,8 @@ class _AskCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: almost
-                          ? const Color(0xFF8A6A12)
-                          : const Color(0xFFD02E62),
+                          ? YakkuPalette.goldInk
+                          : YakkuPalette.primary,
                     ),
                   ),
                 ),
@@ -328,10 +329,10 @@ class _AskCard extends StatelessWidget {
 }
 
 const _accents = <Color>[
-  Color(0xFFFFE7A3),
-  Color(0xFFE4D7FF),
-  Color(0xFFD6E8FF),
-  Color(0xFFDDF3E4),
+  YakkuPalette.butter,
+  YakkuPalette.lavender,
+  YakkuPalette.skyTint,
+  YakkuPalette.accentGreen,
 ];
 
 bool _isLive(PollModel poll) {

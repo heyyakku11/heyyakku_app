@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
@@ -32,7 +33,7 @@ class WhatsAppShareAdapter extends SharePlatformAdapter {
   @override
   IconData get icon => Icons.chat_rounded;
   @override
-  Color get brandColor => const Color(0xFF25D366);
+  Color get brandColor => YakkuPalette.whatsappGreen;
 
   static String formatMessage(SharePayload payload) =>
       '${payload.question}\n\nVote here: ${payload.url}';

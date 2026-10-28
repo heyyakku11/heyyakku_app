@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 
 class AppButton extends StatelessWidget {
@@ -56,9 +57,9 @@ class AppOutlinedButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          backgroundColor: Colors.red.shade500,
+          backgroundColor: YakkuPalette.red500,
         ),
-        child: Text(label, style: TextStyle(color: Colors.white, fontSize: 16)),
+        child: Text(label, style: TextStyle(color: YakkuPalette.white, fontSize: 16)),
       ),
     );
   }

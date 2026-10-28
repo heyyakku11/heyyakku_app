@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
@@ -45,7 +46,7 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.black,
+                            color: YakkuPalette.black,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           padding: const EdgeInsets.symmetric(
@@ -70,7 +71,7 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.72),
+                                    color: YakkuPalette.white.withValues(alpha: 0.72),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.7,
@@ -187,9 +188,9 @@ class _CurrentCheckSticker extends StatelessWidget {
       angle: -0.08,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.72),
+          color: YakkuPalette.white.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black),
+          border: Border.all(color: YakkuPalette.black),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -218,13 +219,13 @@ class _AskMyFriendsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: YakkuPalette.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFF1B1418),
+            color: YakkuPalette.charcoal,
             borderRadius: BorderRadius.circular(22),
           ),
           child: const Padding(
@@ -232,12 +233,12 @@ class _AskMyFriendsButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.ios_share, size: 20, color: Colors.white),
+                Icon(Icons.ios_share, size: 20, color: YakkuPalette.white),
                 SizedBox(width: 6),
                 Text(
                   'Ask my friends',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -277,7 +278,7 @@ class _LetteredOption extends StatelessWidget {
             height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: outlined ? Colors.transparent : badgeColor,
+              color: outlined ? YakkuPalette.transparent : badgeColor,
               shape: BoxShape.circle,
               border: outlined ? Border.all(color: dashColor) : null,
             ),

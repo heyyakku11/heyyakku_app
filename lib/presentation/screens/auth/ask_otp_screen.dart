@@ -372,7 +372,7 @@ class _AskOtpScreenState extends State<AskOtpScreen> {
                     vertical: 16,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFDDE5),
+                    color: YakkuPalette.pinkTintSoft,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Row(
@@ -439,10 +439,10 @@ class _DigitBox extends StatelessWidget {
       height: 56,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: active ? YakkuPalette.primary : const Color(0xFFF1E7EA),
+          color: active ? YakkuPalette.primary : YakkuPalette.hairline,
           width: active ? 1.5 : 1,
         ),
       ),

@@ -290,7 +290,7 @@ class _Style {
 _Style _styleOf(AppNotification item) {
   final key = '${item.eventType} ${item.type}'.toLowerCase();
   if (key.contains('ready') || key.contains('result')) {
-    return const _Style(Icons.check_rounded, Color(0xFFFFDFE8));
+    return const _Style(Icons.check_rounded, YakkuPalette.pinkTint);
   }
   if (key.contains('vote')) {
     return const _Style(Icons.people_alt_outlined, YakkuPalette.accentYellow);

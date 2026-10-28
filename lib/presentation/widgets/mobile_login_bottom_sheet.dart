@@ -163,7 +163,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                   decoration: const InputDecoration(
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.transparent,
+                    fillColor: YakkuPalette.transparent,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -173,7 +173,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                     ),
                     hintText: 'Name',
                     hintStyle: TextStyle(
-                      color: Color(0xFFB9A8AB),
+                      color: YakkuPalette.hint,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -206,7 +206,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                   decoration: const InputDecoration(
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.transparent,
+                    fillColor: YakkuPalette.transparent,
                     counterText: '',
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
@@ -217,7 +217,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                     ),
                     hintText: '98xxx xxxxx',
                     hintStyle: TextStyle(
-                      color: Color(0xFFB9A8AB),
+                      color: YakkuPalette.hint,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0,
                     ),
@@ -231,7 +231,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFFB9A8AB),
+                            color: YakkuPalette.hint,
                           ),
                         ),
                       ),
@@ -280,12 +280,12 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                       decoration: BoxDecoration(
                         color: _isAdult
                             ? YakkuPalette.primary
-                            : Colors.transparent,
+                            : YakkuPalette.transparent,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: _isAdult
                               ? YakkuPalette.primary
-                              : const Color(0xFFD5C6C8),
+                              : YakkuPalette.disabledMauve,
                           width: 1.5,
                         ),
                       ),
@@ -293,7 +293,7 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
                           ? const Icon(
                               Icons.check,
                               size: 14,
-                              color: Colors.white,
+                              color: YakkuPalette.white,
                             )
                           : null,
                     ),
@@ -335,7 +335,7 @@ class _RoundedField extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: YakkuPalette.white,
             borderRadius: BorderRadius.circular(18),
           ),
           clipBehavior: Clip.antiAlias,
@@ -347,7 +347,7 @@ class _RoundedField extends StatelessWidget {
             errorText!,
             style: const TextStyle(
               fontSize: 12,
-              color: Colors.redAccent,
+              color: YakkuPalette.redAccent,
               fontWeight: FontWeight.w500,
             ),
           ),

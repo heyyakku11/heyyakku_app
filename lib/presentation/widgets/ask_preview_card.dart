@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:yakku/core/theme/yakku_palette.dart';
 
 import 'package:flutter/material.dart';
 
@@ -7,28 +8,22 @@ class AskPreviewCard extends StatelessWidget {
   const AskPreviewCard({
     super.key,
     required this.question,
-    required this.askerName,
     this.optionCount = 3,
     this.cardColor = _cardPink,
-    this.textColor = Colors.white,
+    this.textColor = YakkuPalette.white,
   });
 
   final String question;
-
-  /// Shown as "askerName asked"; falls back to "You" when blank.
-  final String askerName;
   final int optionCount;
 
   /// Card background and the colour of its text and answer bars.
   final Color cardColor;
   final Color textColor;
 
-  static const _cardPink = Color(0xFFD9557F);
+  static const _cardPink = YakkuPalette.cardPink;
 
   @override
   Widget build(BuildContext context) {
-    final name = askerName.trim().isEmpty ? 'You' : askerName.trim();
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Transform.rotate(

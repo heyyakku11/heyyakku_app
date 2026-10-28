@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 
 class ProfileOptionTile extends StatelessWidget {
   const ProfileOptionTile({
@@ -88,13 +89,13 @@ class _CountBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.center,
       decoration: const BoxDecoration(
-        color: Color(0xFFF8D3E0),
+        color: YakkuPalette.blushSoft,
         borderRadius: BorderRadius.all(Radius.circular(999)),
       ),
       child: Text(
         '$count',
         style: const TextStyle(
-          color: Color(0xFFD02E62),
+          color: YakkuPalette.primary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),

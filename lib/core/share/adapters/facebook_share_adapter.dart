@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
@@ -32,7 +33,7 @@ class FacebookShareAdapter extends SharePlatformAdapter {
   @override
   IconData get icon => Icons.facebook_rounded;
   @override
-  Color get brandColor => const Color(0xFF1877F2);
+  Color get brandColor => YakkuPalette.facebookBlue;
 
   static Uri buildUri(SharePayload payload) => Uri.parse(
     'https://www.facebook.com/sharer/sharer.php'

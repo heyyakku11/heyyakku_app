@@ -199,11 +199,11 @@ class _PushPreview extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
+            color: YakkuPalette.black.withValues(alpha: 0.10),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -223,7 +223,7 @@ class _PushPreview extends StatelessWidget {
             child: const Text(
               'Y.',
               style: TextStyle(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
@@ -287,9 +287,9 @@ class _SecondaryPreview extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
+        color: YakkuPalette.white.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF1E7EA)),
+        border: Border.all(color: YakkuPalette.hairline),
       ),
       child: Text(
         text,

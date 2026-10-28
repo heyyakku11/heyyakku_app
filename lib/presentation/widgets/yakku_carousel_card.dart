@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 
 class YakkuCarouselCard extends StatelessWidget {
@@ -333,33 +334,33 @@ class _CarouselTone {
   const _CarouselTone({required this.gradient});
 
   final LinearGradient gradient;
-  final Color foreground = Colors.black;
-  final Color muted = const Color(0xA6000000);
-  final Color footer = const Color(0xA6000000);
-  final Color optionFill = const Color(0xD1FFFFFF);
-  final Color optionForeground = Colors.black;
-  final Color optionBorder = const Color(0x40000000);
-  final Color chevron = Colors.black54;
-  final Color addFill = const Color(0x33FFFFFF);
-  final Color addBorder = const Color(0x2E000000);
-  final Color buttonFill = Colors.black;
-  final Color buttonForeground = Colors.white;
+  final Color foreground = YakkuPalette.black;
+  final Color muted = YakkuPalette.black65;
+  final Color footer = YakkuPalette.black65;
+  final Color optionFill = YakkuPalette.white82;
+  final Color optionForeground = YakkuPalette.black;
+  final Color optionBorder = YakkuPalette.black25;
+  final Color chevron = YakkuPalette.black54;
+  final Color addFill = YakkuPalette.white20;
+  final Color addBorder = YakkuPalette.black18;
+  final Color buttonFill = YakkuPalette.black;
+  final Color buttonForeground = YakkuPalette.white;
 
   static const _gradients = [
     LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFFFFD6A5), Color(0xFFFF9F9F), Color(0xFFFFC6FF)],
+      colors: [YakkuPalette.peach, YakkuPalette.salmon, YakkuPalette.orchid],
     ),
     LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFFB8E7FF), Color(0xFFCDB4FF), Color(0xFFFFC6FF)],
+      colors: [YakkuPalette.iceBlue, YakkuPalette.violetTint, YakkuPalette.orchid],
     ),
     LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFFB7F8DB), Color(0xFF8FD3F4), Color(0xFFA78BFA)],
+      colors: [YakkuPalette.mintBright, YakkuPalette.skyBlue, YakkuPalette.violet],
     ),
   ];
 

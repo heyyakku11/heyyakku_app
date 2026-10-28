@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:yakku/core/theme/yakku_palette.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -269,7 +270,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
                 ),
                 const Spacer(),
                 Material(
-                  color: Colors.transparent,
+                  color: YakkuPalette.transparent,
                   child: InkWell(
                     onTap: _isVerifying ? null : _closeSheet,
                     customBorder: const CircleBorder(),
@@ -278,12 +279,12 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
                       height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade400),
+                        border: Border.all(color: YakkuPalette.grey400),
                       ),
                       child: Icon(
                         Icons.close,
                         size: 18,
-                        color: Colors.grey.shade700,
+                        color: YakkuPalette.grey700,
                       ),
                     ),
                   ),
@@ -298,7 +299,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
-                color: Colors.grey.shade600,
+                color: YakkuPalette.grey600,
               ),
             ),
 
@@ -386,7 +387,7 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.black, width: 2),
+              borderSide: const BorderSide(color: YakkuPalette.black, width: 2),
             ),
           ),
           onChanged: (value) => _onOtpChanged(value, index),

@@ -36,7 +36,7 @@ class AskLoginScreen extends StatefulWidget {
 }
 
 class _AskLoginScreenState extends State<AskLoginScreen> {
-  static const _hint = Color(0xFFB9A8AB);
+  static const _hint = YakkuPalette.hint;
   static const _inputStyle = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w600,
@@ -158,7 +158,7 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
     return InputDecoration(
       isDense: true,
       filled: false,
-      fillColor: Colors.transparent,
+      fillColor: YakkuPalette.transparent,
       counterText: '',
       border: InputBorder.none,
       enabledBorder: InputBorder.none,
@@ -209,13 +209,9 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
                         alignment: Alignment.centerLeft,
                       ),
                       const SizedBox(height: 4),
-                      ListenableBuilder(
-                        listenable: _nameController,
-                        builder: (context, _) => AskPreviewCard(
-                          question: widget.question,
-                          askerName: _nameController.text,
-                          optionCount: widget.optionCount.clamp(2, 4),
-                        ),
+                      AskPreviewCard(
+                        question: widget.question,
+                        optionCount: widget.optionCount.clamp(2, 4),
                       ),
                       const SizedBox(height: 22),
                       const Text(
@@ -318,12 +314,12 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
                               decoration: BoxDecoration(
                                 color: _isAdult
                                     ? YakkuPalette.primary
-                                    : Colors.transparent,
+                                    : YakkuPalette.transparent,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: _isAdult
                                       ? YakkuPalette.primary
-                                      : const Color(0xFFD5C6C8),
+                                      : YakkuPalette.disabledMauve,
                                   width: 1.5,
                                 ),
                               ),
@@ -331,7 +327,7 @@ class _AskLoginScreenState extends State<AskLoginScreen> {
                                   ? const Icon(
                                       Icons.check,
                                       size: 14,
-                                      color: Colors.white,
+                                      color: YakkuPalette.white,
                                     )
                                   : null,
                             ),
@@ -402,14 +398,14 @@ class _InputBox extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: YakkuPalette.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: hasError
-                  ? Colors.redAccent
+                  ? YakkuPalette.redAccent
                   : focused
                   ? YakkuPalette.primary
-                  : const Color(0xFFF1E7EA),
+                  : YakkuPalette.hairline,
               width: focused || hasError ? 1.5 : 1,
             ),
           ),
@@ -421,7 +417,7 @@ class _InputBox extends StatelessWidget {
             errorText!,
             style: const TextStyle(
               fontSize: 12,
-              color: Colors.redAccent,
+              color: YakkuPalette.redAccent,
               fontWeight: FontWeight.w500,
             ),
           ),

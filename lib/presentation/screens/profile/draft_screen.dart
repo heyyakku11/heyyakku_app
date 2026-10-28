@@ -87,7 +87,7 @@ class _DraftWorthAskingCard extends StatelessWidget {
   final VoidCallback onContinue;
   final VoidCallback onDelete;
 
-  static const _chipColor = Color(0xFFF4EBE6);
+  static const _chipColor = YakkuPalette.chipSand;
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +100,7 @@ class _DraftWorthAskingCard extends StatelessWidget {
         .toList(growable: false);
 
     return DecoratedBox(
-      decoration: feedCardDecoration(Colors.white),
+      decoration: feedCardDecoration(YakkuPalette.white),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
         child: Column(

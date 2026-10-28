@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yakku/core/share/share_payload.dart';
@@ -42,9 +43,9 @@ class SnapchatShareAdapter extends SharePlatformAdapter {
   @override
   IconData get icon => Icons.chat_bubble_outline_rounded;
   @override
-  Color get brandColor => const Color(0xFFFFFC00);
+  Color get brandColor => YakkuPalette.snapchatYellow;
   @override
-  Color get onBrandColor => Colors.black;
+  Color get onBrandColor => YakkuPalette.black;
 
   static Uri buildUri(SharePayload payload) => Uri.parse(
     'https://www.snapchat.com/scan'

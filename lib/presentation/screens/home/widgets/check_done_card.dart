@@ -28,7 +28,7 @@ class CheckDoneCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: check.accentColor,
-                  child: const Icon(Icons.check, color: Colors.white),
+                  child: const Icon(Icons.check, color: YakkuPalette.white),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -59,7 +59,7 @@ class CheckDoneCard extends StatelessWidget {
             const SizedBox(height: 14),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Padding(
@@ -94,7 +94,7 @@ class CheckDoneCard extends StatelessWidget {
                           Text(
                             'Next drop',
                             style: TextStyle(
-                              color: Color(0xFF8A7B80),
+                              color: YakkuPalette.mutedRose,
                               fontSize: 12,
                             ),
                           ),

@@ -91,7 +91,7 @@ class MirrorCheck {
         fallback: YakkuPalette.cream,
       ),
       foregroundColor: YakkuPalette.textPrimary,
-      chipColor: const Color(0xFFFFFFFF),
+      chipColor: YakkuPalette.white,
       accentColor: YakkuPalette.primary,
       sticker: check.sticker.trim().isEmpty ? null : check.sticker,
       options: [
@@ -120,7 +120,7 @@ class MirrorCheck {
       ),
       chipColor: parseHexColor(
         json['chipColor'],
-        fallback: const Color(0xFFF6F1F3),
+        fallback: YakkuPalette.greyBlush,
       ),
       accentColor: parseHexColor(
         json['accentColor'],

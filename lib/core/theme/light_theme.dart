@@ -5,30 +5,30 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 ThemeData buildLightTheme() {
   final colorScheme = ColorScheme.light(
     primary: YakkuPalette.primary,
-    onPrimary: Colors.white,
+    onPrimary: YakkuPalette.white,
     secondary: YakkuPalette.coral,
-    onSecondary: Colors.white,
+    onSecondary: YakkuPalette.white,
     tertiary: YakkuPalette.teal,
     surface: YakkuPalette.cream,
     onSurface: YakkuPalette.slate,
     onSurfaceVariant: YakkuPalette.muted,
     outline: YakkuPalette.mist,
-    outlineVariant: const Color(0xFFD7E0E3),
-    error: const Color(0xFFB42318),
+    outlineVariant: YakkuPalette.outlineLight,
+    error: YakkuPalette.error,
   );
 
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: YakkuPalette.sand,
+    scaffoldBackgroundColor: YakkuPalette.cream,
     // Every AppBar back button (and any BackButton) uses this one icon.
     actionIconTheme: ActionIconThemeData(
       backButtonIconBuilder: (context) =>
           const Icon(Icons.arrow_back_ios_new_rounded),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: YakkuPalette.sand,
+      backgroundColor: YakkuPalette.cream,
       foregroundColor: YakkuPalette.slate,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -40,22 +40,11 @@ ThemeData buildLightTheme() {
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: YakkuPalette.white,
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    dividerColor: const Color(0xFFE6E1D8),
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: YakkuPalette.primary,
-      contentTextStyle: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-    ),
+    dividerColor: YakkuPalette.border,
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: YakkuPalette.cream,
       selectedItemColor: YakkuPalette.primary,
@@ -70,15 +59,15 @@ ThemeData buildLightTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: YakkuPalette.white,
       hintStyle: const TextStyle(color: YakkuPalette.muted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
-        borderSide: const BorderSide(color: Color(0xFFE6E1D8)),
+        borderSide: const BorderSide(color: YakkuPalette.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
-        borderSide: const BorderSide(color: Color(0xFFE6E1D8)),
+        borderSide: const BorderSide(color: YakkuPalette.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.md),
@@ -88,7 +77,7 @@ ThemeData buildLightTheme() {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: YakkuPalette.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: YakkuPalette.white,
         elevation: 0,
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(

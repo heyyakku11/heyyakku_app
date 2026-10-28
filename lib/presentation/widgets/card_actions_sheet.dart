@@ -14,7 +14,7 @@ Future<CardAction?> showCardActionsSheet(
 }) {
   return showModalBottomSheet<CardAction>(
     context: context,
-    backgroundColor: Colors.white,
+    backgroundColor: YakkuPalette.white,
     isScrollControlled: true,
     useSafeArea: true,
     shape: const RoundedRectangleBorder(
@@ -30,8 +30,8 @@ class _CardActionsSheet extends StatelessWidget {
   final String question;
   final bool isLive;
 
-  static const _ink = Color(0xFF21191D);
-  static const _divider = Color(0xFFF1E7EA);
+  static const _ink = YakkuPalette.textPrimary;
+  static const _divider = YakkuPalette.hairline;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class _CardActionsSheet extends StatelessWidget {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE9B7C6),
+                  color: YakkuPalette.sheetHandle,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),

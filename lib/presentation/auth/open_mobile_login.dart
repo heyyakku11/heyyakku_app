@@ -26,7 +26,7 @@ Future<void> openMobileLogin(BuildContext context) async {
     isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
-    backgroundColor: Colors.white,
+    backgroundColor: YakkuPalette.white,
     shape: _sheetShape,
     builder: (context) {
       return OtpBottomSheet(phone: sent.phone, firstName: sent.firstName);

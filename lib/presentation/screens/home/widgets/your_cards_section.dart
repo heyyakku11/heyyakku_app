@@ -106,7 +106,7 @@ class UserCheckCard extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: YakkuPalette.black,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
@@ -119,7 +119,7 @@ class UserCheckCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),

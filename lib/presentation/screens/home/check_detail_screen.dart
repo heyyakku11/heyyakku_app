@@ -332,7 +332,7 @@ class _PickYourAnswerFooter extends StatefulWidget {
 }
 
 class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter> {
-  static const _ink = Color(0xFF1B1418);
+  static const _ink = YakkuPalette.charcoal;
 
   @override
   Widget build(BuildContext context) {
@@ -340,13 +340,13 @@ class _PickYourAnswerFooterState extends State<_PickYourAnswerFooter> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Material(
-          color: Colors.transparent,
+          color: YakkuPalette.transparent,
           child: InkWell(
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(28),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(color: _ink, width: 1.6),
                 boxShadow: const [
@@ -389,7 +389,7 @@ class _AskMyFriendsFooter extends StatelessWidget {
   final bool sending;
   final VoidCallback? onTap;
 
-  static const _ink = Color(0xFF1B1418);
+  static const _ink = YakkuPalette.charcoal;
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +397,7 @@ class _AskMyFriendsFooter extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Material(
-          color: Colors.transparent,
+          color: YakkuPalette.transparent,
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(28),
@@ -418,20 +418,20 @@ class _AskMyFriendsFooter extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: YakkuPalette.white,
                         ),
                       )
                     else ...[
                       const Icon(
                         Icons.ios_share,
                         size: 18,
-                        color: Colors.white,
+                        color: YakkuPalette.white,
                       ),
                       const SizedBox(width: 8),
                       const Text(
                         'Ask my friends',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: YakkuPalette.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -455,7 +455,7 @@ class _PrivacyCaption extends StatelessWidget {
 
   final String label;
 
-  static const _ink = Color(0xFF1B1418);
+  static const _ink = YakkuPalette.charcoal;
 
   @override
   Widget build(BuildContext context) {
@@ -498,7 +498,7 @@ class _Header extends StatelessWidget {
               if (check.eyebrow != null)
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: YakkuPalette.black,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -521,7 +521,7 @@ class _Header extends StatelessWidget {
                         child: Text(
                           check.eyebrow!,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: YakkuPalette.white,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -549,9 +549,9 @@ class _Header extends StatelessWidget {
             angle: -0.08,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.72),
+                color: YakkuPalette.white.withValues(alpha: 0.72),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black),
+                border: Border.all(color: YakkuPalette.black),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -594,21 +594,21 @@ class _AnswerRow extends StatelessWidget {
   final bool showGlow;
 
   static const _radius = 18.0;
-  static const _ink = Color(0xFF1B1418);
-  static const _glowRed = Color(0xFFD32F2F);
+  static const _ink = YakkuPalette.charcoal;
+  static const _glowRed = YakkuPalette.glowRed;
 
   @override
   Widget build(BuildContext context) {
     final accent = check.accentColor;
-    final background = selected ? _ink : Colors.white;
-    final foreground = selected ? Colors.white : _ink;
+    final background = selected ? _ink : YakkuPalette.white;
+    final foreground = selected ? YakkuPalette.white : _ink;
     final badgeColor = selected
         ? YakkuPalette.primary
         : accent.withValues(alpha: 0.22);
     final shadowColor = selected ? YakkuPalette.primary : _ink;
 
     return Material(
-      color: Colors.transparent,
+      color: YakkuPalette.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(_radius),
@@ -646,7 +646,7 @@ class _AnswerRow extends StatelessWidget {
                   child: Text(
                     letter,
                     style: TextStyle(
-                      color: selected ? Colors.white : _ink,
+                      color: selected ? YakkuPalette.white : _ink,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -664,7 +664,7 @@ class _AnswerRow extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  const Icon(Icons.check, color: Colors.white, size: 20),
+                  const Icon(Icons.check, color: YakkuPalette.white, size: 20),
               ],
             ),
           ),
@@ -706,7 +706,7 @@ class _FriendsCanAddOwnButton extends StatelessWidget {
                   color: tones.border,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.add, size: 16, color: Colors.white),
+                child: const Icon(Icons.add, size: 16, color: YakkuPalette.white),
               ),
               const SizedBox(width: 10),
               Flexible(

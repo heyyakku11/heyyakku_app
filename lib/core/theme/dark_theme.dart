@@ -7,14 +7,14 @@ ThemeData buildDarkTheme() {
     primary: YakkuPalette.tealSoft,
     onPrimary: YakkuPalette.night,
     secondary: YakkuPalette.coral,
-    onSecondary: Colors.white,
+    onSecondary: YakkuPalette.white,
     tertiary: YakkuPalette.tealSoft,
     surface: YakkuPalette.nightCard,
     onSurface: YakkuPalette.nightText,
     onSurfaceVariant: YakkuPalette.nightMuted,
     outline: YakkuPalette.nightMist,
-    outlineVariant: const Color(0xFF2C3E46),
-    error: const Color(0xFFF97066),
+    outlineVariant: YakkuPalette.outlineDark,
+    error: YakkuPalette.errorDark,
   );
 
   return ThemeData(
@@ -49,17 +49,6 @@ ThemeData buildDarkTheme() {
       ),
     ),
     dividerColor: YakkuPalette.nightMist,
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: YakkuPalette.primary,
-      contentTextStyle: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-    ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: YakkuPalette.nightElevated,
       selectedItemColor: YakkuPalette.tealSoft,

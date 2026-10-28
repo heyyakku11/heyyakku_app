@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_result.dart';
 
@@ -39,7 +40,7 @@ abstract class SharePlatformAdapter {
   /// Presentation hints used by the generic share sheet.
   IconData get icon;
   Color get brandColor;
-  Color get onBrandColor => Colors.white;
+  Color get onBrandColor => YakkuPalette.white;
 
   /// Whether the destination should be offered for [payload]. Return false to
   /// hide it (e.g. app not installed, payload lacks required media).

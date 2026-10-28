@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yakku/core/share/share_payload.dart';
@@ -49,7 +50,7 @@ class InstagramShareAdapter extends SharePlatformAdapter {
   @override
   IconData get icon => Icons.photo_camera_outlined;
   @override
-  Color get brandColor => const Color(0xFFD62976);
+  Color get brandColor => YakkuPalette.instagramPink;
 
   /// App deep link first, then the web URL (which universal-links into the app
   /// when installed and otherwise opens in the browser).

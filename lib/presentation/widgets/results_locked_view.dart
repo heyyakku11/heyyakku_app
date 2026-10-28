@@ -34,9 +34,9 @@ class ResultsLockedView extends StatelessWidget {
   /// Hex colour of the card, when it has one.
   final String? backgroundColor;
 
-  static const _ink = Color(0xFF21191D);
-  static const _muted = Color(0xFF7C6466);
-  static const _mint = Color(0xFFDCF3E3);
+  static const _ink = YakkuPalette.textPrimary;
+  static const _muted = YakkuPalette.textSecondary;
+  static const _mint = YakkuPalette.mint;
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +67,9 @@ class ResultsLockedView extends StatelessWidget {
           const SizedBox(height: 28),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: YakkuPalette.white,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFF3E6EA)),
+              border: Border.all(color: YakkuPalette.roseBorder),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -108,7 +108,7 @@ class ResultsLockedView extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: i < filled
                                   ? YakkuPalette.primary
-                                  : const Color(0xFFF8D6E0),
+                                  : YakkuPalette.blushFill,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -123,7 +123,7 @@ class ResultsLockedView extends StatelessWidget {
                       onPressed: onShareAgain,
                       style: FilledButton.styleFrom(
                         backgroundColor: YakkuPalette.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: YakkuPalette.white,
                         shape: const StadiumBorder(),
                       ),
                       child: const Text(
@@ -158,7 +158,7 @@ class _LockedCard extends StatelessWidget {
   final Color color;
   final String? tag;
 
-  static const _ink = Color(0xFF21191D);
+  static const _ink = YakkuPalette.textPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +192,7 @@ class _LockedCard extends StatelessWidget {
                   Text(
                     tag!.toUpperCase(),
                     style: const TextStyle(
-                      color: Color(0xFF2E7D4F),
+                      color: YakkuPalette.successGreen,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.6,

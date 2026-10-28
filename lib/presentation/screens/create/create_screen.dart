@@ -39,7 +39,7 @@ Future<void> showCreatePollSheet(BuildContext context, {DraftPoll? draft}) {
     isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
-    backgroundColor: Colors.transparent,
+    backgroundColor: YakkuPalette.transparent,
     builder: (sheetContext) {
       return CreatePollSheet(draft: draft);
     },
@@ -421,7 +421,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
 
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: YakkuPalette.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -998,7 +998,7 @@ class _QuestionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: YakkuPalette.primary, width: 1.2),
       ),
@@ -1047,7 +1047,7 @@ class _QuestionCard extends StatelessWidget {
                 decoration: const InputDecoration(
                   isDense: true,
                   filled: true,
-                  fillColor: Colors.transparent,
+                  fillColor: YakkuPalette.transparent,
                   hintText: '',
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -1061,7 +1061,7 @@ class _QuestionCard extends StatelessWidget {
                   child: _TypingPlaceholder(
                     phrases: examples,
                     style: textTheme.titleLarge?.copyWith(
-                      color: const Color(0xFFB0A4A7),
+                      color: YakkuPalette.placeholder,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
                     ),
@@ -1095,56 +1095,6 @@ class _QuestionCard extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MediaChip extends StatelessWidget {
-  const _MediaChip({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.selected = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor = selected ? YakkuPalette.primary : Colors.grey.shade300;
-    return Material(
-      color: selected
-          ? YakkuPalette.primary.withValues(alpha: 0.08)
-          : Colors.white,
-      shape: StadiumBorder(side: BorderSide(color: borderColor)),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap?.call();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: YakkuPalette.textPrimary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: YakkuPalette.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1394,13 +1344,13 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
     final textTheme = Theme.of(context).textTheme;
     final focused = widget.focusNode.hasFocus;
     final selected = widget.selected;
-    const ink = Color(0xFF1B1418);
+    const ink = YakkuPalette.charcoal;
     final borderColor = selected
         ? ink
         : focused
         ? YakkuPalette.primary
-        : const Color(0xFFE5DCDF);
-    final fill = selected ? ink : Colors.white;
+        : YakkuPalette.stepInactive;
+    final fill = selected ? ink : YakkuPalette.white;
     final shadowColor = selected ? YakkuPalette.primary : ink;
 
     return Column(
@@ -1445,12 +1395,12 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                     shape: BoxShape.circle,
                     color: selected
                         ? YakkuPalette.primary
-                        : const Color(0xFFF7D5E2),
+                        : YakkuPalette.pinkWash,
                   ),
                   child: Text(
                     _letter,
                     style: textTheme.labelLarge?.copyWith(
-                      color: selected ? Colors.white : YakkuPalette.primary,
+                      color: selected ? YakkuPalette.white : YakkuPalette.primary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1465,7 +1415,7 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                     textCapitalization: TextCapitalization.sentences,
                     cursorColor: YakkuPalette.primary,
                     style: textTheme.titleMedium?.copyWith(
-                      color: selected ? Colors.white : YakkuPalette.textPrimary,
+                      color: selected ? YakkuPalette.white : YakkuPalette.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     onSubmitted: (_) => widget.onSubmitted(),
@@ -1482,7 +1432,7 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                             '$currentLength/$maxLength',
                             style: textTheme.bodySmall?.copyWith(
                               color: selected
-                                  ? Colors.white70
+                                  ? YakkuPalette.white70
                                   : YakkuPalette.textSecondary,
                               fontSize: 10,
                             ),
@@ -1493,12 +1443,12 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                       filled: true,
                       // Theme defaults to white fill — keep transparent so the
                       // selected dark row (and white text) stay readable.
-                      fillColor: Colors.transparent,
+                      fillColor: YakkuPalette.transparent,
                       hintText: 'Option $_letter',
                       hintStyle: textTheme.titleMedium?.copyWith(
                         color: selected
-                            ? Colors.white54
-                            : const Color(0xFFB0A4A7),
+                            ? YakkuPalette.white54
+                            : YakkuPalette.placeholder,
                         fontWeight: FontWeight.w500,
                       ),
                       border: InputBorder.none,
@@ -1565,7 +1515,7 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                                   shape: BoxShape.circle,
                                   color: selected
                                       ? YakkuPalette.primary
-                                      : Colors.transparent,
+                                      : YakkuPalette.transparent,
                                   border: Border.all(
                                     color: selected
                                         ? YakkuPalette.primary
@@ -1579,7 +1529,7 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
                                     ? const Icon(
                                         Icons.check,
                                         size: 14,
-                                        color: Colors.white,
+                                        color: YakkuPalette.white,
                                       )
                                     : null,
                               ),
@@ -1598,7 +1548,7 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
             padding: const EdgeInsets.only(left: 12, top: 4),
             child: Text(
               widget.errorText!,
-              style: textTheme.bodySmall?.copyWith(color: Colors.redAccent),
+              style: textTheme.bodySmall?.copyWith(color: YakkuPalette.redAccent),
             ),
           ),
       ],
@@ -1614,13 +1564,13 @@ class _AddOptionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: YakkuPalette.transparent,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(14),
         child: CustomPaint(
           painter: _DashedRoundedRectPainter(
-            color: const Color(0xFFD0C6C8),
+            color: YakkuPalette.mutedMauve,
             radius: 14,
           ),
           child: Padding(
@@ -1628,12 +1578,12 @@ class _AddOptionButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add, size: 18, color: Colors.grey.shade600),
+                Icon(Icons.add, size: 18, color: YakkuPalette.grey600),
                 const SizedBox(width: 6),
                 Text(
                   'Add another option',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: YakkuPalette.grey600,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1666,7 +1616,7 @@ class _FriendsSlot extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFCE8EF),
+            color: YakkuPalette.pinkMist,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
@@ -1677,7 +1627,7 @@ class _FriendsSlot extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white,
+                  color: YakkuPalette.white,
                   border: Border.all(color: YakkuPalette.primary, width: 1.2),
                 ),
                 child: Text(
@@ -1754,7 +1704,7 @@ class _AskFooter extends StatelessWidget {
               child: Text(
                 'Pick your answer first',
                 style: textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFFE11D48),
+                  color: YakkuPalette.rose,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1802,12 +1752,12 @@ class _AskFooter extends StatelessWidget {
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOut,
                 decoration: BoxDecoration(
-                  color: ready ? YakkuPalette.primary : Colors.white,
+                  color: ready ? YakkuPalette.primary : YakkuPalette.white,
                   borderRadius: BorderRadius.circular(AppRadii.full),
                   border: Border.all(color: YakkuPalette.primary, width: 1.4),
                 ),
                 child: Material(
-                  color: Colors.transparent,
+                  color: YakkuPalette.transparent,
                   child: InkWell(
                     onTap: isLoading ? null : onPressed,
                     borderRadius: BorderRadius.circular(AppRadii.full),
@@ -1819,7 +1769,7 @@ class _AskFooter extends StatelessWidget {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.2,
                                 color: ready
-                                    ? Colors.white
+                                    ? YakkuPalette.white
                                     : YakkuPalette.primary,
                               ),
                             )
@@ -1830,7 +1780,7 @@ class _AskFooter extends StatelessWidget {
                                   Icons.ios_share_rounded,
                                   size: 18,
                                   color: ready
-                                      ? Colors.white
+                                      ? YakkuPalette.white
                                       : YakkuPalette.primary,
                                 ),
                                 const SizedBox(width: 8),
@@ -1838,7 +1788,7 @@ class _AskFooter extends StatelessWidget {
                                   'Ask my friends',
                                   style: textTheme.titleMedium?.copyWith(
                                     color: ready
-                                        ? Colors.white
+                                        ? YakkuPalette.white
                                         : YakkuPalette.primary,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -1913,14 +1863,14 @@ class _ImagePreview extends StatelessWidget {
         if (isUploading)
           Positioned.fill(
             child: ColoredBox(
-              color: Colors.black.withValues(alpha: 0.35),
+              color: YakkuPalette.black.withValues(alpha: 0.35),
               child: const Center(
                 child: SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                   ),
                 ),
               ),
@@ -1930,14 +1880,14 @@ class _ImagePreview extends StatelessWidget {
           top: 8,
           right: 8,
           child: Material(
-            color: Colors.black.withValues(alpha: 0.55),
+            color: YakkuPalette.black.withValues(alpha: 0.55),
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: isUploading ? null : onClear,
               child: const Padding(
                 padding: EdgeInsets.all(6),
-                child: Icon(Icons.close, size: 16, color: Colors.white),
+                child: Icon(Icons.close, size: 16, color: YakkuPalette.white),
               ),
             ),
           ),

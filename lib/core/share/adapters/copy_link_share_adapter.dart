@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/share/share_platform_adapter.dart';
@@ -24,7 +25,7 @@ class CopyLinkShareAdapter extends SharePlatformAdapter {
   @override
   IconData get icon => Icons.link_rounded;
   @override
-  Color get brandColor => const Color(0xFF1B1418);
+  Color get brandColor => YakkuPalette.charcoal;
 
   @override
   Future<ShareResult> share(SharePayload payload) async {

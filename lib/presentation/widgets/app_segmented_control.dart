@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 
@@ -71,7 +72,7 @@ class _SegmentButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Material(
-        color: selected ? colorScheme.primary : Colors.transparent,
+        color: selected ? colorScheme.primary : YakkuPalette.transparent,
         borderRadius: BorderRadius.circular(AppRadii.sm),
         child: InkWell(
           onTap: onTap,

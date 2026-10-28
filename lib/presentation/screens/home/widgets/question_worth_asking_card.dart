@@ -45,14 +45,14 @@ class QuestionWorthAskingCard extends StatelessWidget {
 
   final QuestionWorthAsking question;
 
-  static const _chipColor = Color(0xFFF4EBE6);
+  static const _chipColor = YakkuPalette.chipSand;
 
   @override
   Widget build(BuildContext context) {
     final draft = AskFriendsCheck.fromQuestion(question);
 
     return DecoratedBox(
-      decoration: feedCardDecoration(Colors.white),
+      decoration: feedCardDecoration(YakkuPalette.white),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
         child: Column(

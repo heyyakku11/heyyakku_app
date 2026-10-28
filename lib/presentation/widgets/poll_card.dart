@@ -9,7 +9,6 @@ import 'package:yakku/presentation/widgets/share_poll_sheet.dart';
 
 const double _actionButtonHeight = 52;
 const double _pollImageSize = 88;
-const double _choiceIconSize = 18;
 
 class PollCard extends StatelessWidget {
   const PollCard({

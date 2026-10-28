@@ -71,7 +71,7 @@ class AskFriendsCheck {
     return AskFriendsCheck(
       title: question.question,
       question: question.question,
-      backgroundColor: const Color(0xFFFFF9F6),
+      backgroundColor: YakkuPalette.cream,
       foregroundColor: YakkuPalette.textPrimary,
       accentColor: YakkuPalette.primary,
       options: [

@@ -23,9 +23,9 @@ class InstagramStoryGuideScreen extends StatefulWidget {
 }
 
 class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
-  static const _ink = Color(0xFF21191D);
-  static const _muted = Color(0xFF7C6466);
-  static const _pink = Color(0xFFD02E62);
+  static const _ink = YakkuPalette.textPrimary;
+  static const _muted = YakkuPalette.textSecondary;
+  static const _pink = YakkuPalette.primary;
 
   bool _copied = false;
   bool _opening = false;
@@ -147,7 +147,7 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
                       onPressed: _opening ? null : _openInstagram,
                       style: FilledButton.styleFrom(
                         backgroundColor: _pink,
-                        foregroundColor: Colors.white,
+                        foregroundColor: YakkuPalette.white,
                         shape: const StadiumBorder(),
                         textStyle: const TextStyle(
                           fontSize: 16,
@@ -160,7 +160,7 @@ class _InstagramStoryGuideScreenState extends State<InstagramStoryGuideScreen> {
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: YakkuPalette.white,
                               ),
                             )
                           : const Text('Open Instagram'),
@@ -183,7 +183,7 @@ class _StoryPreview extends StatelessWidget {
   final String question;
   final String displayUrl;
 
-  static const _cardPink = Color(0xFFD02E62);
+  static const _cardPink = YakkuPalette.primary;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +191,7 @@ class _StoryPreview extends StatelessWidget {
       width: 200,
       height: 240,
       decoration: BoxDecoration(
-        color: const Color(0xFF21191D),
+        color: YakkuPalette.textPrimary,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Stack(
@@ -206,7 +206,7 @@ class _StoryPreview extends StatelessWidget {
                   height: 26,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFF4A4146),
+                    color: YakkuPalette.bodyInk,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -215,13 +215,13 @@ class _StoryPreview extends StatelessWidget {
                   height: 30,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                     border: Border.all(color: _cardPink, width: 2),
                   ),
                   child: const Icon(
                     Icons.add_box_outlined,
                     size: 16,
-                    color: Color(0xFF21191D),
+                    color: YakkuPalette.textPrimary,
                   ),
                 ),
               ],
@@ -245,7 +245,7 @@ class _StoryPreview extends StatelessWidget {
                     const Text(
                       'Yakku.',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: YakkuPalette.white,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -256,7 +256,7 @@ class _StoryPreview extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: YakkuPalette.white,
                         fontSize: 13,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
@@ -267,7 +267,7 @@ class _StoryPreview extends StatelessWidget {
                       Container(
                         height: 10,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: YakkuPalette.white.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -286,7 +286,7 @@ class _StoryPreview extends StatelessWidget {
               height: 34,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -340,12 +340,12 @@ class _Step extends StatelessWidget {
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFF21191D),
+              color: YakkuPalette.textPrimary,
             ),
             child: Text(
               '$number',
               style: const TextStyle(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -359,7 +359,7 @@ class _Step extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Color(0xFF21191D),
+                    color: YakkuPalette.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
@@ -368,7 +368,7 @@ class _Step extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: Color(0xFF7C6466),
+                    color: YakkuPalette.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -403,13 +403,13 @@ class _CopiedChip extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFDDF3E4),
+              color: YakkuPalette.accentGreen,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check, size: 16, color: Color(0xFF1B5E37)),
+                const Icon(Icons.check, size: 16, color: YakkuPalette.forestGreen),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -417,7 +417,7 @@ class _CopiedChip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF1B5E37),
+                      color: YakkuPalette.forestGreen,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                     ),

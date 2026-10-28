@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -150,11 +151,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (loggedIn) ...[
                     CircleAvatar(
                       radius: 48,
-                      backgroundColor: const Color(0xFFF4A8C4),
+                      backgroundColor: YakkuPalette.avatarPink,
                       child: Text(
                         initial,
                         style: const TextStyle(
-                          color: Color(0xFF21191D),
+                          color: YakkuPalette.textPrimary,
                           fontSize: 34,
                           fontWeight: FontWeight.w700,
                         ),
@@ -188,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                   const SizedBox(height: 16),
                   Material(
-                    color: theme.cardTheme.color ?? Colors.white,
+                    color: theme.cardTheme.color ?? YakkuPalette.white,
                     borderRadius: BorderRadius.circular(22),
                     clipBehavior: Clip.antiAlias,
                     child: Column(
@@ -300,7 +301,7 @@ class _StatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.cardTheme.color ?? Colors.white,
+      color: theme.cardTheme.color ?? YakkuPalette.white,
       borderRadius: BorderRadius.circular(22),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
@@ -84,7 +85,7 @@ class _RemotePollListState extends State<RemotePollList> {
       itemBuilder: (context, index) {
         final poll = _polls[index];
         return Material(
-          color: Colors.transparent,
+          color: YakkuPalette.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             child: PollCard(

@@ -97,7 +97,7 @@ class _ToastViewState extends State<_ToastView>
                     widget.message,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: YakkuPalette.white,
                       fontSize: 14,
                       height: 1.3,
                       fontWeight: FontWeight.w600,

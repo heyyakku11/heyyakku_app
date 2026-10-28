@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:yakku/data/models/home/ask_friends_check.dart';
+import 'package:yakku/presentation/screens/home/home_feed_dummy.dart';
+import 'package:yakku/presentation/widgets/ask_next_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
@@ -9,6 +13,7 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
+import 'package:yakku/presentation/screens/share_result_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
 import 'package:yakku/presentation/widgets/option_bottom_sheet.dart';
@@ -55,8 +60,8 @@ class PollResultsScreen extends StatefulWidget {
 }
 
 class _PollResultsScreenState extends State<PollResultsScreen> {
-  static const _ink = Color(0xFF21191D);
-  static const _muted = Color(0xFF7C6466);
+  static const _ink = YakkuPalette.textPrimary;
+  static const _muted = YakkuPalette.textSecondary;
 
   bool _sheetShown = false;
 
@@ -318,9 +323,8 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
         minVotes: check.minVotes,
         tag: check.title,
         backgroundColor: check.backgroundColor,
-        onShareAgain: () => _shareAgain(
-          (_) => CreatedPollScreen.check(check: check),
-        ),
+        onShareAgain: () =>
+            _shareAgain((_) => CreatedPollScreen.check(check: check)),
       );
     }
 
@@ -334,6 +338,42 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       label: widget._justVoted ? 'LIVE' : 'YOUR CARD · LIVE',
       onShareAgain: () => _shareAgain((_) => CreatedPollScreen(poll: poll)),
     );
+  }
+
+  Future<void> _openSharePoster(
+    _ResultsData data,
+    List<_Tally> tallies,
+    _Tally? mine,
+  ) {
+    final leader = tallies.first;
+    final pick = mine ?? leader;
+    final headline = mine == null
+        ? 'In the lead.'
+        : mine.id == leader.id
+        ? 'Nailed it.'
+        : 'Plot twist.';
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ShareResultScreen(
+          question: data.question,
+          myLabel: pick.label,
+          crowdLabel: leader.label,
+          crowdPercent: leader.percent,
+          voters: data.voters,
+          headline: headline,
+          tag: widget.check?.title ?? 'Mirror Check',
+        ),
+      ),
+    );
+  }
+
+  /// The next suggested check: the first one that isn't this question.
+  AskFriendsCheck _nextCheck(String currentQuestion) {
+    final next = mirrorChecks.firstWhere(
+      (check) => check.question.trim() != currentQuestion.trim(),
+      orElse: () => mirrorChecks.first,
+    );
+    return AskFriendsCheck.fromMirrorCheck(next);
   }
 
   Future<void> _shareAgain(WidgetBuilder builder) {
@@ -390,6 +430,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
             voters: data.voters,
             status: data.showStatus ? data.statusLabel() : null,
             live: data.isLive,
+            onShare: () => _openSharePoster(data, tallies, mine),
           ),
           const SizedBox(height: 24),
           const Row(
@@ -404,22 +445,31 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(
-                'Tap an answer',
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FaIcon(FontAwesomeIcons.handPointer, size: 11, color: _muted),
+                  SizedBox(width: 6),
+                  Text(
+                    'Tap an answer',
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 12),
           for (var i = 0; i < tallies.length; i++) ...[
-            _ResultRow(tally: tallies[i]),
+            _ResultRow(tally: tallies[i], top: i == 0 && tallies[i].votes > 0),
             const SizedBox(height: 10),
           ],
           _OwnOptionsRow(count: data.customCount, total: data.voters),
+          const SizedBox(height: 24),
+          AskNextCard(check: _nextCheck(data.question)),
         ],
       ),
     );
@@ -454,8 +504,8 @@ class _ResultsData {
     if (at == null) return 'Live';
     final left = at.difference(DateTime.now().toUtc());
     if (left.isNegative) return 'Closed';
-    if (left.inHours >= 1) return 'Live · ${left.inHours}h left';
-    return 'Live · ${left.inMinutes.clamp(1, 59)}m left';
+    final hours = (left.inMinutes / 60).ceil().clamp(1, 1 << 30);
+    return 'Live · ${hours}h left';
   }
 }
 
@@ -532,10 +582,10 @@ class _TopBar extends StatelessWidget {
 }
 
 abstract final class _PollResultsColors {
-  static const ink = Color(0xFF21191D);
-  static const panel = Color(0xFF1B1418);
-  static const crowdPanel = Color(0xFF2A2227);
-  static const pink = Color(0xFFD9557F);
+  static const ink = YakkuPalette.textPrimary;
+  static const panel = YakkuPalette.charcoal;
+  static const crowdPanel = YakkuPalette.crowdPanel;
+  static const pink = YakkuPalette.cardPink;
 }
 
 /// Dark card: the user's pick vs. the crowd's top answer.
@@ -547,6 +597,7 @@ class _VersusCard extends StatelessWidget {
     required this.voters,
     required this.status,
     required this.live,
+    required this.onShare,
   });
 
   /// The viewer's own pick, when known. Without it the card compares the top
@@ -557,6 +608,7 @@ class _VersusCard extends StatelessWidget {
   final int voters;
   final String? status;
   final bool live;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -623,7 +675,7 @@ class _VersusCard extends StatelessWidget {
                   child: const Text(
                     'vs',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: YakkuPalette.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -637,7 +689,7 @@ class _VersusCard extends StatelessWidget {
               child: Text(
                 caption,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: YakkuPalette.white,
                   fontSize: 16,
                   height: 1.25,
                   fontWeight: FontWeight.w800,
@@ -660,7 +712,7 @@ class _VersusCard extends StatelessWidget {
                               ? '1 person voted'
                               : '$voters people voted',
                           style: const TextStyle(
-                            color: Colors.white70,
+                            color: YakkuPalette.white70,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -675,8 +727,7 @@ class _VersusCard extends StatelessWidget {
                     color: _PollResultsColors.pink,
                     shape: const StadiumBorder(),
                     child: InkWell(
-                      // Share action not defined yet.
-                      onTap: () {},
+                      onTap: onShare,
                       customBorder: const StadiumBorder(),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(
@@ -686,7 +737,7 @@ class _VersusCard extends StatelessWidget {
                         child: Text(
                           'Share this',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: YakkuPalette.white,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
@@ -739,7 +790,7 @@ class _SidePanel extends StatelessWidget {
                     height: 20,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: YakkuPalette.white,
                       shape: BoxShape.circle,
                     ),
                     child: const Text(
@@ -757,7 +808,7 @@ class _SidePanel extends StatelessWidget {
                   child: Text(
                     tag,
                     style: const TextStyle(
-                      color: Colors.white70,
+                      color: YakkuPalette.white70,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -767,7 +818,7 @@ class _SidePanel extends StatelessWidget {
                   Text(
                     trailing!,
                     style: const TextStyle(
-                      color: Colors.white70,
+                      color: YakkuPalette.white70,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -780,7 +831,7 @@ class _SidePanel extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 fontSize: 20,
                 height: 1.1,
                 fontWeight: FontWeight.w800,
@@ -802,7 +853,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = live ? const Color(0xFF4ADE80) : Colors.white54;
+    final color = live ? YakkuPalette.liveGreen : YakkuPalette.white54;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
@@ -847,6 +898,7 @@ class _ResultBarRow extends StatelessWidget {
     required this.pillInk,
     required this.pillIcon,
     this.mine = false,
+    this.top = false,
   });
 
   final String label;
@@ -857,7 +909,8 @@ class _ResultBarRow extends StatelessWidget {
   final Color fill;
   final Color pillColor;
   final Color pillInk;
-  final IconData pillIcon;
+  final FaIconData pillIcon;
+  final bool top;
 
   static const _radius = 18.0;
 
@@ -865,9 +918,9 @@ class _ResultBarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(_radius),
-        border: Border.all(color: const Color(0xFFF3E6EA)),
+        border: Border.all(color: YakkuPalette.roseBorder),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -890,6 +943,14 @@ class _ResultBarRow extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  if (top) ...[
+                    const FaIcon(
+                      FontAwesomeIcons.crown,
+                      size: 14,
+                      color: YakkuPalette.primary,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: Text.rich(
                       TextSpan(
@@ -936,8 +997,10 @@ class _ResultBarRow extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     '$percent%',
-                    style: const TextStyle(
-                      color: _PollResultsColors.ink,
+                    style: TextStyle(
+                      color: top
+                          ? YakkuPalette.primary
+                          : _PollResultsColors.ink,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -968,7 +1031,7 @@ class _CountPill extends StatelessWidget {
   });
 
   final int count;
-  final IconData icon;
+  final FaIconData icon;
   final Color background;
   final Color ink;
 
@@ -985,7 +1048,7 @@ class _CountPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 15, color: ink),
+          FaIcon(icon, size: 13, color: ink),
           const SizedBox(width: 6),
           Text(
             '$count',
@@ -1003,9 +1066,12 @@ class _CountPill extends StatelessWidget {
 
 /// Standard option row (pink bar, vote-count pill).
 class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.tally});
+  const _ResultRow({required this.tally, this.top = false});
 
   final _Tally tally;
+
+  /// The leading answer gets a crown and a bolder bar.
+  final bool top;
 
   @override
   Widget build(BuildContext context) {
@@ -1015,10 +1081,11 @@ class _ResultRow extends StatelessWidget {
       percent: tally.percent,
       count: tally.whyCount,
       mine: tally.mine,
-      fill: const Color(0xFFF8D6E0),
-      pillColor: const Color(0xFFFDDDE6),
+      fill: top ? YakkuPalette.pinkWash : YakkuPalette.blushFill,
+      pillColor: YakkuPalette.pillPink,
       pillInk: YakkuPalette.primary,
-      pillIcon: Icons.chat_bubble_outline_rounded,
+      pillIcon: FontAwesomeIcons.commentDots,
+      top: top,
     );
   }
 }
@@ -1040,8 +1107,8 @@ class _OwnOptionsRow extends StatelessWidget {
       count: count,
       fill: YakkuPalette.accentPurple,
       pillColor: YakkuPalette.accentPurple,
-      pillInk: const Color(0xFF6B4FBB),
-      pillIcon: Icons.edit_outlined,
+      pillInk: YakkuPalette.purpleInk,
+      pillIcon: FontAwesomeIcons.penToSquare,
     );
   }
 }

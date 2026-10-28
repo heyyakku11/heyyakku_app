@@ -32,8 +32,8 @@ class CreatedPollScreen extends StatefulWidget {
   final UserCheckResponse? check;
   final List<String> categories;
 
-  static const _ink = Color(0xFF21191D);
-  static const _muted = Color(0xFF7C6466);
+  static const _ink = YakkuPalette.textPrimary;
+  static const _muted = YakkuPalette.textSecondary;
 
   @override
   State<CreatedPollScreen> createState() => _CreatedPollScreenState();
@@ -241,7 +241,7 @@ class _PreviewCard extends StatelessWidget {
   final String question;
   final int optionCount;
 
-  static const _cardPink = Color(0xFFD9557F);
+  static const _cardPink = YakkuPalette.cardPink;
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +272,7 @@ class _PreviewCard extends StatelessWidget {
                     const Text(
                       'Yakku.',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: YakkuPalette.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.3,
@@ -286,7 +286,7 @@ class _PreviewCard extends StatelessWidget {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                     fontSize: 24,
                     height: 1.1,
                     fontWeight: FontWeight.w800,
@@ -298,7 +298,7 @@ class _PreviewCard extends StatelessWidget {
                   Container(
                     height: 30,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.28),
+                      color: YakkuPalette.white.withValues(alpha: 0.28),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -308,7 +308,7 @@ class _PreviewCard extends StatelessWidget {
                 Text(
                   "Tap to answer. They won't know it was you.",
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: YakkuPalette.white,
                     fontSize: 12,
                     height: 1.3,
                     fontWeight: FontWeight.w700,
@@ -353,17 +353,17 @@ class _ShareRow extends StatelessWidget {
               begin: Alignment.bottomLeft,
               end: Alignment.topRight,
               colors: [
-                Color(0xFFFEDA75),
-                Color(0xFFFA7E1E),
-                Color(0xFFD62976),
-                Color(0xFF962FBF),
-                Color(0xFF4F5BD5),
+                YakkuPalette.instagramYellow,
+                YakkuPalette.instagramOrange,
+                YakkuPalette.instagramPink,
+                YakkuPalette.instagramPurple,
+                YakkuPalette.instagramBlue,
               ],
             ),
           ),
           child: const FaIcon(
             FontAwesomeIcons.instagram,
-            color: Colors.white,
+            color: YakkuPalette.white,
             size: 26,
           ),
         ),
@@ -372,11 +372,11 @@ class _ShareRow extends StatelessWidget {
           onTap: onWhatsApp,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF25D366),
+            color: YakkuPalette.whatsappGreen,
           ),
           child: const FaIcon(
             FontAwesomeIcons.whatsapp,
-            color: Colors.white,
+            color: YakkuPalette.white,
             size: 26,
           ),
         ),
@@ -385,11 +385,11 @@ class _ShareRow extends StatelessWidget {
           onTap: onSnapchat,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFFFFFC00),
+            color: YakkuPalette.snapchatYellow,
           ),
           child: const FaIcon(
             FontAwesomeIcons.snapchat,
-            color: Colors.white,
+            color: YakkuPalette.white,
             size: 26,
           ),
         ),
@@ -398,11 +398,11 @@ class _ShareRow extends StatelessWidget {
           onTap: onFacebook,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF1877F2),
+            color: YakkuPalette.facebookBlue,
           ),
           child: const FaIcon(
             FontAwesomeIcons.facebookF,
-            color: Colors.white,
+            color: YakkuPalette.white,
             size: 24,
           ),
         ),
@@ -411,11 +411,11 @@ class _ShareRow extends StatelessWidget {
           onTap: onCopyLink,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF1B1418),
+            color: YakkuPalette.charcoal,
           ),
           child: const FaIcon(
             FontAwesomeIcons.link,
-            color: Colors.white,
+            color: YakkuPalette.white,
             size: 18,
           ),
         ),
@@ -479,7 +479,7 @@ class _StoryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: YakkuPalette.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
@@ -488,7 +488,7 @@ class _StoryButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             gradient: const LinearGradient(
-              colors: [Color(0xFFD02E62), Color(0xFFC72A5B)],
+              colors: [YakkuPalette.primary, YakkuPalette.primaryDeep],
             ),
             boxShadow: [
               BoxShadow(
@@ -502,7 +502,7 @@ class _StoryButton extends StatelessWidget {
             child: Text(
               'Share to Instagram Story',
               style: TextStyle(
-                color: Colors.white,
+                color: YakkuPalette.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
               ),

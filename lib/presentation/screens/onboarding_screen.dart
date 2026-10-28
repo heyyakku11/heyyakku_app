@@ -34,7 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: YakkuPalette.sand,
+      backgroundColor: YakkuPalette.cream,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
@@ -76,7 +76,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     disabledBackgroundColor: YakkuPalette.primary.withValues(
                       alpha: 0.6,
                     ),
-                    foregroundColor: Colors.white,
+                    foregroundColor: YakkuPalette.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(26),
                     ),
@@ -87,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: YakkuPalette.white,
                           ),
                         )
                       : const Text(
@@ -255,7 +255,7 @@ class _PreviewStackState extends State<_PreviewStack>
                       child: _PreviewCard(
                         width: cardWidth,
                         color: YakkuPalette.primary,
-                        textColor: Colors.white,
+                        textColor: YakkuPalette.white,
                         question:
                             'Do people like me, or just like having me around?',
                         lightChips: true,
@@ -318,9 +318,9 @@ class _PreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chipColor = lightChips
-        ? Colors.white.withValues(alpha: 0.22)
-        : Colors.white.withValues(alpha: 0.72);
-    final chipText = lightChips ? Colors.white : YakkuPalette.textSecondary;
+        ? YakkuPalette.white.withValues(alpha: 0.22)
+        : YakkuPalette.white.withValues(alpha: 0.72);
+    final chipText = lightChips ? YakkuPalette.white : YakkuPalette.textSecondary;
 
     return Container(
       width: width,
@@ -330,7 +330,7 @@ class _PreviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1A21191D),
+            color: YakkuPalette.shadowInk10,
             blurRadius: 18,
             offset: Offset(0, 8),
           ),

@@ -116,10 +116,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 child: ElevatedButton(
                   onPressed: _confirmed && !_deleting ? _deleteAccount : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9B2348),
-                    disabledBackgroundColor: const Color(0xFFE7C5D0),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
+                    backgroundColor: YakkuPalette.danger,
+                    disabledBackgroundColor: YakkuPalette.dangerDisabled,
+                    foregroundColor: YakkuPalette.white,
+                    disabledForegroundColor: YakkuPalette.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
@@ -131,7 +131,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Colors.white,
+                            color: YakkuPalette.white,
                           ),
                         )
                       : const Text('Delete my account'),
