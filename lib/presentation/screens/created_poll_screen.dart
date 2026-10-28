@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
@@ -47,8 +48,14 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
   int get _resultsVoteThreshold =>
       widget.poll?.minVotes ?? widget.check!.minVotes;
 
-  int get _rawOptionCount =>
-      widget.poll?.options.length ?? widget.check!.options.length;
+  /// Option labels shown on the preview card (first four, as sent by the API).
+  List<String> get _optionTexts {
+    final poll = widget.poll;
+    final texts = poll != null
+        ? poll.options.map((o) => o.text ?? '')
+        : widget.check!.options.map((o) => o.text);
+    return texts.take(4).toList(growable: false);
+  }
 
   SharePayload _buildPayload() {
     final poll = widget.poll;
@@ -82,7 +89,6 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final optionCount = _rawOptionCount.clamp(2, 4);
 
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
@@ -125,7 +131,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
                         const SizedBox(height: 26),
                         _PreviewCard(
                           question: _question,
-                          optionCount: optionCount,
+                          options: _optionTexts,
                         ),
                         const SizedBox(height: 26),
                         _ShareRow(
@@ -174,10 +180,10 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
 
 /// Tilted pink card previewing how friends will see the question.
 class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({required this.question, required this.optionCount});
+  const _PreviewCard({required this.question, required this.options});
 
   final String question;
-  final int optionCount;
+  final List<String> options;
 
   static const _cardPink = YakkuPalette.cardPink;
 
@@ -232,12 +238,31 @@ class _PreviewCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                for (var i = 0; i < optionCount; i++) ...[
+                for (final option in options) ...[
                   Container(
                     height: 30,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: YakkuPalette.white.withValues(alpha: 0.28),
+                      color: YakkuPalette.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                        sigmaX: 4,
+                        sigmaY: 4,
+                        tileMode: TileMode.decal,
+                      ),
+                      child: Text(
+                        option,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: YakkuPalette.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
