@@ -1599,49 +1599,54 @@ class _ReasonCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Material(
-                color: YakkuPalette.pillPink,
-                shape: const StadiumBorder(),
-                child: InkWell(
-                  customBorder: const StadiumBorder(),
-                  onTap: () => AppToast.show('Ask back is coming soon'),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.reply_rounded,
-                          size: 16,
-                          color: YakkuPalette.primary,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Ask back',
-                          style: TextStyle(
+          if (reason.canAskBack) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Material(
+                  color: YakkuPalette.pillPink,
+                  shape: const StadiumBorder(),
+                  child: InkWell(
+                    customBorder: const StadiumBorder(),
+                    onTap: () => AppToast.show('Ask back is coming soon'),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.reply_rounded,
+                            size: 16,
                             color: YakkuPalette.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
                           ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          size: 14,
-                          color: YakkuPalette.primary,
-                        ),
-                      ],
+                          SizedBox(width: 8),
+                          Text(
+                            'Ask back',
+                            style: TextStyle(
+                              color: YakkuPalette.primary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: 14,
+                            color: YakkuPalette.primary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1997,46 +2002,48 @@ class _CustomAnswerCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Material(
-              color: YakkuPalette.pillPink,
-              shape: const StadiumBorder(),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: () => AppToast.show('Ask back is coming soon'),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.reply_rounded,
-                        size: 16,
-                        color: YakkuPalette.primary,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Ask back',
-                        style: TextStyle(
+          if (answer.canAskBack) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Material(
+                color: YakkuPalette.pillPink,
+                shape: const StadiumBorder(),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: () => AppToast.show('Ask back is coming soon'),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.reply_rounded,
+                          size: 16,
                           color: YakkuPalette.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 14,
-                        color: YakkuPalette.primary,
-                      ),
-                    ],
+                        SizedBox(width: 8),
+                        Text(
+                          'Ask back',
+                          style: TextStyle(
+                            color: YakkuPalette.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 14,
+                          color: YakkuPalette.primary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

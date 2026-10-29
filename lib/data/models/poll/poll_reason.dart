@@ -23,6 +23,7 @@ class PollCustomAnswer {
     required this.answer,
     this.reason,
     this.createdAt,
+    this.canAskBack = false,
   });
 
   /// The vote id; also the id to report when [reason] is set.
@@ -31,8 +32,15 @@ class PollCustomAnswer {
   final String? reason;
   final DateTime? createdAt;
 
-  PollCustomAnswer withoutReason() =>
-      PollCustomAnswer(id: id, answer: answer, createdAt: createdAt);
+  /// Only a registered user can be chatted back to; guests cannot.
+  final bool canAskBack;
+
+  PollCustomAnswer withoutReason() => PollCustomAnswer(
+    id: id,
+    answer: answer,
+    createdAt: createdAt,
+    canAskBack: canAskBack,
+  );
 
   factory PollCustomAnswer.fromJson(Map<String, dynamic> json) {
     final created = json['createdAt'];
@@ -42,6 +50,7 @@ class PollCustomAnswer {
       answer: json['answer']?.toString() ?? '',
       reason: reason == null || reason.trim().isEmpty ? null : reason,
       createdAt: created is String ? DateTime.tryParse(created) : null,
+      canAskBack: json['canAskBack'] as bool? ?? false,
     );
   }
 }
@@ -96,11 +105,19 @@ ReasonReportResult parseReportResult(Map<String, dynamic>? body) {
 
 /// One anonymous reason a voter gave for an option (owner view).
 class PollReason {
-  const PollReason({required this.id, required this.text, this.createdAt});
+  const PollReason({
+    required this.id,
+    required this.text,
+    this.createdAt,
+    this.canAskBack = false,
+  });
 
   final String id;
   final String text;
   final DateTime? createdAt;
+
+  /// Only a registered user can be chatted back to; guests cannot.
+  final bool canAskBack;
 
   factory PollReason.fromJson(Map<String, dynamic> json) {
     final created = json['createdAt'];
@@ -108,6 +125,7 @@ class PollReason {
       id: json['id']?.toString() ?? '',
       text: json['text']?.toString() ?? '',
       createdAt: created is String ? DateTime.tryParse(created) : null,
+      canAskBack: json['canAskBack'] as bool? ?? false,
     );
   }
 }
