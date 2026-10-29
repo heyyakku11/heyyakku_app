@@ -85,6 +85,11 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     if (widget.check != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadNextCheck());
     }
+    if (_canSeeReasons) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _markCardNotificationsRead(),
+      );
+    }
     if (widget._justVoted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _openShareSheet();
@@ -96,6 +101,24 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
   /// or of a made check. A voter who just answered cannot read them.
   bool get _canSeeReasons =>
       widget.pollId != null || (widget.check?.isOwner ?? false);
+
+  /// The owner is looking at the results, so the "new answer" notifications for
+  /// this card count as read: they leave the Activity badge and are not repeated
+  /// in the 30-minute digest push. Best effort; a failure changes nothing here.
+  Future<void> _markCardNotificationsRead() async {
+    if (!mounted) return;
+    final check = widget.check;
+    final contentType = check != null ? 'check' : 'poll';
+    final contentId = check?.id ?? widget.pollId;
+    if (contentId == null) return;
+    try {
+      await AppScope.of(
+        context,
+      ).notifications.markContentRead(contentType, contentId);
+    } catch (_) {
+      // They stay unread and are marked read the next time the card is opened.
+    }
+  }
 
   Future<List<PollCustomAnswer>> _loadCustomAnswers() {
     final scope = AppScope.of(context);

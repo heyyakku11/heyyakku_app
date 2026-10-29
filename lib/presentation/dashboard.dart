@@ -32,6 +32,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   int _unreadCount = 0;
   StreamSubscription<RemoteMessage>? _pushSub;
   StreamSubscription<RemoteMessage>? _pushOpenedSub;
+  Listenable? _readChanges;
 
   @override
   void initState() {
@@ -56,8 +57,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       label: 'Create',
     ),
     BottomNavigationBarItem(
-      icon: _ActivityIcon(count: _unreadCount),
-      activeIcon: _ActivityIcon(count: _unreadCount),
+      icon: _ActivityIcon(hasUnread: _unreadCount > 0),
+      activeIcon: _ActivityIcon(hasUnread: _unreadCount > 0),
       label: 'Activity',
     ),
     const BottomNavigationBarItem(
@@ -106,6 +107,13 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   void _listenForUnread() {
     if (!mounted) return;
     AppScope.of(context).authController.addListener(_refreshUnread);
+    try {
+      // A card's results being opened reads its notifications.
+      _readChanges = AppScope.of(context).notifications.readChanges
+        ..addListener(_refreshUnread);
+    } catch (_) {
+      // The badge still refreshes on resume and on push.
+    }
     try {
       _pushSub = FirebaseMessaging.onMessage.listen((_) => _refreshUnread());
       // A tap on a push while the app is in the background...
@@ -179,6 +187,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _pushSub?.cancel();
     _pushOpenedSub?.cancel();
+    _readChanges?.removeListener(_refreshUnread);
     _pageController.dispose();
     super.dispose();
   }
@@ -248,17 +257,17 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 }
 
-/// The Activity tab icon with a bubble showing how many notifications are unread.
+/// The Activity tab icon with a small dot when there is something unread.
 class _ActivityIcon extends StatelessWidget {
-  const _ActivityIcon({required this.count});
+  const _ActivityIcon({required this.hasUnread});
 
-  final int count;
+  final bool hasUnread;
 
   @override
   Widget build(BuildContext context) {
     return Badge(
-      isLabelVisible: count > 0,
-      label: Text(count > 99 ? '99+' : '$count'),
+      isLabelVisible: hasUnread,
+      smallSize: 10,
       child: const Icon(Icons.notifications),
     );
   }

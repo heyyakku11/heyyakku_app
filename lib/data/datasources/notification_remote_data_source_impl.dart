@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
@@ -8,6 +9,11 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   NotificationRemoteDataSourceImpl(this.dio);
 
   final Dio dio;
+
+  final ValueNotifier<int> _readChanges = ValueNotifier<int>(0);
+
+  @override
+  Listenable get readChanges => _readChanges;
 
   @override
   Future<NotificationsPage> getNotifications({String? cursor}) async {
@@ -75,6 +81,20 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
     if (!apiResponse.success) {
       throw StateError(apiResponse.message ?? 'Failed to mark all as read');
     }
+  }
+
+  @override
+  Future<void> markContentRead(String contentType, String contentId) async {
+    final response = await dio.patch<Map<String, dynamic>>(
+      ApiRoutes.notificationsContentRead(contentType, contentId),
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty mark-content-read response');
+    final apiResponse = ApiResponse<Object?>.fromJson(body, null);
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Failed to mark as read');
+    }
+    _readChanges.value++;
   }
 
   @override

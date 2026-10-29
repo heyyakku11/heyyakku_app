@@ -60,6 +60,10 @@ abstract final class ApiRoutes {
   static const String notificationsReadAll = '$notifications/read-all';
   static String notificationRead(String id) => '$notifications/$id/read';
 
+  /// Marks the user's notifications about one card read (`contentType` is poll|check).
+  static String notificationsContentRead(String contentType, String contentId) =>
+      '$notifications/content/$contentType/$contentId/read';
+
   // Media upload sessions
   static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
 
