@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Temp story images written by StoryImageService (path_provider's
+     getTemporaryDirectory() is the app cache dir on Android). -->
+<paths>
+    <cache-path name="yakku_story" path="yakku_story/" />
+</paths>

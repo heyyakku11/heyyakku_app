@@ -29,10 +29,16 @@ class SharePayload {
     required this.shareCode,
     required this.question,
     required this.url,
+    this.options = const [],
   });
 
   final String shareCode;
   final String question;
+
+  /// Answer labels (at most [maxOptions]) shown on the story card image.
+  final List<String> options;
+
+  static const int maxOptions = 4;
 
   /// Canonical `https://<website>/vote/{shareCode}` URL; the single link every
   /// platform shares.
@@ -46,6 +52,7 @@ class SharePayload {
     required String question,
     String websiteBaseUrl = ApiConstants.webBaseUrl,
     bool isPublic = true,
+    List<String> options = const [],
   }) {
     final code = shareCode.trim();
     final text = question.trim();
@@ -75,7 +82,17 @@ class SharePayload {
         code,
       ],
     );
-    return SharePayload._(shareCode: code, question: text, url: url);
+    return SharePayload._(
+      shareCode: code,
+      question: text,
+      url: url,
+      options: List.unmodifiable(
+        options
+            .map((o) => o.trim())
+            .where((o) => o.isNotEmpty)
+            .take(maxOptions),
+      ),
+    );
   }
 
   factory SharePayload.fromPollModel(
@@ -95,5 +112,6 @@ class SharePayload {
     question: poll.question,
     websiteBaseUrl: websiteBaseUrl,
     isPublic: poll.visibility.toLowerCase() != 'private',
+    options: poll.options.map((o) => o.text ?? '').toList(),
   );
 }

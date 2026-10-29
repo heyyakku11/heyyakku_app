@@ -63,6 +63,7 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
     return SharePayload.create(
       shareCode: check.shareCode,
       question: check.question.trim().isNotEmpty ? check.question : check.title,
+      options: _optionTexts,
     );
   }
 
@@ -133,8 +134,10 @@ class _CreatedPollScreenState extends State<CreatedPollScreen> {
                         ),
                         const SizedBox(height: 26),
                         _ShareRow(
-                          onInstagramDm: () =>
-                              _shareVia(context, SharePlatformId.instagramDm),
+                          onInstagram: () => _shareVia(
+                            context,
+                            SharePlatformId.instagramStory,
+                          ),
                           onWhatsApp: () =>
                               _shareVia(context, SharePlatformId.whatsapp),
                           onSnapchat: () =>
@@ -282,13 +285,13 @@ class _PreviewCard extends StatelessWidget {
 
 class _ShareRow extends StatelessWidget {
   const _ShareRow({
-    required this.onInstagramDm,
+    required this.onInstagram,
     required this.onWhatsApp,
     required this.onSnapchat,
     required this.onCopyLink,
   });
 
-  final VoidCallback onInstagramDm;
+  final VoidCallback onInstagram;
   final VoidCallback onWhatsApp;
   final VoidCallback onSnapchat;
   final VoidCallback onCopyLink;
@@ -301,7 +304,7 @@ class _ShareRow extends StatelessWidget {
       children: [
         _ShareTarget(
           label: 'Instagram',
-          onTap: onInstagramDm,
+          onTap: onInstagram,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(

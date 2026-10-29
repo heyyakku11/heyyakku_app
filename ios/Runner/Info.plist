@@ -58,6 +58,11 @@
 				</array>
 			</dict>
 		</array>
+		<!-- Lets canOpenURL detect Instagram for Story sharing (AppDelegate.swift). -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>instagram-stories</string>
+		</array>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
