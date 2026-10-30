@@ -88,12 +88,21 @@ class PollApiRepository {
     return poll;
   }
 
+  /// Casts the caller's vote: either [optionId] or a [customAnswer]
+  /// ('Something else'), with an optional [reason].
   Future<CastVoteResponse> castVote({
     required String shareCode,
-    required String optionId,
+    String? optionId,
+    String? customAnswer,
+    String? reason,
   }) {
     return _remote.castVote(
-      CastVoteRequest(shareCode: shareCode, optionId: optionId),
+      CastVoteRequest(
+        shareCode: shareCode,
+        optionId: optionId,
+        customAnswer: customAnswer,
+        reason: reason,
+      ),
     );
   }
 }

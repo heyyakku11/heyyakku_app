@@ -5,6 +5,12 @@ abstract final class AppLimits {
   static const int maxQuestionLength = 120;
   static const int maxOptionLength = 40;
 
+  /// A voter's own 'Something else' answer.
+  static const int maxCustomAnswerLength = 40;
+
+  /// The optional 'why' a voter can add to their answer.
+  static const int maxReasonLength = 150;
+
   /// Fallback for votes needed before results are revealed; the API sends
   /// the real value as `minVotes`.
 

@@ -17,7 +17,6 @@ import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/screens/share_result_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
-import 'package:yakku/presentation/widgets/option_bottom_sheet.dart';
 import 'package:yakku/presentation/widgets/results_locked_view.dart';
 
 /// Results screen: a pick versus the crowd, then every option ranked by votes.
@@ -64,8 +63,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
   static const _ink = YakkuPalette.textPrimary;
   static const _muted = YakkuPalette.textSecondary;
 
-  bool _sheetShown = false;
-
   /// Set when the poll was closed or deleted, so the caller can refresh.
   bool _changed = false;
   PollResponse? _loadedPoll;
@@ -89,11 +86,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _markCardNotificationsRead(),
       );
-    }
-    if (widget._justVoted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openShareSheet();
-      });
     }
   }
 
@@ -214,24 +206,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
         _error = "Couldn't load the results.";
         _loading = false;
       });
-    }
-  }
-
-  Future<void> _openShareSheet() async {
-    if (_sheetShown || !mounted) return;
-    _sheetShown = true;
-
-    final audience = await showOptionBottomSheet(context);
-    if (!mounted) return;
-
-    final message = switch (audience) {
-      ShareAudience.myCircle => 'Shared with My Circle',
-      ShareAudience.community => 'Shared with Community',
-      null => null,
-    };
-
-    if (message != null) {
-      AppToast.show(message);
     }
   }
 

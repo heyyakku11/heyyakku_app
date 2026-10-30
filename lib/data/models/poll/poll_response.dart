@@ -1,6 +1,7 @@
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/data/models/poll/poll_media_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
+import 'package:yakku/data/models/poll/shared_content_response.dart';
 
 class PollResponse {
   final String id;
@@ -30,6 +31,14 @@ class PollResponse {
   final String? yourOptionId;
   final String? yourOptionText;
 
+  /// What the caller may do with this card (shared-link view only): whether
+  /// they can vote, already voted, or are blocked. Null when not loaded from
+  /// the share-code API.
+  final VotingStateResponse? voting;
+
+  /// The caller created this card (shared-link view only).
+  final bool isOwner;
+
   const PollResponse({
     required this.id,
     required this.question,
@@ -50,6 +59,8 @@ class PollResponse {
     this.resultsUnlocked = false,
     this.yourOptionId,
     this.yourOptionText,
+    this.voting,
+    this.isOwner = false,
   });
 
   factory PollResponse.fromJson(Map<String, dynamic> json) {

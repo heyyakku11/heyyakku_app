@@ -93,6 +93,8 @@ class SharedContentResponse {
       minVotes: stats.minVotesToReveal,
       voteProgress: stats.voteProgress,
       resultsUnlocked: stats.resultsVisible,
+      voting: voting,
+      isOwner: isOwner,
       options: [
         for (final option in options)
           PollOptionResponse(

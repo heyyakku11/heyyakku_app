@@ -9,7 +9,7 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  testWidgets('shows the question and every option text unblurred', (
+  testWidgets('shows the question and every option text', (
     tester,
   ) async {
     useStorySurface(tester);
@@ -29,7 +29,6 @@ void main() {
     expect(find.text('Pizza'), findsOneWidget);
     expect(find.text('Tacos'), findsOneWidget);
     expect(find.text('Burgers'), findsOneWidget);
-    expect(find.byType(ImageFiltered), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

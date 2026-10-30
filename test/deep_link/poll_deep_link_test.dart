@@ -25,7 +25,13 @@ import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/core/router/app_router.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source.dart';
+import 'package:yakku/data/models/poll/cast_vote_request.dart';
+import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
+import 'package:yakku/data/models/poll/shared_content_response.dart';
+import 'package:yakku/presentation/widgets/mobile_login_bottom_sheet.dart';
+import 'package:yakku/core/router/app_routes.dart';
+import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -39,6 +45,8 @@ PollResponse _poll({
   String status = 'active',
   String visibility = 'public',
   DateTime? expiresAt,
+  VotingStateResponse? voting,
+  bool isOwner = false,
 }) => PollResponse(
   id: id,
   shareCode: shareCode,
@@ -49,6 +57,8 @@ PollResponse _poll({
   expiresAt: expiresAt,
   createdAt: DateTime.utc(2026, 1, 1),
   totalVoteCount: 3,
+  voting: voting,
+  isOwner: isOwner,
   options: const [
     PollOptionResponse(id: 'o1', text: 'Pizza', sortOrder: 1),
     PollOptionResponse(id: 'o2', text: 'Pasta', sortOrder: 2),
@@ -60,6 +70,21 @@ class _FakePollRemote extends Fake implements PollRemoteDataSource {
 
   final Future<PollResponse> Function(String id) onGet;
   final requested = <String>[];
+  final votes = <CastVoteRequest>[];
+  Object? castError;
+
+  @override
+  Future<CastVoteResponse> castVote(CastVoteRequest request) async {
+    votes.add(request);
+    final error = castError;
+    if (error != null) throw error;
+    return CastVoteResponse(
+      id: 'v1',
+      pollId: 'p1',
+      pollOptionId: request.optionId ?? '',
+      createdAt: DateTime.utc(2026, 1, 1),
+    );
+  }
 
   @override
   Future<PollResponse> getPollByShareCode(String shareCode) {
@@ -346,6 +371,239 @@ void main() {
       await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(find.text('Pizza'), findsOneWidget);
+    });
+  });
+
+  group('AnswerPollScreen (vote from a shared link)', () {
+    Widget app(_FakePollRemote remote, {bool loggedIn = true}) => _Scope(
+      auth: _Harness(loggedIn: loggedIn, remote: remote).auth,
+      pollApi: PollApiRepository(remote),
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => AnswerPollScreen(poll: _poll()),
+            ),
+            GoRoute(
+              path: AppRoutes.main,
+              builder: (_, _) => const Text('IN THE APP'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Future<void> pump(WidgetTester tester, Widget w) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(w);
+      await tester.pumpAndSettle();
+    }
+
+    ElevatedButton submit(WidgetTester tester) =>
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+
+    testWidgets('shows the card: question, lettered answers, write-your-own', (
+      tester,
+    ) async {
+      await pump(tester, app(_FakePollRemote((_) async => _poll())));
+
+      expect(
+        find.textContaining('asked you', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Send vote'), findsOneWidget);
+      expect(find.text('Pizza or pasta?'), findsOneWidget);
+      expect(find.text('Pizza'), findsOneWidget);
+      expect(find.text('Pasta'), findsOneWidget);
+      expect(find.text('Write your own answer'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+      expect(submit(tester).onPressed, isNull);
+    });
+
+    testWidgets('picking an option shows Why? and casts option + reason', (
+      tester,
+    ) async {
+      final remote = _FakePollRemote((_) async => _poll());
+      await pump(tester, app(remote));
+
+      await tester.tap(find.text('Pasta'));
+      await tester.pump();
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '  Carbs!  ');
+      await tester.tap(find.text('Send vote'));
+      await tester.pumpAndSettle();
+
+      final vote = remote.votes.single;
+      expect(vote.shareCode, _id);
+      expect(vote.optionId, 'o2');
+      expect(vote.customAnswer, isNull);
+      expect(vote.reason, 'Carbs!');
+      expect(find.text('IN THE APP'), findsOneWidget);
+      expect(find.text('Share your poll'), findsNothing);
+    });
+
+    testWidgets('reason is optional', (tester) async {
+      final remote = _FakePollRemote((_) async => _poll());
+      await pump(tester, app(remote));
+
+      await tester.tap(find.text('Pizza'));
+      await tester.pump();
+      await tester.tap(find.text('Send vote'));
+      await tester.pumpAndSettle();
+
+      expect(remote.votes.single.optionId, 'o1');
+      expect(remote.votes.single.reason, isNull);
+    });
+
+    testWidgets('Something else needs text, then casts a custom answer', (
+      tester,
+    ) async {
+      final remote = _FakePollRemote((_) async => _poll());
+      await pump(tester, app(remote));
+
+      await tester.tap(find.text('Write your own answer'));
+      await tester.pump();
+      expect(find.byType(TextField), findsNWidgets(2));
+      expect(submit(tester).onPressed, isNull, reason: 'no answer typed yet');
+
+      await tester.enterText(find.byType(TextField).first, 'Burgers');
+      await tester.enterText(find.byType(TextField).last, 'Always');
+      await tester.pump();
+      expect(submit(tester).onPressed, isNotNull);
+      await tester.tap(find.text('Send vote'));
+      await tester.pumpAndSettle();
+
+      final vote = remote.votes.single;
+      expect(vote.optionId, isNull);
+      expect(vote.customAnswer, 'Burgers');
+      expect(vote.reason, 'Always');
+    });
+
+    testWidgets('answer and reason lengths are capped', (tester) async {
+      await pump(tester, app(_FakePollRemote((_) async => _poll())));
+
+      await tester.tap(find.text('Write your own answer'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField).first, 'a' * 100);
+      await tester.enterText(find.byType(TextField).last, 'b' * 500);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+        hasLength(40),
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        hasLength(150),
+      );
+    });
+
+    testWidgets('logged-out voter is asked to log in, no vote is cast', (
+      tester,
+    ) async {
+      final remote = _FakePollRemote((_) async => _poll());
+      await pump(tester, app(remote, loggedIn: false));
+
+      expect(find.text('Log in to vote'), findsOneWidget);
+      await tester.tap(find.text('Log in to vote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MobileLoginBottomSheet), findsOneWidget);
+      expect(remote.votes, isEmpty);
+    });
+
+    testWidgets('a failed vote stays on the card and can be retried', (
+      tester,
+    ) async {
+      final remote = _FakePollRemote((_) async => _poll())
+        ..castError = _http(500);
+      await pump(tester, app(remote));
+
+      await tester.tap(find.text('Pizza'));
+      await tester.pump();
+      await tester.tap(find.text('Send vote'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('IN THE APP'), findsNothing);
+      expect(find.text('Pizza or pasta?'), findsOneWidget);
+
+      remote.castError = null;
+      await tester.tap(find.text('Send vote'));
+      await tester.pumpAndSettle();
+      expect(remote.votes.length, 2);
+      expect(find.text('IN THE APP'), findsOneWidget);
+    });
+  });
+
+  group('SharedPollScreen voting state from the API', () {
+    Future<void> open(
+      WidgetTester tester,
+      PollResponse poll, {
+      required bool loggedIn,
+    }) async {
+      final h = _Harness(
+        loggedIn: loggedIn,
+        guest: !loggedIn,
+        remote: _FakePollRemote((_) async => poll),
+      );
+      h.router.go('/vote/$_id');
+      await tester.pumpWidget(h.build());
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('already voted (signed in) shows the message, not the card', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        _poll(voting: const VotingStateResponse(hasVoted: true)),
+        loggedIn: true,
+      );
+      expect(find.text('You already voted'), findsOneWidget);
+      expect(find.text('Pizza'), findsNothing);
+    });
+
+    testWidgets('own card (signed in) cannot be voted on', (tester) async {
+      await open(
+        tester,
+        _poll(voting: const VotingStateResponse(canVote: true), isOwner: true),
+        loggedIn: true,
+      );
+      expect(find.text('This is your card'), findsOneWidget);
+    });
+
+    testWidgets('API says canVote=false (signed in): blocked message', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        _poll(voting: const VotingStateResponse(blockedReason: 'X')),
+        loggedIn: true,
+      );
+      expect(find.text("You can't vote on this card"), findsOneWidget);
+    });
+
+    testWidgets('canVote=true (signed in) shows the card to vote on', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        _poll(voting: const VotingStateResponse(canVote: true)),
+        loggedIn: true,
+      );
+      expect(find.text('Write your own answer'), findsOneWidget);
+      expect(find.text('Send vote'), findsOneWidget);
+    });
+
+    testWidgets('guest sees the card with a login prompt', (tester) async {
+      await open(
+        tester,
+        _poll(voting: const VotingStateResponse()),
+        loggedIn: false,
+      );
+      expect(find.text('Pizza'), findsOneWidget);
+      expect(find.text('Log in to vote'), findsOneWidget);
     });
   });
 }
