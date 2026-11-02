@@ -64,6 +64,20 @@ abstract final class ApiRoutes {
   static String notificationsContentRead(String contentType, String contentId) =>
       '$notifications/content/$contentType/$contentId/read';
 
+  // Ask back
+  static const String askBackConversations = '/api/v1/ask-back/conversations';
+  static String askBackConversation(String id) => '$askBackConversations/$id';
+  static String askBackMessages(String id) => '$askBackConversations/$id/messages';
+  static String askBackRead(String id) => '$askBackConversations/$id/read';
+  static String askBackMute(String id) => '$askBackConversations/$id/mute';
+  static String askBackClose(String id) => '$askBackConversations/$id/close';
+  static String askBackReopen(String id) => '$askBackConversations/$id/reopen';
+  static String askBackBlock(String id) => '$askBackConversations/$id/block';
+  static String askBackUnblock(String id) => '$askBackConversations/$id/unblock';
+
+  /// SignalR hub for Ask Back real-time events (path only; see [ApiConstants.baseUrl]).
+  static const String askBackHub = '/hubs/ask-back';
+
   // Media upload sessions
   static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
 

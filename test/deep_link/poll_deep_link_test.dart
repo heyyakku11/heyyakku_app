@@ -10,6 +10,9 @@ import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
+import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
+import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
@@ -165,6 +168,9 @@ class _Scope extends StatelessWidget {
       notifications: _F15(),
       deviceRegistration: _F12(),
       draftPolls: _F13(),
+      askBack: _F16(),
+      askBackRealtime: _F17(),
+      askBackInbox: _F18(),
       child: child,
     );
   }
@@ -191,6 +197,12 @@ class _F9 extends Fake implements ActivityPollRepository {}
 class _F10 extends Fake implements UserRemoteDataSource {}
 
 class _F15 extends Fake implements NotificationRemoteDataSource {}
+
+class _F16 extends Fake implements AskBackRemoteDataSource {}
+
+class _F17 extends Fake implements AskBackRealtime {}
+
+class _F18 extends Fake implements AskBackInboxController {}
 
 class _F12 extends Fake implements DeviceRegistrationService {}
 

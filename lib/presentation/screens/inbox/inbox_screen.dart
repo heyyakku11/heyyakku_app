@@ -19,7 +19,9 @@ class InboxScreen extends StatelessWidget {
             if (!auth.isLoggedIn) {
               return const _LoggedOutActivity();
             }
-            return NotificationList(source: AppScope.of(context).notifications);
+            return NotificationList(
+              source: AppScope.of(context).notifications,
+            );
           },
         ),
       ),

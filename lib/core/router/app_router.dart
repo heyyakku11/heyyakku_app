@@ -5,6 +5,8 @@ import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/presentation/dashboard.dart';
 import 'package:yakku/presentation/screens/answer_poll_screen.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_chat_screen.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_list_screen.dart';
 import 'package:yakku/presentation/screens/onboarding_screen.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
@@ -54,6 +56,19 @@ abstract final class AppRouter {
           path: AppRoutes.main,
           name: AppRoutes.mainName,
           builder: (context, state) => const Dashboard(),
+        ),
+        GoRoute(
+          path: AppRoutes.askBack,
+          name: AppRoutes.askBackName,
+          builder: (context, state) => const AskBackListScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.askBackChat,
+          name: AppRoutes.askBackChatName,
+          builder: (context, state) => AskBackChatScreen(
+            key: ValueKey(state.pathParameters['conversationId']),
+            conversationId: state.pathParameters['conversationId'] ?? '',
+          ),
         ),
         GoRoute(
           path: AppRoutes.pollVote,

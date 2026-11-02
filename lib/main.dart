@@ -19,7 +19,11 @@ import 'package:yakku/core/device/notification_permission_service.dart';
 import 'package:yakku/core/network/api_client.dart';
 import 'package:yakku/core/network/internet_connection_service.dart';
 import 'package:yakku/core/network/internet_connection_service_impl.dart';
+import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/core/router/app_router.dart';
+import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
+import 'package:yakku/data/datasources/ask_back_remote_data_source_impl.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/storage/preference_storage_service.dart';
 import 'package:yakku/core/storage/secure_storage_service.dart';
 import 'package:yakku/core/theme/app_theme.dart';
@@ -148,6 +152,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
   late final NotificationRemoteDataSource _notifications;
+  late final AskBackRemoteDataSource _askBack;
+  late final AskBackRealtimeService _askBackRealtime;
+  late final AskBackInboxController _askBackInbox;
   late final DeviceRegistrationService _deviceRegistration;
   late final GoRouter _router;
   late final InternetCubit _internetCubit;
@@ -236,6 +243,32 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _notifications = NotificationRemoteDataSourceImpl(authenticatedDio);
 
+    _askBack = AskBackRemoteDataSourceImpl(authenticatedDio);
+    _askBackRealtime = AskBackRealtimeService(
+      // The socket takes its token once per connection attempt, so refresh a
+      // token that is about to expire first.
+      accessToken: () async {
+        var token = tokenStore.accessToken;
+        if (token == null || token.isEmpty) return null;
+        final secondsLeft = AskBackRealtimeService.secondsUntilExpiry(token);
+        if (secondsLeft != null && secondsLeft < 60) {
+          try {
+            await tokenRefreshService.refresh();
+            token = tokenStore.accessToken;
+          } catch (_) {
+            // Connect with what we have; the server refuses it if expired.
+          }
+        }
+        return token;
+      },
+    );
+    _askBackInbox = AskBackInboxController(
+      remote: _askBack,
+      realtime: _askBackRealtime,
+    );
+    _authController.addListener(_syncAskBackWithAuth);
+    _syncAskBackWithAuth();
+
     _deviceRegistration =
         widget.deviceRegistrationService ??
         DeviceRegistrationServiceImpl(
@@ -260,16 +293,38 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     unawaited(_internetCubit.initialize());
   }
 
+  bool _askBackStarted = false;
+
+  /// Ask back is for signed-in users: start the list (and its socket) on
+  /// sign-in, and drop both on sign-out.
+  void _syncAskBackWithAuth() {
+    final signedIn = _authController.isLoggedIn;
+    if (signedIn && !_askBackStarted) {
+      _askBackStarted = true;
+      unawaited(_askBackInbox.start());
+    } else if (!signedIn && _askBackStarted) {
+      _askBackStarted = false;
+      unawaited(_askBackInbox.reset());
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_internetCubit.refresh());
+      if (_askBackStarted) {
+        // Bring the socket back after the app was in the background.
+        unawaited(_askBackRealtime.ensureConnected().catchError((Object _) {}));
+      }
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _authController.removeListener(_syncAskBackWithAuth);
+    _askBackInbox.dispose();
+    unawaited(_askBackRealtime.dispose());
     _themeController.dispose();
     _authController.dispose();
     _backgroundApiWorker.dispose();
@@ -302,6 +357,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         notifications: _notifications,
         deviceRegistration: _deviceRegistration,
         draftPolls: widget.draftPolls,
+        askBack: _askBack,
+        askBackRealtime: _askBackRealtime,
+        askBackInbox: _askBackInbox,
         child: ListenableBuilder(
           listenable: _themeController,
           builder: (context, _) {

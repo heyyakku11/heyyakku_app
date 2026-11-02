@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
@@ -25,6 +27,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   String? _phoneNumber;
+  String? _anonymousName;
   String? _planName;
   int _cards = 0;
   int _votes = 0;
@@ -63,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _name = null;
         _phoneNumber = null;
+        _anonymousName = null;
         _planName = null;
         _cards = 0;
         _votes = 0;
@@ -90,6 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _nonEmpty(me.profile.name) ?? _nonEmpty(me.profile.anonymousName);
         final phone = _nonEmpty(me.account.phoneNumber);
         if (name != null) _name = name;
+        _anonymousName = _nonEmpty(me.profile.anonymousName);
         if (phone != null) _phoneNumber = phone;
         final plan = _nonEmpty(me.account.currentPlan?.name);
         if (plan != null) _planName = plan;
@@ -118,12 +123,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final auth = AppScope.of(context).authController;
     final drafts = AppScope.of(context).draftPolls;
+    final askBackInbox = AppScope.of(context).askBackInbox;
     final theme = Theme.of(context);
 
     return Scaffold(
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: Listenable.merge([auth, drafts]),
+          listenable: Listenable.merge([auth, drafts, askBackInbox]),
           builder: (context, _) {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
@@ -171,6 +177,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
+                    if (_anonymousName != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _anonymousName!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     // if (phoneNumber != null) ...[
                     //   const SizedBox(height: 4),
                     //   Text(
@@ -206,6 +223,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           showDivider: true,
                           onTap: () =>
                               _openWhenLoggedIn(const AnsweredPollsScreen()),
+                        ),
+                        ProfileOptionTile(
+                          icon: Icons.forum_outlined,
+                          label: 'Ask back',
+                          badgeCount: askBackInbox.unreadTotal,
+                          showDivider: true,
+                          onTap: () async {
+                            if (!auth.isLoggedIn) {
+                              await openMobileLogin(context);
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            await context.push(AppRoutes.askBack);
+                          },
                         ),
                         ProfileOptionTile(
                           icon: Icons.edit_outlined,

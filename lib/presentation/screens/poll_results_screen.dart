@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
+import 'package:yakku/presentation/widgets/ask_back_button.dart';
 import 'package:yakku/presentation/widgets/ask_next_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
@@ -1579,45 +1580,8 @@ class _ReasonCard extends StatelessWidget {
               padding: const EdgeInsets.only(right: 12),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Material(
-                  color: YakkuPalette.pillPink,
-                  shape: const StadiumBorder(),
-                  child: InkWell(
-                    customBorder: const StadiumBorder(),
-                    onTap: () => AppToast.show('Ask back is coming soon'),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.reply_rounded,
-                            size: 16,
-                            color: YakkuPalette.primary,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Ask back',
-                            style: TextStyle(
-                              color: YakkuPalette.primary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            size: 14,
-                            color: YakkuPalette.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                // The reason's id is the vote's id.
+                child: AskBackButton(voteId: reason.id),
               ),
             ),
           ],
@@ -1980,42 +1944,7 @@ class _CustomAnswerCard extends StatelessWidget {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: Material(
-                color: YakkuPalette.pillPink,
-                shape: const StadiumBorder(),
-                child: InkWell(
-                  customBorder: const StadiumBorder(),
-                  onTap: () => AppToast.show('Ask back is coming soon'),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.reply_rounded,
-                          size: 16,
-                          color: YakkuPalette.primary,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Ask back',
-                          style: TextStyle(
-                            color: YakkuPalette.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          size: 14,
-                          color: YakkuPalette.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              child: AskBackButton(voteId: answer.id),
             ),
           ],
         ],

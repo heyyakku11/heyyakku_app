@@ -5,6 +5,9 @@ import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
+import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
+import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
@@ -36,6 +39,9 @@ class AppScope extends InheritedWidget {
     required this.notifications,
     required this.deviceRegistration,
     required this.draftPolls,
+    required this.askBack,
+    required this.askBackRealtime,
+    required this.askBackInbox,
     required super.child,
   });
 
@@ -55,6 +61,9 @@ class AppScope extends InheritedWidget {
   final NotificationRemoteDataSource notifications;
   final DeviceRegistrationService deviceRegistration;
   final DraftPollStore draftPolls;
+  final AskBackRemoteDataSource askBack;
+  final AskBackRealtime askBackRealtime;
+  final AskBackInboxController askBackInbox;
 
   PollRepository get repository => polls;
 
@@ -81,6 +90,9 @@ class AppScope extends InheritedWidget {
         userRemote != oldWidget.userRemote ||
         notifications != oldWidget.notifications ||
         deviceRegistration != oldWidget.deviceRegistration ||
-        draftPolls != oldWidget.draftPolls;
+        draftPolls != oldWidget.draftPolls ||
+        askBack != oldWidget.askBack ||
+        askBackRealtime != oldWidget.askBackRealtime ||
+        askBackInbox != oldWidget.askBackInbox;
   }
 }

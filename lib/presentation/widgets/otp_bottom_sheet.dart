@@ -258,108 +258,110 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
           top: 12,
           bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  'Verify your number',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-                ),
-                const Spacer(),
-                Material(
-                  color: YakkuPalette.transparent,
-                  child: InkWell(
-                    onTap: _isVerifying ? null : _closeSheet,
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: YakkuPalette.grey400),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: YakkuPalette.grey700,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'Verify your number',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                  ),
+                  const Spacer(),
+                  Material(
+                    color: YakkuPalette.transparent,
+                    child: InkWell(
+                      onTap: _isVerifying ? null : _closeSheet,
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: YakkuPalette.grey400),
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: YakkuPalette.grey700,
+                        ),
                       ),
                     ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                _statusText,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: YakkuPalette.grey600,
                 ),
+              ),
+
+              if (_isWaitingForSend) ...[
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(minHeight: 2),
               ],
-            ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 28),
 
-            Text(
-              _statusText,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: YakkuPalette.grey600,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(6, (index) => _otpField(index)),
               ),
-            ),
 
-            if (_isWaitingForSend) ...[
-              const SizedBox(height: 16),
-              const LinearProgressIndicator(minHeight: 2),
-            ],
+              const SizedBox(height: 28),
 
-            const SizedBox(height: 28),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(6, (index) => _otpField(index)),
-            ),
-
-            const SizedBox(height: 28),
-
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ListenableBuilder(
-                listenable: Listenable.merge(_controllers),
-                builder: (context, _) {
-                  if (_sendFailed) {
-                    return ElevatedButton(
-                      onPressed: _isWaitingForSend ? null : _retrySend,
-                      child: const Text(
-                        'Resend code',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }
-
-                  final canVerify =
-                      _isOtpComplete && !_isVerifying && !_isWaitingForSend;
-                  return ElevatedButton(
-                    onPressed: canVerify ? _verifyOtp : null,
-                    child: _isVerifying
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text(
-                            'Verify OTP',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ListenableBuilder(
+                  listenable: Listenable.merge(_controllers),
+                  builder: (context, _) {
+                    if (_sendFailed) {
+                      return ElevatedButton(
+                        onPressed: _isWaitingForSend ? null : _retrySend,
+                        child: const Text(
+                          'Resend code',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                  );
-                },
-              ),
-            ),
+                        ),
+                      );
+                    }
 
-            const SizedBox(height: 14),
-          ],
+                    final canVerify =
+                        _isOtpComplete && !_isVerifying && !_isWaitingForSend;
+                    return ElevatedButton(
+                      onPressed: canVerify ? _verifyOtp : null,
+                      child: _isVerifying
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text(
+                              'Verify OTP',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 14),
+            ],
+          ),
         ),
       ),
     );

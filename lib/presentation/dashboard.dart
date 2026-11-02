@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -138,6 +140,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     if (!scope.authController.isLoggedIn) return;
 
     final data = message.data;
+
+    // A new Ask back message: open that conversation (the push carries only its id).
+    final conversationId = data['conversationId']?.toString();
+    if (conversationId != null && conversationId.isNotEmpty) {
+      context.push(AppRoutes.askBackChatLocation(conversationId));
+      return;
+    }
+
     final notificationId = data['notificationId']?.toString();
     if (notificationId != null && notificationId.isNotEmpty) {
       scope.notifications

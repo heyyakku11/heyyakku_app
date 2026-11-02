@@ -115,206 +115,208 @@ class _MobileLoginBottomSheetState extends State<MobileLoginBottomSheet> {
             top: 8,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 22),
-                  color: YakkuPalette.textPrimary,
-                ),
-              ),
-              const Text(
-                "Who's asking?",
-                style: TextStyle(
-                  fontSize: 30,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  color: YakkuPalette.textPrimary,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 28),
-              _RoundedField(
-                errorText: _nameError,
-                child: TextField(
-                  controller: _nameController,
-                  focusNode: _nameFocus,
-                  enabled: !_isSubmitting,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  cursorColor: YakkuPalette.primary,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, size: 22),
                     color: YakkuPalette.textPrimary,
                   ),
-                  onChanged: (_) {
-                    if (_nameError != null) {
-                      setState(() => _nameError = _validateName(_name));
-                    }
-                  },
-                  onSubmitted: (_) => _phoneFocus.requestFocus(),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    filled: true,
-                    fillColor: YakkuPalette.transparent,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    hintText: 'Name',
-                    hintStyle: TextStyle(
-                      color: YakkuPalette.hint,
-                      fontWeight: FontWeight.w500,
-                    ),
+                ),
+                const Text(
+                  "Who's asking?",
+                  style: TextStyle(
+                    fontSize: 30,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: YakkuPalette.textPrimary,
+                    letterSpacing: -0.6,
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              _RoundedField(
-                errorText: _phoneError,
-                child: TextField(
-                  controller: _phoneController,
-                  focusNode: _phoneFocus,
-                  enabled: !_isSubmitting,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
-                  maxLength: 10,
-                  cursorColor: YakkuPalette.primary,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: YakkuPalette.textPrimary,
-                    letterSpacing: 0.3,
-                  ),
-                  onChanged: (_) {
-                    if (_phoneError != null) {
-                      setState(() => _phoneError = _validatePhone(_digits));
-                    }
-                  },
-                  onSubmitted: (_) => _sendOtp(),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    filled: true,
-                    fillColor: YakkuPalette.transparent,
-                    counterText: '',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
+                const SizedBox(height: 28),
+                _RoundedField(
+                  errorText: _nameError,
+                  child: TextField(
+                    controller: _nameController,
+                    focusNode: _nameFocus,
+                    enabled: !_isSubmitting,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    cursorColor: YakkuPalette.primary,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: YakkuPalette.textPrimary,
                     ),
-                    hintText: '98xxx xxxxx',
-                    hintStyle: TextStyle(
-                      color: YakkuPalette.hint,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0,
-                    ),
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.only(left: 16, right: 2),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: 1,
-                        child: Text(
-                          '+91 ',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: YakkuPalette.hint,
-                          ),
-                        ),
+                    onChanged: (_) {
+                      if (_nameError != null) {
+                        setState(() => _nameError = _validateName(_name));
+                      }
+                    },
+                    onSubmitted: (_) => _phoneFocus.requestFocus(),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: YakkuPalette.transparent,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                    ),
-                    prefixIconConstraints: BoxConstraints(
-                      minWidth: 0,
-                      minHeight: 0,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Row(
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 14,
-                    color: YakkuPalette.textSecondary,
-                  ),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Code on WhatsApp. Friends never see your number.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.3,
-                        color: YakkuPalette.textSecondary,
+                      hintText: 'Name',
+                      hintStyle: TextStyle(
+                        color: YakkuPalette.hint,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              InkWell(
-                onTap: _isSubmitting
-                    ? null
-                    : () => setState(() => _isAdult = !_isAdult),
-                borderRadius: BorderRadius.circular(8),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: _isAdult
-                            ? YakkuPalette.primary
-                            : YakkuPalette.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: _isAdult
-                              ? YakkuPalette.primary
-                              : YakkuPalette.disabledMauve,
-                          width: 1.5,
+                ),
+                const SizedBox(height: 14),
+                _RoundedField(
+                  errorText: _phoneError,
+                  child: TextField(
+                    controller: _phoneController,
+                    focusNode: _phoneFocus,
+                    enabled: !_isSubmitting,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                    maxLength: 10,
+                    cursorColor: YakkuPalette.primary,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: YakkuPalette.textPrimary,
+                      letterSpacing: 0.3,
+                    ),
+                    onChanged: (_) {
+                      if (_phoneError != null) {
+                        setState(() => _phoneError = _validatePhone(_digits));
+                      }
+                    },
+                    onSubmitted: (_) => _sendOtp(),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: YakkuPalette.transparent,
+                      counterText: '',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      hintText: '98xxx xxxxx',
+                      hintStyle: TextStyle(
+                        color: YakkuPalette.hint,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                      ),
+                      prefixIcon: Padding(
+                        padding: EdgeInsets.only(left: 16, right: 2),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: 1,
+                          child: Text(
+                            '+91 ',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: YakkuPalette.hint,
+                            ),
+                          ),
                         ),
                       ),
-                      child: _isAdult
-                          ? const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: YakkuPalette.white,
-                            )
-                          : null,
+                      prefixIconConstraints: BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      "I'm 18 or older",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: YakkuPalette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 14,
+                      color: YakkuPalette.textSecondary,
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Code on WhatsApp. Friends never see your number.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.3,
+                          color: YakkuPalette.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 28),
-              AppButton(
-                label: _isSubmitting ? 'Sending...' : 'Send',
-                onPressed: _isSubmitting ? null : _sendOtp,
-              ),
-            ],
+                const SizedBox(height: 22),
+                InkWell(
+                  onTap: _isSubmitting
+                      ? null
+                      : () => setState(() => _isAdult = !_isAdult),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _isAdult
+                              ? YakkuPalette.primary
+                              : YakkuPalette.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _isAdult
+                                ? YakkuPalette.primary
+                                : YakkuPalette.disabledMauve,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: _isAdult
+                            ? const Icon(
+                                Icons.check,
+                                size: 14,
+                                color: YakkuPalette.white,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "I'm 18 or older",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: YakkuPalette.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                AppButton(
+                  label: _isSubmitting ? 'Sending...' : 'Send',
+                  onPressed: _isSubmitting ? null : _sendOtp,
+                ),
+              ],
+            ),
           ),
         ),
       ),
