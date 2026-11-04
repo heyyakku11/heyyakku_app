@@ -12,9 +12,20 @@ import 'package:yakku/data/models/notification/app_notification.dart';
 /// (newest first). Pull down to refresh; more load when the end is reached.
 /// Tapping a notification marks it as read.
 class NotificationList extends StatefulWidget {
-  const NotificationList({super.key, required this.source});
+  const NotificationList({
+    super.key,
+    required this.source,
+    this.header,
+    this.onAskSomething,
+  });
 
   final NotificationRemoteDataSource source;
+
+  /// Shown under the title, above the notifications (e.g. active cards).
+  final Widget? header;
+
+  /// Called from the empty state's button (switches to the Home tab).
+  final VoidCallback? onAskSomething;
 
   @override
   State<NotificationList> createState() => _NotificationListState();
@@ -145,10 +156,20 @@ class _NotificationListState extends State<NotificationList> {
         child: LayoutBuilder(
           builder: (context, constraints) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
             children: [
               SizedBox(
                 height: constraints.maxHeight,
-                child: const _Message(text: 'No notifications yet'),
+                child: Stack(
+                  children: [
+                    Center(child: _EmptyActivity(onAsk: widget.onAskSomething)),
+                    if (widget.header != null)
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: widget.header!,
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -171,7 +192,7 @@ class _NotificationListState extends State<NotificationList> {
         ),
         itemCount: rows.length + 1 + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == 0) return const _Header();
+          if (index == 0) return _Header(extra: widget.header);
           final rowIndex = index - 1;
           if (rowIndex >= rows.length) {
             return const Padding(
@@ -249,21 +270,29 @@ List<_Row> _buildRows(List<AppNotification> items) {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({this.extra});
+
+  final Widget? extra;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Center(
-        child: Text(
-          'Activity',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.onSurface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Text(
+              'Activity',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
           ),
-        ),
+          if (extra != null) ...[const SizedBox(height: 20), extra!],
+        ],
       ),
     );
   }
@@ -431,6 +460,77 @@ class _Message extends StatelessWidget {
               ),
             ),
             if (action != null) ...[const SizedBox(height: 12), action!],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyActivity extends StatelessWidget {
+  const _EmptyActivity({this.onAsk});
+
+  final VoidCallback? onAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: YakkuPalette.Blush.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 40,
+                color: YakkuPalette.Raspberry,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Nothing here yet',
+              style: TextStyle(
+                color: YakkuPalette.Ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'When friends answer your cards, results and reasons show up here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: YakkuPalette.Muted,
+                fontSize: 16,
+                height: 1.4,
+              ),
+            ),
+            if (onAsk != null) ...[
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: onAsk,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: YakkuPalette.Raspberry,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                  ),
+                  child: const Text(
+                    'Ask what’s on your mind',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

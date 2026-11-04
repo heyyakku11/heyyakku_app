@@ -9,38 +9,67 @@ class WriteOwnQuestionCta extends StatelessWidget {
   /// Defaults to opening the create-poll sheet with an empty draft.
   final VoidCallback? onTap;
 
-  static const _radius = 22.0;
+  static const _radius = 18.0;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: const _DashedBorderPainter(
-        color: YakkuPalette.primaryBright,
+        color: YakkuPalette.Raspberry,
         radius: _radius,
       ),
       child: Material(
-        color: YakkuPalette.primary.withValues(alpha: 0.04),
+        color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(_radius),
         child: InkWell(
           borderRadius: BorderRadius.circular(_radius),
           onTap: onTap ?? () => showCreatePollSheet(context),
-          child: const SizedBox(
-            height: 62,
+          child: SizedBox(
             width: double.infinity,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add, color: YakkuPalette.primary, size: 22),
-                SizedBox(width: 10),
-                Text(
-                  'Write your own question',
-                  style: TextStyle(
-                    color: YakkuPalette.primary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: YakkuPalette.Raspberry,
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: const Icon(
+                      Icons.add,
+                      color: YakkuPalette.white,
+                      size: 22,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Write your own',
+                          style: TextStyle(
+                            color: YakkuPalette.Ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Your Question, Your Opinions',
+                          style: TextStyle(
+                            color: YakkuPalette.Ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

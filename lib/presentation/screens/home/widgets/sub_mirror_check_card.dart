@@ -17,10 +17,6 @@ class MoreChecksSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (checks.isEmpty) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
-    final ink = theme.brightness == Brightness.dark
-        ? theme.colorScheme.onSurface
-        : YakkuPalette.textPrimary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,27 +25,35 @@ class MoreChecksSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Flexible(
-              child: Text(
-                'More checks',
-                style: TextStyle(
-                  color: ink,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                ),
-              ),
-            ),
-
-            Flexible(
-              child: Text(
-                'New every Monday',
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  color: theme.brightness == Brightness.dark
-                      ? theme.colorScheme.onSurfaceVariant
-                      : YakkuPalette.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Transform.rotate(
+                  angle: -0.05,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: YakkuPalette.Raspberry,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: YakkuPalette.Ink,
+                          offset: Offset(3, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      'More checks',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -58,10 +62,10 @@ class MoreChecksSection extends StatelessWidget {
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
-            final cardWidth = constraints.maxWidth * 0.82;
+            final cardWidth = constraints.maxWidth * 0.78;
 
             return SizedBox(
-              height: 280,
+              height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
@@ -97,61 +101,109 @@ class SubMirrorCheckCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final draft = AskFriendsCheck.fromMirrorCheck(check);
+    final headline = check.question.isNotEmpty ? check.question : check.title;
 
     return GestureDetector(
       onTap: () => openAskFriendsCheck(context, draft),
       child: DecoratedBox(
-        decoration: feedCardDecoration(check.backgroundColor),
+        decoration: feedCardDecoration(check.backgroundColor).copyWith(
+          border: Border.all(
+            color: check.foregroundColor.withValues(alpha: 0.25),
+          ),
+        ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 14, 16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (check.sticker != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FeedSticker(
-                    text: check.sticker!,
-                    color: check.accentColor,
-                  ),
-                ),
-              const SizedBox(height: 8),
               Text(
-                check.title,
+                check.title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: check.foregroundColor,
-                  fontSize: 24,
-                  height: 1.1,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                headline,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: YakkuPalette.Ink,
+                  fontSize: 22,
+                  height: 1.15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.4,
                 ),
               ),
-              if (check.question.isNotEmpty &&
-                  check.question != check.title) ...[
-                const SizedBox(height: 10),
-                Text(
-                  check.question,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: check.foregroundColor,
-                    fontSize: 18,
-                    height: 1.25,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              FeedOptionChips(
-                labels: [for (final option in check.options) option.label],
-                chipColor: check.chipColor,
-                textColor: check.foregroundColor,
-              ),
               const Spacer(),
-              FeedActionPill(
-                label: 'Ask my friends',
-                icon: Icons.ios_share,
-                onTap: () => openAskFriendsCheck(context, draft),
+              Row(
+                children: [
+                  _CardPill(
+                    label: 'Ask friends',
+                    filled: true,
+                    onTap: () => openAskFriendsCheck(context, draft),
+                  ),
+                  const SizedBox(width: 10),
+                  _CardPill(
+                    label: 'View',
+                    icon: Icons.visibility_outlined,
+                    onTap: () => openAskFriendsCheck(context, draft),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardPill extends StatelessWidget {
+  const _CardPill({
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.filled = false,
+  });
+
+  final String label;
+  final IconData? icon;
+  final bool filled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = filled ? Colors.white : YakkuPalette.Ink;
+    return Material(
+      color: filled ? YakkuPalette.Ink : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(color: YakkuPalette.Ink, width: filled ? 0 : 1),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: foreground),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),

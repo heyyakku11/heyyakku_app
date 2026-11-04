@@ -12,8 +12,8 @@ class CurrentMirrorCheckCard extends StatelessWidget {
 
   static const _defaultEyebrow = "THIS WEEK'S DROP";
   static const _defaultMeta = 'Ends Sunday';
-  static const _friendsAddOneLabel = 'Friends add one';
-  static const _hiddenPct = '??%';
+  static const _friendsAddOneLabel = 'Friends add their own';
+  static const _hiddenPct = '';
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +187,7 @@ class _CurrentCheckSticker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Transform.rotate(
-      angle: -0.08,
+      angle: 0.08,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: YakkuPalette.white.withValues(alpha: 0.72),
@@ -269,7 +269,7 @@ class _LetteredOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final outlined = option.outlined;
     final badgeColor = check.accentColor.withValues(alpha: 0.14);
-    final dashColor = check.foregroundColor.withValues(alpha: 0.35);
+    final dashColor = YakkuPalette.Raspberry.withAlpha(90);
 
     final row = Padding(
       padding: const EdgeInsets.fromLTRB(8, 7, 14, 7),
@@ -280,16 +280,13 @@ class _LetteredOption extends StatelessWidget {
             height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: outlined ? YakkuPalette.transparent : badgeColor,
+              color: outlined ? Colors.white : badgeColor,
               shape: BoxShape.circle,
-              border: outlined ? Border.all(color: dashColor) : null,
             ),
             child: Text(
               letter,
               style: TextStyle(
-                color: outlined
-                    ? check.foregroundColor.withValues(alpha: 0.7)
-                    : check.foregroundColor,
+                color: outlined ? YakkuPalette.Ink : check.foregroundColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -300,12 +297,14 @@ class _LetteredOption extends StatelessWidget {
             child: Text(
               option.label,
               style: TextStyle(
-                color: check.foregroundColor,
+                color: outlined ? YakkuPalette.Ink : check.foregroundColor,
                 fontSize: 15,
-                fontWeight: FontWeight.w600,
+                fontWeight: outlined ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ),
+          if (outlined)
+            const Icon(Icons.add, size: 22, color: YakkuPalette.Raspberry),
           if (option.trailing != null)
             Text(
               option.trailing!,
@@ -323,7 +322,13 @@ class _LetteredOption extends StatelessWidget {
     if (outlined) {
       return CustomPaint(
         painter: _DashedBorderPainter(color: dashColor, radius: 14),
-        child: row,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(50),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: row,
+        ),
       );
     }
 

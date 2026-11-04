@@ -28,7 +28,7 @@ class YourCardsSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Your cards',
+              'Active cards · ${cards.length}',
               style: TextStyle(
                 color: ink,
                 fontSize: 20,

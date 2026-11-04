@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
+import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -23,8 +24,9 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
-  static const _createNavIndex = 1;
-  static const _activityNavIndex = 2;
+  static const _homeNavIndex = 0;
+  static const _activityNavIndex = 1;
+  static const _profileNavIndex = 3;
 
   int _navIndex = 0;
   late final PageController _pageController;
@@ -46,29 +48,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     });
     _pageController = PageController();
   }
-
-  List<BottomNavigationBarItem> get _navItems => [
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.home_outlined),
-      activeIcon: Icon(Icons.home_rounded),
-      label: 'Home',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.add_circle_outline),
-      activeIcon: Icon(Icons.add_circle),
-      label: 'Create',
-    ),
-    BottomNavigationBarItem(
-      icon: _ActivityIcon(hasUnread: _unreadCount > 0),
-      activeIcon: _ActivityIcon(hasUnread: _unreadCount > 0),
-      label: 'Activity',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline_rounded),
-      activeIcon: Icon(Icons.person_rounded),
-      label: 'You',
-    ),
-  ];
 
   Future<void> _syncDeviceAndNotifications() async {
     if (!mounted || _notificationPromptStarted) return;
@@ -202,15 +181,6 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  int _pageToNav(int pageIndex) =>
-      pageIndex >= _createNavIndex ? pageIndex + 1 : pageIndex;
-
-  /// The page index of the profile tab in the [PageView].
-  static const int _profilePage = 2;
-
-  int _navToPage(int navIndex) =>
-      navIndex > _createNavIndex ? navIndex - 1 : navIndex;
-
   void _openCreateSheet() {
     showCreatePollSheet(context);
   }
@@ -228,21 +198,16 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     });
   }
 
-  void _onPageChanged(int pageIndex) {
-    final next = _pageToNav(pageIndex);
-    _markActivityReadOnExit(next);
-    setState(() => _navIndex = next);
+  void _onPageChanged(int index) {
+    _markActivityReadOnExit(index);
+    setState(() => _navIndex = index);
   }
 
-  void _onNavTap(int navIndex) {
-    if (navIndex == _createNavIndex) {
-      _openCreateSheet();
-      return;
-    }
-    final pageIndex = _navToPage(navIndex);
-    _markActivityReadOnExit(navIndex);
-    setState(() => _navIndex = navIndex);
-    _pageController.jumpToPage(pageIndex);
+  void _onNavTap(int index) {
+    if (index == _navIndex) return;
+    _markActivityReadOnExit(index);
+    setState(() => _navIndex = index);
+    _pageController.jumpToPage(index);
   }
 
   @override
@@ -254,31 +219,169 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         onPageChanged: _onPageChanged,
         children: [
           const HomeScreen(),
-          const InboxScreen(),
-          ProfileScreen(isActive: _navToPage(_navIndex) == _profilePage),
+          InboxScreen(onAskSomething: () => _onNavTap(_homeNavIndex)),
+          const _CommunityPlaceholder(),
+          ProfileScreen(isActive: _navIndex == _profileNavIndex),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: _navIndex == _homeNavIndex
+          ? _CreateFab(onPressed: _openCreateSheet)
+          : null,
+      bottomNavigationBar: _BottomBar(
         currentIndex: _navIndex,
+        showActivityDot: _unreadCount > 0,
         onTap: _onNavTap,
-        items: _navItems,
       ),
     );
   }
 }
 
-/// The Activity tab icon with a small dot when there is something unread.
-class _ActivityIcon extends StatelessWidget {
-  const _ActivityIcon({required this.hasUnread});
+/// The Create button: a raspberry circle with a hard ink shadow.
+class _CreateFab extends StatelessWidget {
+  const _CreateFab({required this.onPressed});
 
-  final bool hasUnread;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Badge(
-      isLabelVisible: hasUnread,
-      smallSize: 10,
-      child: const Icon(Icons.notifications),
+    return Semantics(
+      button: true,
+      label: 'Create',
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: const BoxDecoration(
+            color: YakkuPalette.Raspberry,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: YakkuPalette.Ink, offset: Offset(3, 4)),
+            ],
+          ),
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 34),
+        ),
+      ),
     );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({
+    required this.currentIndex,
+    required this.showActivityDot,
+    required this.onTap,
+  });
+
+  final int currentIndex;
+  final bool showActivityDot;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: YakkuPalette.Line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              _NavItem(
+                label: 'Home',
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home_rounded,
+                selected: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                label: 'Activity',
+                icon: Icons.notifications_none_rounded,
+                activeIcon: Icons.notifications_rounded,
+                selected: currentIndex == 1,
+                showDot: showActivityDot,
+                onTap: () => onTap(1),
+              ),
+              _NavItem(
+                label: 'Community',
+                icon: Icons.people_outline_rounded,
+                activeIcon: Icons.people_rounded,
+                selected: currentIndex == 2,
+                onTap: () => onTap(2),
+              ),
+              _NavItem(
+                label: 'You',
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                selected: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+    required this.selected,
+    required this.onTap,
+    this.showDot = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+  final bool selected;
+  final bool showDot;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? YakkuPalette.Raspberry : YakkuPalette.Muted;
+    return Expanded(
+      child: InkResponse(
+        onTap: onTap,
+        radius: 40,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Badge(
+              isLabelVisible: showDot,
+              smallSize: 9,
+              backgroundColor: YakkuPalette.Dot,
+              child: Icon(selected ? activeIcon : icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityPlaceholder extends StatelessWidget {
+  const _CommunityPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(child: Center(child: Text('Community coming soon')));
   }
 }

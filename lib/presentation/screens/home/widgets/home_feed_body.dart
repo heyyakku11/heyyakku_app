@@ -6,8 +6,6 @@ import 'package:yakku/data/models/home/question_worth_asking.dart';
 import 'package:yakku/presentation/screens/home/widgets/check_done_card.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/screens/home/widgets/mirror_check_card.dart';
-import 'package:yakku/presentation/screens/home/widgets/your_cards_section.dart';
-import 'package:yakku/presentation/screens/home/widgets/question_worth_asking_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/write_own_question_cta.dart';
 
@@ -48,7 +46,6 @@ class HomeFeedBody extends StatelessWidget {
     // The featured slot only shows as done once every check has been made.
     final featured = ordered.isEmpty ? null : ordered.first;
     final moreChecks = ordered.skip(1).toList();
-    final returning = myChecks.isNotEmpty;
     final theme = Theme.of(context);
     final ink = theme.brightness == Brightness.dark
         ? theme.colorScheme.onSurface
@@ -58,15 +55,11 @@ class HomeFeedBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        _FeedHeader(showTagline: !returning),
+        const _FeedHeader(),
         const SizedBox(height: 22),
         if (errorMessage != null) ...[
           Text(errorMessage!, style: TextStyle(color: ink)),
           const SizedBox(height: 22),
-        ],
-        if (returning) ...[
-          YourCardsSection(cards: myChecks),
-          const SizedBox(height: 24),
         ],
         if (featured != null) ...[
           if (featured.used) ...[
@@ -92,8 +85,6 @@ class HomeFeedBody extends StatelessWidget {
           onViewCard: (check) => _viewCard(context, check),
         ),
         const SizedBox(height: 28),
-        QuestionsWorthAskingSection(questions: questionsWorthAsking),
-        const SizedBox(height: 14),
         const WriteOwnQuestionCta(),
       ],
     );
@@ -101,18 +92,10 @@ class HomeFeedBody extends StatelessWidget {
 }
 
 class _FeedHeader extends StatelessWidget {
-  const _FeedHeader({this.showTagline = true});
-
-  /// Hidden once "Your cards" loads; the cards take its place.
-  final bool showTagline;
+  const _FeedHeader();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final ink = theme.brightness == Brightness.dark
-        ? colorScheme.onSurface
-        : YakkuPalette.textPrimary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,32 +104,20 @@ class _FeedHeader extends StatelessWidget {
           TextSpan(
             text: 'Yakku',
             style: TextStyle(
-              fontSize: 34,
+              fontSize: 28,
               height: 1,
               fontWeight: FontWeight.w800,
               letterSpacing: -1,
-              color: ink,
+              color: YakkuPalette.Ink,
             ),
             children: const [
               TextSpan(
                 text: '.',
-                style: TextStyle(color: YakkuPalette.primary),
+                style: TextStyle(color: YakkuPalette.Raspberry),
               ),
             ],
           ),
         ),
-        if (showTagline) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Ask your friends anything.\nThey answer anonymously.',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: ink,
-              fontSize: 24,
-              height: 1.28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
       ],
     );
   }
