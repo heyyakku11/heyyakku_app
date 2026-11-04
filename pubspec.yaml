@@ -102,16 +102,11 @@ flutter_launcher_icons:
   background_color_ios: "#FFF9F6"
 
 flutter_native_splash:
-  color: "#FFF9F6"
-  image: assets/launcher/splash_icon.png
-  android_gravity: center
-  ios_content_mode: center
+  color: "#D02E62"
   fullscreen: false
   web: false
   android_12:
-    color: "#FFF9F6"
-    image: assets/launcher/splash_icon.png
-    icon_background_color: "#FFF9F6"
+    color: "#D02E62"
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

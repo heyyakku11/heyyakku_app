@@ -9,6 +9,21 @@ abstract final class YakkuPalette {
   static const Color primaryDeep = Color(0xFFC72A5B);
   static const Color cardPink = Color(0xFFD9557F);
 
+  static const Color Raspberry = Color(0xFFD02E62);
+  static const Color Ink= Color(0xFF21191D);
+  static const Color Cream= Color(0xFFFFF9F6);
+  static const Color Muted= Color(0xFF6E5F66);
+  static const Color Line= Color(0xFFEFE3E6);
+  static const Color DefaultCard= Color(0xFFE8F6C3);
+  static const Color DefaultCardLabel= Color(0xFF4B5E12);
+
+  static const Color Gold= Color(0xFFFFC93C);
+  static const Color Dot= Color(0xFFE94F79);
+  static const Color Blush= Color(0xFFF7BACB);
+  static const Color Success= Color(0xFF245C3A);
+  static const Color Error= Color(0xFFB42318);
+  static const Color Night= Color(0xFF2A1846);
+
   // Surfaces
   static const Color cream = Color(0xFFFFF9F6);
   static const Color mist = Color(0xFFF1F5F4);
