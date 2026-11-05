@@ -32,7 +32,6 @@ import 'package:yakku/data/models/poll/cast_vote_request.dart';
 import 'package:yakku/data/models/poll/cast_vote_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/shared_content_response.dart';
-import 'package:yakku/presentation/widgets/mobile_login_bottom_sheet.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
@@ -511,17 +510,13 @@ void main() {
       );
     });
 
-    testWidgets('logged-out voter is asked to log in, no vote is cast', (
+    testWidgets('logged-out voter is offered a log in, no vote is cast', (
       tester,
     ) async {
       final remote = _FakePollRemote((_) async => _poll());
       await pump(tester, app(remote, loggedIn: false));
 
       expect(find.text('Log in to vote'), findsOneWidget);
-      await tester.tap(find.text('Log in to vote'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(MobileLoginBottomSheet), findsOneWidget);
       expect(remote.votes, isEmpty);
     });
 

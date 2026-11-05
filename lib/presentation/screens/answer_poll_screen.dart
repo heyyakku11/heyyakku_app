@@ -6,7 +6,7 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
+import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
 /// Voting screen for someone else's card, opened from a shared link. Mirrors
@@ -63,9 +63,8 @@ class _AnswerPollScreenState extends State<AnswerPollScreen> {
 
     final scope = AppScope.of(context);
     if (!scope.authController.isLoggedIn) {
-      // Voting needs a login. When it succeeds the card reloads for the
-      // signed-in user and the voter taps Send vote again.
-      await openMobileLogin(context);
+      // Voting needs an account.
+      openSignUp(context);
       return;
     }
     if (!_canSubmit) return;

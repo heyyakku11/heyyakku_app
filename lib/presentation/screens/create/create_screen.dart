@@ -14,8 +14,7 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
-import 'package:yakku/presentation/auth/open_ask_login.dart';
+import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/pick_hint_finger.dart';
@@ -415,8 +414,8 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   Future<void> _onPhotoChipTap() async {
     final auth = AppScope.of(context).authController;
     if (!auth.isLoggedIn) {
-      await openMobileLogin(context);
-      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+      openSignUp(context);
+      return;
     }
 
     final source = await showModalBottomSheet<ImageSource>(
@@ -629,14 +628,8 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     // Check authentication state before creating poll
     final auth = AppScope.of(context).authController;
     if (!auth.isLoggedIn) {
-      await openAskLogin(
-        context,
-        question: question,
-        optionCount: filled.length,
-      );
-      if (!mounted || !AppScope.of(context).authController.isLoggedIn) {
-        return;
-      }
+      openSignUp(context);
+      return;
     }
 
     setState(() => _isCreating = true);

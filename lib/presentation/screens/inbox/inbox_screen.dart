@@ -4,7 +4,7 @@ import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/home/widgets/your_cards_section.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
+import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/inbox/notification_list.dart';
 
 class InboxScreen extends StatefulWidget {
@@ -117,7 +117,7 @@ class _LoggedOutActivity extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () => openMobileLogin(context),
+                onPressed: () => openSignUp(context),
                 child: const Text('Log in'),
               ),
             ),

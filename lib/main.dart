@@ -23,6 +23,7 @@ import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/core/router/app_router.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source_impl.dart';
+import 'package:yakku/presentation/screens/splash_overlay.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/storage/preference_storage_service.dart';
 import 'package:yakku/core/storage/secure_storage_service.dart';
@@ -376,7 +377,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   authController: _authController,
                   guestTokenStore: _guestTokenStore,
                   navigatorKey: _rootNavigatorKey,
-                  child: InternetStatusListener(child: child),
+                  child: SplashOverlay(
+                    child: InternetStatusListener(child: child),
+                  ),
                 );
               },
             );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
 class ProfileOptionTile extends StatelessWidget {
@@ -12,9 +13,10 @@ class ProfileOptionTile extends StatelessWidget {
     this.showChevron = true,
     this.showDivider = false,
     this.badgeCount,
+    this.highlightBadge = false,
   });
 
-  final IconData icon;
+  final FaIconData icon;
   final String label;
   final VoidCallback? onTap;
   final Color? iconColor;
@@ -22,6 +24,9 @@ class ProfileOptionTile extends StatelessWidget {
   final bool showChevron;
   final bool showDivider;
   final int? badgeCount;
+
+  /// Fills the badge with the brand colour, for counts that need attention.
+  final bool highlightBadge;
 
   static const double iconSize = 22;
   static const double _gap = 12;
@@ -43,7 +48,12 @@ class ProfileOptionTile extends StatelessWidget {
             padding: padding,
             child: Row(
               children: [
-                Icon(icon, size: iconSize, color: iconColor),
+                SizedBox(
+                  width: iconSize,
+                  child: Center(
+                    child: FaIcon(icon, size: 18, color: iconColor),
+                  ),
+                ),
                 const SizedBox(width: _gap),
                 Expanded(
                   child: Text(
@@ -55,15 +65,15 @@ class ProfileOptionTile extends StatelessWidget {
                   ),
                 ),
                 if (badgeCount != null && badgeCount! > 0) ...[
-                  _CountBadge(count: badgeCount!),
+                  _CountBadge(count: badgeCount!, highlighted: highlightBadge),
                   const SizedBox(width: 8),
                 ],
                 if (trailing != null)
                   trailing!
                 else if (showChevron)
-                  Icon(
-                    Icons.chevron_right,
-                    size: 22,
+                  FaIcon(
+                    FontAwesomeIcons.chevronRight,
+                    size: 14,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
               ],
@@ -78,9 +88,10 @@ class ProfileOptionTile extends StatelessWidget {
 }
 
 class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.count});
+  const _CountBadge({required this.count, required this.highlighted});
 
   final int count;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -88,14 +99,14 @@ class _CountBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: YakkuPalette.blushSoft,
-        borderRadius: BorderRadius.all(Radius.circular(999)),
+      decoration: BoxDecoration(
+        color: highlighted ? YakkuPalette.primary : YakkuPalette.chipSand,
+        borderRadius: const BorderRadius.all(Radius.circular(999)),
       ),
       child: Text(
         '$count',
-        style: const TextStyle(
-          color: YakkuPalette.primary,
+        style: TextStyle(
+          color: highlighted ? YakkuPalette.white : YakkuPalette.textPrimary,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),

@@ -3,7 +3,7 @@ import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
-import 'package:yakku/presentation/screens/auth/ask_login_screen.dart';
+import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
@@ -94,19 +94,8 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     Future<Widget?> createNext() =>
         _createCheck(scope, answers[selected], selected, question, options);
 
-    // Guests log in on a screen that *replaces* this one; once verified, the
-    // login screen creates the check itself. Back there asks to discard.
     if (!scope.authController.isLoggedIn) {
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => AskLoginScreen(
-            question: question,
-            optionCount: options.length,
-            confirmDiscard: true,
-            onLoggedIn: createNext,
-          ),
-        ),
-      );
+      openSignUp(context);
       return;
     }
 

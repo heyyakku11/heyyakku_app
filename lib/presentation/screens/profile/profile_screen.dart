@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/auth/open_mobile_login.dart';
-import 'package:yakku/presentation/screens/profile/answered_polls_screen.dart';
+import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
 import 'package:yakku/presentation/screens/profile/my_asks_screen.dart';
 import 'package:yakku/presentation/screens/profile/saved_polls_screen.dart';
@@ -110,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openWhenLoggedIn(Widget screen) async {
     final loggedIn = AppScope.of(context).authController.isLoggedIn;
     if (!loggedIn) {
-      await openMobileLogin(context);
+      openSignUp(context);
       return;
     }
     if (!mounted) return;
@@ -212,34 +212,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         ProfileOptionTile(
-                          icon: Icons.format_list_bulleted,
-                          label: 'My asks',
+                          icon: FontAwesomeIcons.clone,
+                          label: 'My cards',
+                          badgeCount: _cards,
                           showDivider: true,
                           onTap: () => _openWhenLoggedIn(const MyAsksScreen()),
                         ),
                         ProfileOptionTile(
-                          icon: Icons.check,
-                          label: 'Votes cast',
-                          showDivider: true,
-                          onTap: () =>
-                              _openWhenLoggedIn(const AnsweredPollsScreen()),
-                        ),
-                        ProfileOptionTile(
-                          icon: Icons.forum_outlined,
-                          label: 'Ask back',
-                          badgeCount: askBackInbox.unreadTotal,
-                          showDivider: true,
-                          onTap: () async {
-                            if (!auth.isLoggedIn) {
-                              await openMobileLogin(context);
-                              return;
-                            }
-                            if (!context.mounted) return;
-                            await context.push(AppRoutes.askBack);
-                          },
-                        ),
-                        ProfileOptionTile(
-                          icon: Icons.edit_outlined,
+                          icon: FontAwesomeIcons.fileLines,
                           label: 'Drafts',
                           badgeCount: drafts.drafts.length,
                           showDivider: true,
@@ -252,10 +232,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                         ),
                         ProfileOptionTile(
-                          icon: Icons.bookmark_border,
-                          label: 'Saved',
+                          icon: FontAwesomeIcons.arrowRotateLeft,
+                          label: 'My ask backs',
+                          badgeCount: askBackInbox.unreadTotal,
+                          highlightBadge: true,
+                          showDivider: true,
+                          onTap: () async {
+                            if (!auth.isLoggedIn) {
+                              openSignUp(context);
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            await context.push(AppRoutes.askBack);
+                          },
+                        ),
+                        ProfileOptionTile(
+                          icon: FontAwesomeIcons.bookmark,
+                          label: 'Saved questions',
+                          showDivider: true,
                           onTap: () =>
                               _openWhenLoggedIn(const SavedPollsScreen()),
+                        ),
+                        ProfileOptionTile(
+                          icon: FontAwesomeIcons.gear,
+                          label: 'Settings',
+                          onTap: () => _openWhenLoggedIn(
+                            SettingsScreen(
+                              phoneNumber: phoneNumber,
+                              planName: _planName,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -307,7 +313,7 @@ class _GuestLoginPrompt extends StatelessWidget {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () => openMobileLogin(context),
+              onPressed: () => openSignUp(context),
               child: const Text('Log in'),
             ),
           ),
