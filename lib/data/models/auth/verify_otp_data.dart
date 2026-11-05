@@ -34,14 +34,12 @@ class VerifyOtpData {
 }
 
 class VerifyOtpUser {
-  final String name;
   final String anonymousName;
 
-  const VerifyOtpUser({required this.name, required this.anonymousName});
+  const VerifyOtpUser({required this.anonymousName});
 
   factory VerifyOtpUser.fromJson(Map<String, dynamic> json) {
     return VerifyOtpUser(
-      name: json['name'] as String? ?? '',
       anonymousName: json['anonymousName'] as String? ?? '',
     );
   }

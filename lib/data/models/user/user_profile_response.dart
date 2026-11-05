@@ -47,19 +47,16 @@ class UserProfileResponse {
 }
 
 class UserProfileDetails {
-  final String name;
   final String anonymousName;
   final String? avatarUrl;
 
   const UserProfileDetails({
-    required this.name,
     required this.anonymousName,
     this.avatarUrl,
   });
 
   factory UserProfileDetails.fromJson(Map<String, dynamic> json) {
     return UserProfileDetails(
-      name: json['name'] as String? ?? '',
       anonymousName: json['anonymousName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String?,
     );

@@ -56,16 +56,13 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<SendOtpData> sendOtp(String phoneNumber, {String? name}) {
-    return _authRemote.sendOtp(
-      SendOtpRequestModel(phoneNumber: phoneNumber, name: name),
-    );
+  Future<SendOtpData> sendOtp(String phoneNumber) {
+    return _authRemote.sendOtp(SendOtpRequestModel(phoneNumber: phoneNumber));
   }
 
   Future<void> verifyOtp({
     required String phone,
     required String otp,
-    String? firstName,
     String? guestToken,
     LoginDeviceModel? device,
   }) async {
@@ -79,12 +76,7 @@ class AuthController extends ChangeNotifier {
       refreshToken: data.auth.refreshToken,
     );
 
-    final trimmedName = firstName?.trim() ?? '';
-    final displayName = trimmedName.isNotEmpty
-        ? trimmedName
-        : (data.user.name.isNotEmpty
-              ? data.user.name
-              : data.user.anonymousName);
+    final displayName = data.user.anonymousName;
 
     await userPreferences.setPhoneNumber(phone);
     await userPreferences.setDisplayName(displayName);

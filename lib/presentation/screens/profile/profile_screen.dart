@@ -90,8 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final me = await scope.userRemote.getMe();
       if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
       setState(() {
-        final name =
-            _nonEmpty(me.profile.name) ?? _nonEmpty(me.profile.anonymousName);
+        final name = _nonEmpty(me.profile.anonymousName);
         final phone = _nonEmpty(me.account.phoneNumber);
         if (name != null) _name = name;
         _anonymousName = _nonEmpty(me.profile.anonymousName);

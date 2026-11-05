@@ -35,7 +35,7 @@ class LoginAuthService {
 
   /// Fire-and-forget send OTP. Callers may pop UI immediately and await
   /// [pendingSend] on the next screen.
-  void sendOtpInBackground({required String phone, String? name}) {
+  void sendOtpInBackground({required String phone}) {
     if (_worker.isPending(jobId) || isSending) return;
 
     final completer = Completer<SendOtpData>();
@@ -46,7 +46,7 @@ class LoginAuthService {
         id: jobId,
         type: jobType,
         maxRetries: 0,
-        execute: () => _authController.sendOtp(phone, name: name),
+        execute: () => _authController.sendOtp(phone),
       ),
     );
   }
