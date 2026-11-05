@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/app_scope.dart';
 
 /// Phone sign-up. Reached from onboarding by replacing the route, and it can't
 /// be popped: there is nothing behind it to go back to.
@@ -35,9 +38,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   bool get _canSend => _digits.length == _phoneLength && _isAdult;
 
+  /// Queues the OTP on the background worker and moves straight on; the OTP
+  /// screen observes the in-flight send and reports a failure there.
   void _sendCode() {
-    // TODO: send the OTP once the sign-up API is wired.
     FocusScope.of(context).unfocus();
+    AppScope.of(context).loginAuth.sendOtpInBackground(phone: '+91$_digits');
+    context.pushNamed(AppRoutes.otpName, extra: _digits);
   }
 
   OutlineInputBorder _border(Color color) => OutlineInputBorder(
@@ -148,6 +154,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
             height: _fieldHeight,
             child: TextField(
               controller: _phoneController,
+              // Fill the full field height so the border matches the +91 box
+              // exactly; otherwise the border hugs the text's own height.
+              expands: true,
+              maxLines: null,
+              minLines: null,
+              textAlignVertical: TextAlignVertical.center,
               keyboardType: TextInputType.phone,
               cursorColor: YakkuPalette.primary,
               inputFormatters: [
@@ -165,7 +177,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 hintStyle: const TextStyle(color: YakkuPalette.hint),
                 filled: true,
                 fillColor: YakkuPalette.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 0,
+                ),
                 enabledBorder: _border(YakkuPalette.primary),
                 focusedBorder: _border(YakkuPalette.primary),
               ),

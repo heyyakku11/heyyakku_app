@@ -141,18 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      onPressed: () => _openWhenLoggedIn(
-                        SettingsScreen(
-                          phoneNumber: phoneNumber,
-                          planName: _planName,
-                        ),
-                      ),
-                      icon: const Icon(Icons.settings_outlined),
-                    ),
-                  ),
+                  const SizedBox(height: 20),
                   if (loggedIn) ...[
                     CircleAvatar(
                       radius: 48,

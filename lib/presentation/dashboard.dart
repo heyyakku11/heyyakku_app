@@ -237,11 +237,27 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   }
 }
 
-/// The Create button: a raspberry circle with a hard ink shadow.
-class _CreateFab extends StatelessWidget {
+/// The Create button, drawn like the onboarding preview cards: a 2px ink
+/// border and a hard ink shadow straight down. Pressing pushes it onto its
+/// shadow.
+class _CreateFab extends StatefulWidget {
   const _CreateFab({required this.onPressed});
 
   final VoidCallback onPressed;
+
+  @override
+  State<_CreateFab> createState() => _CreateFabState();
+}
+
+class _CreateFabState extends State<_CreateFab> {
+  static const _diameter = 60.0;
+  static const _shadow = 4.0;
+
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,18 +265,46 @@ class _CreateFab extends StatelessWidget {
       button: true,
       label: 'Create',
       child: GestureDetector(
-        onTap: onPressed,
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: const BoxDecoration(
-            color: YakkuPalette.Raspberry,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(color: YakkuPalette.Ink, offset: Offset(3, 4)),
-            ],
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
+        onTap: widget.onPressed,
+        // Reserve the shadow's height so the button doesn't shift on press.
+        child: SizedBox(
+          width: _diameter,
+          height: _diameter + _shadow,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 80),
+              curve: Curves.easeOut,
+              width: _diameter,
+              height: _diameter,
+              alignment: Alignment.center,
+              transform: Matrix4.translationValues(
+                0,
+                _pressed ? _shadow : 0,
+                0,
+              ),
+              decoration: BoxDecoration(
+                color: YakkuPalette.Raspberry,
+                shape: BoxShape.circle,
+                border: Border.all(color: YakkuPalette.Ink, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: YakkuPalette.Ink,
+                    offset: Offset(0, _pressed ? 0 : _shadow),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 36,
+              ),
+            ),
           ),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 34),
         ),
       ),
     );

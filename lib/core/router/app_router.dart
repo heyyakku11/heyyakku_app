@@ -8,6 +8,7 @@ import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_chat_screen.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_list_screen.dart';
 import 'package:yakku/presentation/screens/onboarding_screen.dart';
+import 'package:yakku/presentation/screens/otp_screen.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
 import 'package:yakku/presentation/screens/poll_results_screen.dart';
 import 'package:yakku/presentation/screens/sign_up_screen.dart';
@@ -27,7 +28,9 @@ abstract final class AppRouter {
       redirect: (context, state) {
         final canEnter = authController.canEnterApp;
         final onOnboarding = state.matchedLocation == AppRoutes.onboarding;
-        final onSignUp = state.matchedLocation == AppRoutes.signUp;
+        final onOtp = state.matchedLocation == AppRoutes.otp;
+        final onSignUp =
+            state.matchedLocation == AppRoutes.signUp || onOtp;
 
         if (!canEnter && !onOnboarding && !onSignUp) {
           // Keep a shared-poll destination through onboarding / login.
@@ -81,6 +84,17 @@ abstract final class AppRouter {
                   );
                 },
           ),
+        ),
+        GoRoute(
+          path: AppRoutes.otp,
+          name: AppRoutes.otpName,
+          builder: (context, state) {
+            final phone = state.extra;
+            if (phone is! String || phone.length != 10) {
+              return const SignUpScreen();
+            }
+            return OtpScreen(phoneDigits: phone);
+          },
         ),
         GoRoute(
           path: AppRoutes.main,

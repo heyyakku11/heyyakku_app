@@ -1,6 +1,7 @@
 abstract final class AppRoutes {
   static const onboarding = '/onboarding';
   static const signUp = '/sign-up';
+  static const otp = '/sign-up/otp';
   static const main = '/main';
   static const pollAnswer = '/polls/answer';
   static const pollResults = '/polls/results';
@@ -17,6 +18,7 @@ abstract final class AppRoutes {
 
   static const onboardingName = 'onboarding';
   static const signUpName = 'signUp';
+  static const otpName = 'otp';
   static const askBackName = 'askBack';
   static const askBackChatName = 'askBackChat';
   static const mainName = 'main';
