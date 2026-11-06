@@ -95,6 +95,38 @@ class SharePayload {
     );
   }
 
+  /// The link friends open to answer someone's personality card:
+  /// `https://<website>/personality/{shareCode}`. The "question" is the
+  /// card's title, which share adapters use as the message headline.
+  factory SharePayload.personality({
+    required String shareCode,
+    String websiteBaseUrl = ApiConstants.webBaseUrl,
+  }) {
+    final code = shareCode.trim();
+    if (!PollDeepLink.isValidShareCode(code)) {
+      throw const SharePayloadException(SharePayloadError.invalidShareCode);
+    }
+    final base = Uri.tryParse(websiteBaseUrl.trim());
+    final host = base?.host.toLowerCase() ?? '';
+    if (base == null || base.scheme != 'https' || host.isEmpty) {
+      throw const SharePayloadException(SharePayloadError.invalidBaseUrl);
+    }
+    return SharePayload._(
+      shareCode: code,
+      question: 'Describe me in 3 words',
+      url: Uri(
+        scheme: 'https',
+        host: base.host,
+        port: base.hasPort ? base.port : null,
+        pathSegments: [
+          ...base.pathSegments.where((s) => s.isNotEmpty),
+          'personality',
+          code,
+        ],
+      ),
+    );
+  }
+
   factory SharePayload.fromPollModel(
     PollModel poll, {
     String websiteBaseUrl = ApiConstants.webBaseUrl,

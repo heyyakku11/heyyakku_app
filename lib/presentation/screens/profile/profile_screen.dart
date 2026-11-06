@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yakku/core/network/api_exception.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
@@ -11,6 +13,7 @@ import 'package:yakku/presentation/screens/profile/draft_screen.dart';
 import 'package:yakku/presentation/screens/profile/my_asks_screen.dart';
 import 'package:yakku/presentation/screens/profile/saved_polls_screen.dart';
 import 'package:yakku/presentation/screens/profile/settings_screen.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -27,7 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   String? _phoneNumber;
-  String? _anonymousName;
+  bool _regenerating = false;
   String? _planName;
   int _cards = 0;
   int _votes = 0;
@@ -59,6 +62,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  /// One authorized call: the server picks a new unique name, saves it and
+  /// returns it. Ignored while a request is already running.
+  Future<void> _regenerateName() async {
+    if (_regenerating) return;
+    final scope = AppScope.of(context);
+    setState(() => _regenerating = true);
+    try {
+      final name = await scope.userRemote.regenerateAnonymousName();
+      await scope.authController.updateDisplayName(name);
+      if (!mounted) return;
+      setState(() {
+        _name = name;
+      });
+      AppToast.show('Your anonymous name is now $name');
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(_regenerateErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _regenerating = false);
+    }
+  }
+
+  String _regenerateErrorMessage(Object error) {
+    final api = DioErrorMapper.map(
+      error,
+      fallback: 'Could not change your name. Please try again.',
+    );
+    if (api.code == 'ANONYMOUS_NAME_UNAVAILABLE') {
+      return 'Could not find a free name right now. Please try again.';
+    }
+    return switch (api.kind) {
+      ApiErrorKind.rateLimited =>
+        'You are changing your name too fast. Try again in a minute.',
+      ApiErrorKind.connection ||
+      ApiErrorKind.timeout => 'No connection. Check your network and retry.',
+      _ => api.message,
+    };
+  }
+
   void _onAuthChanged() {
     if (!mounted) return;
     final loggedIn = AppScope.of(context).authController.isLoggedIn;
@@ -66,7 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _name = null;
         _phoneNumber = null;
-        _anonymousName = null;
         _planName = null;
         _cards = 0;
         _votes = 0;
@@ -93,7 +134,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final name = _nonEmpty(me.profile.anonymousName);
         final phone = _nonEmpty(me.account.phoneNumber);
         if (name != null) _name = name;
-        _anonymousName = _nonEmpty(me.profile.anonymousName);
         if (phone != null) _phoneNumber = phone;
         final plan = _nonEmpty(me.account.currentPlan?.name);
         if (plan != null) _planName = plan;
@@ -165,17 +205,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    if (_anonymousName != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        _anonymousName!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                    const SizedBox(height: 4),
+                    TextButton.icon(
+                      onPressed: _regenerating ? null : _regenerateName,
+                      icon: _regenerating
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const FaIcon(FontAwesomeIcons.shuffle, size: 13),
+                      label: Text(
+                        _regenerating
+                            ? 'Changing name…'
+                            : 'Regenerate anonymous name',
                       ),
-                    ],
+                    ),
                     // if (phoneNumber != null) ...[
                     //   const SizedBox(height: 4),
                     //   Text(

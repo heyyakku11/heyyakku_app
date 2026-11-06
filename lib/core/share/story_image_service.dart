@@ -44,8 +44,17 @@ class StoryImageService {
     required String question,
     List<String> options = const [],
   }) async {
+    return _writePng(await renderPng(question: question, options: options));
+  }
+
+  /// Like [render], for any 360x640 [widget] (for example the personality
+  /// card story).
+  Future<File> renderWidget(Widget widget) async {
+    return _writePng(await renderWidgetPng(widget));
+  }
+
+  Future<File> _writePng(Uint8List bytes) async {
     try {
-      final bytes = await renderPng(question: question, options: options);
       final dir = Directory('${(await _tempDir()).path}/$_folder');
       await _clearDir(dir);
       await dir.create(recursive: true);
@@ -68,6 +77,11 @@ class StoryImageService {
     if (question.trim().isEmpty) {
       throw const StoryImageException('Question is empty.');
     }
+    return renderWidgetPng(StoryCard(question: question, options: options));
+  }
+
+  /// Encodes any [content] sized [StoryCard.size] as PNG bytes (1080x1920).
+  Future<Uint8List> renderWidgetPng(Widget content) async {
     final view =
         _view ?? WidgetsBinding.instance.platformDispatcher.views.first;
     const size = StoryCard.size;
@@ -92,7 +106,7 @@ class StoryImageService {
           textDirection: TextDirection.ltr,
           child: MediaQuery(
             data: const MediaQueryData(size: size),
-            child: StoryCard(question: question, options: options),
+            child: content,
           ),
         ),
       ).attachToRenderTree(buildOwner);

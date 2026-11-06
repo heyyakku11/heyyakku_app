@@ -10,6 +10,10 @@ abstract final class ApiConstants {
   /// Public privacy policy and terms page on the website.
   static const String policyUrl = '$webBaseUrl/policy';
 
+  /// The link friends open to vote on someone's personality card.
+  static String personalityCardUrl(String shareCode) =>
+      '$webBaseUrl/personality/$shareCode';
+
   static String publicPollUrl(String shareCode) =>
       '$webBaseUrl/vote/$shareCode';
 }

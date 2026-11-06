@@ -88,6 +88,15 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Keeps the stored display name in step with the server after the user
+  /// regenerates their anonymous name.
+  Future<void> updateDisplayName(String displayName) async {
+    if (displayName.isEmpty || displayName == _displayName) return;
+    await userPreferences.setDisplayName(displayName);
+    _displayName = displayName;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     final refreshToken = _tokenStore.refreshToken;
     final accessToken = _tokenStore.accessToken;

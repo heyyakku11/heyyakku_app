@@ -16,7 +16,11 @@ class HomeFeedBody extends StatelessWidget {
     this.myChecks = const [],
     this.errorMessage,
     required this.questionsWorthAsking,
+    this.leading,
   });
+
+  /// Shown first, above the checks (the personality card).
+  final Widget? leading;
 
   final List<MirrorCheck> mirrorChecks;
   final List<UserCheckResponse> myChecks;
@@ -55,8 +59,7 @@ class HomeFeedBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        const _FeedHeader(),
-        const SizedBox(height: 22),
+        if (leading != null) ...[leading!, const SizedBox(height: 24)],
         if (errorMessage != null) ...[
           Text(errorMessage!, style: TextStyle(color: ink)),
           const SizedBox(height: 22),
@@ -86,38 +89,6 @@ class HomeFeedBody extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         const WriteOwnQuestionCta(),
-      ],
-    );
-  }
-}
-
-class _FeedHeader extends StatelessWidget {
-  const _FeedHeader();
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text.rich(
-          TextSpan(
-            text: 'Yakku',
-            style: TextStyle(
-              fontSize: 28,
-              height: 1,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1,
-              color: YakkuPalette.Ink,
-            ),
-            children: const [
-              TextSpan(
-                text: '.',
-                style: TextStyle(color: YakkuPalette.Raspberry),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

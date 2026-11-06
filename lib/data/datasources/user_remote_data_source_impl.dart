@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
+import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
@@ -32,6 +33,100 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     }
 
     return apiResponse.data!;
+  }
+
+  @override
+  Future<PersonalityCard> getMyPersonalityCard() async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.myPersonalityCard,
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty personality card response');
+    }
+
+    final apiResponse = ApiResponse<PersonalityCard>.fromJson(
+      body,
+      (json) => PersonalityCard.fromJson(json as Map<String, dynamic>),
+    );
+    final card = apiResponse.data;
+    if (!apiResponse.success || card == null) {
+      throw StateError(apiResponse.message ?? 'Failed to load personality card');
+    }
+    return card;
+  }
+
+  @override
+  Future<PersonalitySelfAssessment> submitSelfAssessment(
+    List<String> traitIds,
+  ) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.personalitySelfAssessment,
+      data: <String, dynamic>{'traitIds': traitIds},
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty self-assessment response');
+    }
+
+    final apiResponse = ApiResponse<PersonalitySelfAssessment>.fromJson(
+      body,
+      (json) => PersonalitySelfAssessment.fromJson(json as Map<String, dynamic>),
+    );
+    final result = apiResponse.data;
+    if (!apiResponse.success || result == null) {
+      throw StateError(apiResponse.message ?? 'Failed to save your guess');
+    }
+    return result;
+  }
+
+  @override
+  Future<List<PersonalityTrait>> getPersonalityTraits() async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.personalityTraits,
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty personality traits response');
+    }
+
+    final apiResponse = ApiResponse<List<PersonalityTrait>>.fromJson(body, (
+      json,
+    ) {
+      return [
+        if (json is List)
+          for (final item in json)
+            if (item is Map<String, dynamic>) PersonalityTrait.fromJson(item),
+      ];
+    });
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Failed to load traits');
+    }
+    return apiResponse.data ?? const [];
+  }
+
+  @override
+  Future<String> regenerateAnonymousName() async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.regenerateAnonymousName,
+    );
+
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty regenerate anonymous name response');
+    }
+
+    final apiResponse = ApiResponse<String>.fromJson(body, (json) {
+      final data = json is Map<String, dynamic> ? json : const <String, dynamic>{};
+      return data['anonymousName'] as String? ?? '';
+    });
+
+    final name = apiResponse.data;
+    if (!apiResponse.success || name == null || name.isEmpty) {
+      throw StateError(apiResponse.message ?? 'Failed to update anonymous name');
+    }
+
+    return name;
   }
 
   @override

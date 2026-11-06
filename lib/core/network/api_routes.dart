@@ -52,6 +52,12 @@ abstract final class ApiRoutes {
   // User
   static const String getMe = '/api/v1/users';
   static const String deleteMe = '/api/v1/users/me';
+  static const String personalityTraits = '/api/v1/personality/traits';
+  static const String myPersonalityCard = '/api/v1/personality-cards/me';
+  static const String personalitySelfAssessment =
+      '/api/v1/personality-cards/me/self-assessment';
+  static const String regenerateAnonymousName =
+      '/api/v1/users/me/anonymous-name';
 
   // Notifications
   static const String notifications = '/api/v1/notifications';

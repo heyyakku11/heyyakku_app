@@ -1,3 +1,4 @@
+import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
@@ -6,6 +7,23 @@ import 'package:yakku/data/models/user/user_profile_response.dart';
 
 abstract interface class UserRemoteDataSource {
   Future<UserProfileResponse> getMe();
+
+  /// `POST /api/v1/users/me/anonymous-name`: the server picks a new unique
+  /// name, saves it to the profile and returns it.
+  Future<String> regenerateAnonymousName();
+
+  /// `GET /api/v1/personality-cards/me`: the signed-in user's own card.
+  Future<PersonalityCard> getMyPersonalityCard();
+
+  /// `POST /api/v1/personality-cards/me/self-assessment`: claims exactly 3
+  /// distinct traits for the user's own card. Allowed once; the card then
+  /// starts collecting friends' votes.
+  Future<PersonalitySelfAssessment> submitSelfAssessment(
+    List<String> traitIds,
+  );
+
+  /// `GET /api/v1/personality/traits`: the predefined traits friends pick from.
+  Future<List<PersonalityTrait>> getPersonalityTraits();
 
   Future<PollsPage> getSavedPolls({String? cursor});
 

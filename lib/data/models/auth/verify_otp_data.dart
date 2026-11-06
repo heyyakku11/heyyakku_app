@@ -4,7 +4,7 @@
 /// {
 ///   "purpose": "Registration",
 ///   "accountRestored": false,
-///   "user": { "name": "...", "anonymousName": "..." },
+///   "user": { "anonymousName": "..." },
 ///   "auth": { "accessToken": "...", "refreshToken": "...", ... }
 /// }
 /// ```
