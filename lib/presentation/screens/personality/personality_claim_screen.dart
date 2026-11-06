@@ -68,7 +68,7 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
   /// first!" sticker to point at what is missing.
   void _nudge() {
     if (_complete || _submitting) return;
-    HapticFeedback.heavyImpact();
+    HapticFeedback.warningNotification();
     _shake.forward(from: 0);
   }
 
