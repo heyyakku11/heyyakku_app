@@ -11,6 +11,9 @@ abstract final class StorageKeys {
   static const hasEnteredAsGuest = 'hasEnteredAsGuest';
   static const phoneNumber = 'phoneNumber';
 
+  /// The avatar background colour chosen on the edit-profile screen.
+  static const avatarColor = 'avatarColor';
+
   /// Legacy prefs key; kept for one-time migration to [phoneNumber].
   static const legacyEmail = 'email';
   static const displayName = 'displayName';
@@ -21,4 +24,7 @@ abstract final class StorageKeys {
   // You tab privacy settings kept on device (not sent to the server).
   static const privacyTellVoters = 'privacyTellVoters';
   static const privacyKindMode = 'privacyKindMode';
+
+  /// "Notify me when it opens" on the Community placeholder (device only).
+  static const communityNotifyMe = 'communityNotifyMe';
 }

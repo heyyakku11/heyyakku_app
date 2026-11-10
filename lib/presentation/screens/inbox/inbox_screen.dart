@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
-import 'package:yakku/data/models/checks/user_check_response.dart';
+import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/home/widgets/your_cards_section.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
+import 'package:yakku/presentation/screens/inbox/active_cards_strip.dart';
 import 'package:yakku/presentation/screens/inbox/notification_list.dart';
+import 'package:yakku/presentation/screens/profile/open_own_card.dart';
+import 'package:yakku/presentation/screens/share/open_card_share.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key, this.onAskSomething});
@@ -19,7 +21,7 @@ class InboxScreen extends StatefulWidget {
 class _InboxScreenState extends State<InboxScreen> {
   CheckApiRepository? _checkApi;
   bool? _wasLoggedIn;
-  List<UserCheckResponse> _myChecks = const [];
+  List<PollModel> _active = const [];
 
   @override
   void didChangeDependencies() {
@@ -46,15 +48,51 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   Future<void> _load() async {
-    final api = _checkApi;
-    if (api == null) return;
+    if (!(_wasLoggedIn ?? false)) {
+      if (_active.isNotEmpty) setState(() => _active = const []);
+      return;
+    }
     try {
-      final data = await api.loadHome(loggedIn: _wasLoggedIn ?? false);
+      final polls = await AppScope.of(context).activityPolls.getCreatedPolls();
       if (!mounted) return;
-      setState(() => _myChecks = data.myChecks);
+      setState(() => _active = _activeCards(polls));
     } catch (_) {
       // Keep the cards already shown; the notifications still load.
     }
+  }
+
+  /// Live cards first, then the ones that ended with a result in the last week.
+  List<PollModel> _activeCards(List<PollModel> polls) {
+    final now = DateTime.now();
+    bool live(PollModel p) =>
+        p.status.isActive && (p.expiresAt == null || p.expiresAt!.isAfter(now));
+    bool recentlyEnded(PollModel p) =>
+        !live(p) &&
+        p.resultsUnlocked &&
+        p.closedAt != null &&
+        now.difference(p.closedAt!).inDays < 7;
+    return [
+      for (final p in polls)
+        if (live(p)) p,
+      for (final p in polls)
+        if (recentlyEnded(p)) p,
+    ];
+  }
+
+  Future<void> _open(PollModel card) async {
+    final changed = await openOwnCardResults(context, card);
+    if (changed && mounted) await _load();
+  }
+
+  Future<void> _shareAgain(PollModel card) {
+    return openCardShare(
+      context,
+      shareCode: card.shareCode,
+      title: card.isCheck ? (card.checkTitle ?? '') : '',
+      question: card.question,
+      options: [for (final o in card.options) o.text ?? ''],
+      minVotes: card.minVotes,
+    );
   }
 
   @override
@@ -72,9 +110,13 @@ class _InboxScreenState extends State<InboxScreen> {
             return NotificationList(
               source: AppScope.of(context).notifications,
               onAskSomething: widget.onAskSomething,
-              header: _myChecks.isEmpty
+              header: _active.isEmpty
                   ? null
-                  : YourCardsSection(cards: _myChecks),
+                  : ActiveCardsStrip(
+                      cards: _active,
+                      onOpen: _open,
+                      onShareAgain: _shareAgain,
+                    ),
             );
           },
         ),

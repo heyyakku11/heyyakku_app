@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/router/app_routes.dart';
@@ -7,6 +8,7 @@ import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_format.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
+import 'package:yakku/presentation/screens/profile/my_cards_screen.dart';
 
 /// The user's Ask Back conversations: each one is a private chat about a vote's
 /// reason, with the other person shown only by their anonymous name.
@@ -55,71 +57,185 @@ class _AskBackListScreenState extends State<AskBackListScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ask back')),
+      backgroundColor: YakkuPalette.cream,
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: inbox,
-          builder: (context, _) {
-            if (!inbox.hasLoaded && inbox.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!inbox.hasLoaded && inbox.error != null) {
-              return _Message(
-                icon: Icons.cloud_off_rounded,
-                title: 'Could not load conversations',
-                body: inbox.error!,
-                action: FilledButton(
-                  onPressed: inbox.refresh,
-                  child: const Text('Try again'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            IconButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              tooltip: 'Back',
+              icon: const FaIcon(
+                FontAwesomeIcons.chevronLeft,
+                size: 16,
+                color: YakkuPalette.Ink,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+              child: Text(
+                'My ask backs',
+                style: TextStyle(
+                  color: YakkuPalette.Ink,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
                 ),
-              );
-            }
-            if (inbox.items.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: inbox.refresh,
-                child: LayoutBuilder(
-                  builder: (context, constraints) => ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      SizedBox(
-                        height: constraints.maxHeight,
-                        child: const _Message(
-                          icon: Icons.forum_outlined,
-                          title: 'No conversations yet',
-                          body:
-                              'When you ask someone back about their reason, the private chat shows up here.',
-                        ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Chats about a reason. 1 question \u2192 1 reply, open for 24 hours.',
+                style: TextStyle(
+                  color: YakkuPalette.textSecondary,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: inbox,
+                builder: (context, _) {
+                  if (!inbox.hasLoaded && inbox.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!inbox.hasLoaded && inbox.error != null) {
+                    return _Message(
+                      icon: Icons.cloud_off_rounded,
+                      title: 'Could not load conversations',
+                      body: inbox.error!,
+                      action: FilledButton(
+                        onPressed: inbox.refresh,
+                        child: const Text('Try again'),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: inbox.refresh,
-              child: ListView.separated(
-                controller: _scroll,
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: inbox.items.length + (inbox.isLoadingMore ? 1 : 0),
-                separatorBuilder: (_, _) => Divider(
-                  height: 1,
-                  indent: 72,
-                  color: theme.dividerColor.withValues(alpha: 0.4),
-                ),
-                itemBuilder: (context, index) {
-                  if (index >= inbox.items.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     );
                   }
-                  return _ConversationTile(item: inbox.items[index]);
+                  if (inbox.items.isEmpty) {
+                    return RefreshIndicator(
+                      onRefresh: inbox.refresh,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: constraints.maxHeight,
+                              child: _EmptyState(
+                                onSeeCards: () =>
+                                    Navigator.of(context).push<void>(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const MyCardsScreen(),
+                                      ),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: inbox.refresh,
+                    child: ListView.separated(
+                      controller: _scroll,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount:
+                          inbox.items.length + (inbox.isLoadingMore ? 1 : 0),
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        indent: 72,
+                        color: theme.dividerColor.withValues(alpha: 0.4),
+                      ),
+                      itemBuilder: (context, index) {
+                        if (index >= inbox.items.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        return _ConversationTile(item: inbox.items[index]);
+                      },
+                    ),
+                  );
                 },
               ),
-            );
-          },
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown while the user has no ask-back chats yet.
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onSeeCards});
+
+  final VoidCallback onSeeCards;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 84,
+            height: 84,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: YakkuPalette.pinkWash,
+            ),
+            child: const FaIcon(
+              FontAwesomeIcons.arrowRotateLeft,
+              size: 28,
+              color: YakkuPalette.Raspberry,
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'No ask backs yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: YakkuPalette.Ink,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'When a friend leaves a reason on your card, tap Ask back to chat '
+            'about it. Anonymous both ways.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: YakkuPalette.textSecondary,
+              fontSize: 14.5,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: onSeeCards,
+            style: FilledButton.styleFrom(
+              backgroundColor: YakkuPalette.Ink,
+              foregroundColor: YakkuPalette.white,
+              minimumSize: const Size(0, 52),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              shape: const StadiumBorder(),
+            ),
+            child: const Text(
+              'See my cards',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -172,7 +288,9 @@ class _ConversationTile extends StatelessWidget {
           Text(
             AskBackFormat.listTime(last?.createdAt ?? item.lastActivityAt),
             style: theme.textTheme.bodySmall?.copyWith(
-              color: unread ? YakkuPalette.primary : theme.colorScheme.onSurfaceVariant,
+              color: unread
+                  ? YakkuPalette.primary
+                  : theme.colorScheme.onSurfaceVariant,
               fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -286,7 +404,9 @@ class _Message extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 6),
             Text(

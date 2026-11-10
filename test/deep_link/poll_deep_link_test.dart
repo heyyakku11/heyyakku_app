@@ -36,6 +36,7 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
+import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 
 const _id = 'aB3dE5gH7k';
@@ -170,6 +171,7 @@ class _Scope extends StatelessWidget {
       askBack: _F16(),
       askBackRealtime: _F17(),
       askBackInbox: _F18(),
+      personalityCards: PersonalityCardStore(remote: _F10(), auth: auth),
       child: child,
     );
   }

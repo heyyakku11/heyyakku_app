@@ -70,6 +70,16 @@ class _NotificationPermissionScreenState
       // The choice is stored locally and the device is updated in the
       // background; a failed sync must not block the user.
     }
+
+    // The first answer covers both permissions: allowed turns push and ask
+    // backs on, anything else (Not now, or the system denying it) turns both
+    // off. They can be changed one by one later in Settings.
+    try {
+      await scope.userRemote.updateSettings(allowAskBack: granted);
+    } catch (_) {
+      // Settings can still be changed later; a failed sync must not block the
+      // user here.
+    }
     if (mounted) Navigator.of(context).pop(granted);
   }
 

@@ -129,6 +129,18 @@ class _NotificationListState extends State<NotificationList> {
     }
   }
 
+  Future<void> _markAllRead() async {
+    final before = _items;
+    setState(() {
+      _items = [for (final item in _items) item.copyWith(isRead: true)];
+    });
+    try {
+      await widget.source.markAllRead();
+    } catch (_) {
+      if (mounted) setState(() => _items = before);
+    }
+  }
+
   /// Marks the notification read and opens the card's results screen.
   Future<void> _open(AppNotification item) async {
     unawaited(_markRead(item));
@@ -147,6 +159,30 @@ class _NotificationListState extends State<NotificationList> {
       return _Message(
         text: _error!,
         action: TextButton(onPressed: _load, child: const Text('Try again')),
+      );
+    }
+
+    // Active cards are activity too: with some, there is no empty state, just
+    // the title and the cards.
+    if (_items.isEmpty && widget.header != null) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            16,
+            AppSpacing.screen,
+            AppSpacing.screen,
+          ),
+          children: [
+            _Header(
+              extra: widget.header,
+              hasUnread: false,
+              onMarkAll: _markAllRead,
+            ),
+          ],
+        ),
       );
     }
 
@@ -192,7 +228,13 @@ class _NotificationListState extends State<NotificationList> {
         ),
         itemCount: rows.length + 1 + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == 0) return _Header(extra: widget.header);
+          if (index == 0) {
+            return _Header(
+              extra: widget.header,
+              hasUnread: _items.any((item) => !item.isRead),
+              onMarkAll: _markAllRead,
+            );
+          }
           final rowIndex = index - 1;
           if (rowIndex >= rows.length) {
             return const Padding(
@@ -215,9 +257,8 @@ class _NotificationListState extends State<NotificationList> {
 }
 
 enum _Group {
-  today('Today'),
-  yesterday('Yesterday'),
-  earlier('Earlier');
+  today('TODAY'),
+  earlier('EARLIER');
 
   const _Group(this.label);
   final String label;
@@ -228,22 +269,17 @@ _Group _groupOf(DateTime createdAt) {
   final today = DateTime(now.year, now.month, now.day);
   final local = createdAt.toLocal();
   final day = DateTime(local.year, local.month, local.day);
-  final days = today.difference(day).inDays;
-  if (days <= 0) return _Group.today;
-  if (days == 1) return _Group.yesterday;
-  return _Group.earlier;
+  return today.difference(day).inDays <= 0 ? _Group.today : _Group.earlier;
 }
 
-/// Clock time for Today and Yesterday (e.g. "3:45 PM"); the date for older ones.
+/// How long ago: "now", "2m", "1h", "3d".
 String _timeLabel(DateTime createdAt) {
-  final local = createdAt.toLocal();
-  if (_groupOf(createdAt) == _Group.earlier) {
-    return '${local.day}/${local.month}/${local.year}';
-  }
-  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
-  final minute = local.minute.toString().padLeft(2, '0');
-  final period = local.hour < 12 ? 'AM' : 'PM';
-  return '$hour:$minute $period';
+  final d = DateTime.now().difference(createdAt);
+  if (d.inMinutes < 1) return 'now';
+  if (d.inHours < 1) return '${d.inMinutes}m';
+  if (d.inDays < 1) return '${d.inHours}h';
+  if (d.inDays < 7) return '${d.inDays}d';
+  return '${(d.inDays / 7).floor()}w';
 }
 
 class _Row {
@@ -270,28 +306,50 @@ List<_Row> _buildRows(List<AppNotification> items) {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({this.extra});
+  const _Header({this.extra, required this.hasUnread, required this.onMarkAll});
 
   final Widget? extra;
+  final bool hasUnread;
+  final VoidCallback onMarkAll;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Text(
-              'Activity',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Activity',
+                  style: TextStyle(
+                    color: YakkuPalette.Ink,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
+                  ),
+                ),
               ),
-            ),
+              if (hasUnread)
+                TextButton(
+                  onPressed: onMarkAll,
+                  style: TextButton.styleFrom(
+                    foregroundColor: YakkuPalette.Raspberry,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: const Size(0, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Mark all read',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
+                ),
+            ],
           ),
-          if (extra != null) ...[const SizedBox(height: 20), extra!],
+          if (extra != null) ...[const SizedBox(height: 14), extra!],
         ],
       ),
     );
@@ -306,42 +364,29 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
       child: Text(
         group.label,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        style: const TextStyle(
+          fontSize: 11.5,
+          letterSpacing: 0.8,
+          fontWeight: FontWeight.w800,
+          color: YakkuPalette.textSecondary,
         ),
       ),
     );
   }
 }
 
-class _Style {
-  const _Style(this.icon, this.background);
-
-  final IconData icon;
-  final Color background;
-}
-
-/// Icon and pastel tint for a notification, picked from its event type.
-_Style _styleOf(AppNotification item) {
+/// The little face shown for chat-like notifications (a reply, someone asking
+/// back); null for the rest.
+Color? _avatarColor(AppNotification item) {
   final key = '${item.eventType} ${item.type}'.toLowerCase();
-  if (key.contains('ready') || key.contains('result')) {
-    return const _Style(Icons.check_rounded, YakkuPalette.pinkTint);
+  if (key.contains('ask')) return const Color(0xFFB9DDF7);
+  if (key.contains('repl') || key.contains('message')) {
+    return const Color(0xFFF6B7CB);
   }
-  if (key.contains('vote')) {
-    return const _Style(Icons.people_alt_outlined, YakkuPalette.accentYellow);
-  }
-  if (key.contains('option')) {
-    return const _Style(Icons.edit_outlined, YakkuPalette.accentPurple);
-  }
-  return const _Style(
-    Icons.chat_bubble_outline_rounded,
-    YakkuPalette.accentGreen,
-  );
+  return null;
 }
 
 class _NotificationTile extends StatelessWidget {
@@ -357,9 +402,7 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = _styleOf(item);
-    final ink = YakkuPalette.textPrimary;
+    final avatar = _avatarColor(item);
 
     return InkWell(
       onTap: onTap,
@@ -367,22 +410,46 @@ class _NotificationTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           border: showDivider
-              ? Border(bottom: BorderSide(color: theme.dividerColor))
+              ? const Border(bottom: BorderSide(color: YakkuPalette.roseBorder))
               : null,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: style.background,
+            // Unread dot, kept as a column so read and unread rows line up.
+            SizedBox(
+              width: 20,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: item.isRead
+                    ? null
+                    : Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: YakkuPalette.Raspberry,
+                        ),
+                      ),
               ),
-              child: Icon(style.icon, size: 22, color: ink),
             ),
-            const SizedBox(width: 14),
+            if (avatar != null) ...[
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: avatar),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _Eye(),
+                    SizedBox(width: 5),
+                    _Eye(),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,48 +457,52 @@ class _NotificationTile extends StatelessWidget {
                   Text(
                     item.title,
                     style: TextStyle(
+                      color: YakkuPalette.Ink,
                       fontSize: 15,
-                      height: 1.3,
-                      fontWeight: item.isRead
-                          ? FontWeight.w600
-                          : FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
+                      height: 1.25,
+                      fontWeight: item.isRead ? FontWeight.w700 : FontWeight.w900,
                     ),
                   ),
                   if (item.body.isNotEmpty) ...[
                     const SizedBox(height: 3),
                     Text(
                       item.body,
-                      style: TextStyle(
+                      style: const TextStyle(
+                        color: YakkuPalette.textSecondary,
                         fontSize: 13,
-                        height: 1.3,
-                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.35,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 3),
-                  Text(
-                    _timeLabel(item.createdAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
                 ],
               ),
             ),
-            if (!item.isRead)
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(left: 10),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: YakkuPalette.primaryBright,
-                ),
+            const SizedBox(width: 10),
+            Text(
+              _timeLabel(item.createdAt),
+              style: const TextStyle(
+                color: YakkuPalette.textSecondary,
+                fontSize: 11.5,
               ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Eye extends StatelessWidget {
+  const _Eye();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4.5,
+      height: 4.5,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: YakkuPalette.Ink,
       ),
     );
   }

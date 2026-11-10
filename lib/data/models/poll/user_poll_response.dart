@@ -31,10 +31,25 @@ class UserPollResponse {
   final String status;
   final String visibility;
   final DateTime createdAt;
+
+  /// When the card stops taking votes by itself; null when it has no expiry.
+  final DateTime? expiresAt;
+
+  /// When the card was closed; null while it is live.
+  final DateTime? closedAt;
   final int totalVoteCount;
   final int customAnswerCount;
   final int totalWhyCount;
+
+  /// Votes from others needed before results show, and how many so far.
+  final int minVotes;
+  final int voteProgress;
+  final bool resultsUnlocked;
   final List<UserPollOptionResponse> pollOptions;
+
+  /// Only for checks: the check's title and background colour (hex).
+  final String? checkTitle;
+  final String? checkColor;
 
   const UserPollResponse({
     this.kind = 'poll',
@@ -49,6 +64,13 @@ class UserPollResponse {
     this.shareCode = '',
     this.customAnswerCount = 0,
     this.totalWhyCount = 0,
+    this.expiresAt,
+    this.closedAt,
+    this.minVotes = 0,
+    this.voteProgress = 0,
+    this.resultsUnlocked = false,
+    this.checkTitle,
+    this.checkColor,
   });
 
   factory UserPollResponse.fromJson(Map<String, dynamic> json) {
@@ -65,6 +87,17 @@ class UserPollResponse {
       totalVoteCount: _asInt(json['totalVoteCount']),
       customAnswerCount: _asInt(json['customAnswerCount']),
       totalWhyCount: _asInt(json['totalWhyCount']),
+      expiresAt: _parseDate(json['expiresAt']),
+      closedAt: _parseDate(json['closedAt']),
+      minVotes: _asInt(json['minVotes']),
+      voteProgress: _asInt(json['voteProgress']),
+      resultsUnlocked: json['resultsUnlocked'] as bool? ?? false,
+      checkTitle: (json['check'] is Map)
+          ? (json['check'] as Map)['title']?.toString()
+          : null,
+      checkColor: (json['check'] is Map)
+          ? (json['check'] as Map)['backgroundColor']?.toString()
+          : null,
       pollOptions: rawOptions
           .whereType<Map>()
           .map(

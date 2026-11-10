@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +9,7 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/personality/personality_share_screen.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
+import 'package:yakku/presentation/widgets/guess_flow_widgets.dart';
 
 /// Two steps: (1) the user claims 3 traits that describe themselves, then (2)
 /// they share their card so friends can vote on it.
@@ -121,9 +121,12 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
     if (!_claimed) {
       setState(() => _submitting = true);
       try {
-        final result = await AppScope.of(
-          context,
-        ).userRemote.submitSelfAssessment(List.of(_selected));
+        final scope = AppScope.of(context);
+        final result = await scope.userRemote.submitSelfAssessment(
+          List.of(_selected),
+        );
+        // Tell every screen showing the card: draft becomes collecting now.
+        scope.personalityCards.applySelfAssessment(result);
         if (!mounted) return;
         setState(() {
           _claimed = true;
@@ -148,6 +151,7 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
       MaterialPageRoute(
         builder: (_) => PersonalityShareScreen(
           shareCode: _shareCode,
+          minVotes: widget.card.requiredVotes,
           traits: [for (final trait in _traits) trait.name],
         ),
       ),
@@ -195,9 +199,9 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
                     color: YakkuPalette.Ink,
                   ),
                 ),
-                _Stepper(step2: step2),
+                GuessStepper(step2: step2),
                 const SizedBox(height: 18),
-                const _WhoTag(),
+                const GuessTag(label: 'WHO YOU ARE'),
                 const SizedBox(height: 12),
                 const Text(
                   'Describe me in 3 words',
@@ -213,7 +217,7 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
                 _buildStickerRow(step2),
                 const SizedBox(height: 22),
                 Expanded(child: SingleChildScrollView(child: _buildTraits())),
-                const _OnlyYouSee(),
+                const GuessPrivacyNote(),
                 const SizedBox(height: 12),
                 _buildAskNow(),
               ],
@@ -228,46 +232,12 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedBuilder(
-          animation: _shake,
-          builder: (context, child) {
-            // A damped swing: rotates one way, then the other around its own
-            // centre (so it stays in place), settling back to its tilt.
-            final decay = 1 - Curves.easeOut.transform(_shake.value);
-            final wave = math.sin(_shake.value * math.pi * 6) * decay;
-            return Transform.rotate(angle: wave * 0.16, child: child);
-          },
-          child: Transform.rotate(
-            angle: -0.07,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: YakkuPalette.Gold,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: YakkuPalette.Ink, width: 1.5),
-                boxShadow: const [
-                  BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 3)),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                child: Text(
-                  step2 ? 'Your guess' : 'You guess first!',
-                  style: const TextStyle(
-                    fontFamily: 'Pacifico',
-                    color: YakkuPalette.Ink,
-                    fontSize: 26,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
+        GuessSticker(
+          text: step2 ? 'Your guess' : 'You guess first!',
+          shake: _shake,
         ),
         const SizedBox(width: 6),
-        const Padding(padding: EdgeInsets.only(top: 6), child: _CurvedArrow()),
+        const Padding(padding: EdgeInsets.only(top: 6), child: GuessArrow()),
         const Spacer(),
         Padding(
           padding: const EdgeInsets.only(top: 22),
@@ -323,221 +293,12 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
   }
 
   Widget _buildAskNow() {
-    final enabled = _complete && !_submitting;
-    // A disabled button swallows taps, so listen above it and shake instead.
-    return GestureDetector(
-      onTap: enabled ? null : _nudge,
-      behavior: HitTestBehavior.opaque,
-      child: AbsorbPointer(absorbing: !enabled, child: _askNowButton(enabled)),
-    );
-  }
-
-  Widget _askNowButton(bool enabled) {
-    return SizedBox(
-      width: double.infinity,
-      height: 58,
-      child: FilledButton(
-        onPressed: enabled ? _askNow : null,
-        style: FilledButton.styleFrom(
-          backgroundColor: YakkuPalette.Raspberry,
-          disabledBackgroundColor: YakkuPalette.Raspberry.withValues(
-            alpha: 0.18,
-          ),
-          foregroundColor: YakkuPalette.white,
-          disabledForegroundColor: YakkuPalette.Raspberry.withValues(
-            alpha: 0.45,
-          ),
-          shape: const StadiumBorder(),
-        ),
-        child: _submitting
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: YakkuPalette.white,
-                ),
-              )
-            : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.ios_share_rounded, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Ask now',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-/// A hand-drawn style arrow: it leaves the sticker, curves over and points
-/// down at the traits.
-class _CurvedArrow extends StatelessWidget {
-  const _CurvedArrow();
-
-  @override
-  Widget build(BuildContext context) {
-    return const CustomPaint(
-      size: Size(40, 34),
-      painter: _CurvedArrowPainter(YakkuPalette.Ink),
-    );
-  }
-}
-
-class _CurvedArrowPainter extends CustomPainter {
-  const _CurvedArrowPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.6
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    // Designed on a 40 x 34 canvas and scaled to the actual size.
-    final sx = size.width / 40;
-    final sy = size.height / 34;
-    Offset o(double x, double y) => Offset(x * sx, y * sy);
-
-    final shaft = Path()
-      ..moveTo(o(3, 8).dx, o(3, 8).dy)
-      ..cubicTo(
-        o(14, 2).dx,
-        o(14, 2).dy,
-        o(30, 3).dx,
-        o(30, 3).dy,
-        o(33, 24).dx,
-        o(33, 24).dy,
-      );
-    canvas.drawPath(shaft, paint);
-
-    // Open arrowhead at the tip.
-    final head = Path()
-      ..moveTo(o(26, 18).dx, o(26, 18).dy)
-      ..lineTo(o(33, 25).dx, o(33, 25).dy)
-      ..lineTo(o(38, 16).dx, o(38, 16).dy);
-    canvas.drawPath(head, paint);
-  }
-
-  @override
-  bool shouldRepaint(_CurvedArrowPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
-
-class _Stepper extends StatelessWidget {
-  const _Stepper({required this.step2});
-
-  final bool step2;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _StepDot(number: 1, label: 'Your guess', active: !step2, done: step2),
-        Expanded(
-          child: Container(
-            height: 1.5,
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            color: step2
-                ? YakkuPalette.Ink
-                : YakkuPalette.Raspberry.withValues(alpha: 0.2),
-          ),
-        ),
-        _StepDot(number: 2, label: 'Ask now', active: step2, done: false),
-      ],
-    );
-  }
-}
-
-class _StepDot extends StatelessWidget {
-  const _StepDot({
-    required this.number,
-    required this.label,
-    required this.active,
-    required this.done,
-  });
-
-  final int number;
-  final String label;
-  final bool active;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color fill = done
-        ? YakkuPalette.Ink
-        : active
-        ? YakkuPalette.Raspberry
-        : YakkuPalette.white;
-    final Color text = done || active ? YakkuPalette.white : YakkuPalette.Ink;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
-          child: done
-              ? const FaIcon(
-                  FontAwesomeIcons.check,
-                  size: 11,
-                  color: YakkuPalette.white,
-                )
-              : Text(
-                  '$number',
-                  style: TextStyle(
-                    color: text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: active ? YakkuPalette.Ink : YakkuPalette.textSecondary,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _WhoTag extends StatelessWidget {
-  const _WhoTag();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        color: YakkuPalette.white,
-        borderRadius: BorderRadius.all(Radius.circular(999)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Text(
-          'WHO YOU ARE',
-          style: TextStyle(
-            color: YakkuPalette.Raspberry,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
+    return GuessAskButton(
+      enabled: _complete && !_submitting,
+      loading: _submitting,
+      onPressed: _askNow,
+      // Fewer than 3 picked: shake the sticker to point at what is missing.
+      onDisabledTap: _nudge,
     );
   }
 }
@@ -597,31 +358,6 @@ class _TraitChip extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _OnlyYouSee extends StatelessWidget {
-  const _OnlyYouSee();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.lock_outline_rounded, size: 14, color: YakkuPalette.Ink),
-          SizedBox(width: 6),
-          Text(
-            'Only you see your guess.',
-            style: TextStyle(
-              color: YakkuPalette.Ink,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

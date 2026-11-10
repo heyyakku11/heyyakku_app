@@ -65,6 +65,22 @@ class PersonalityCard {
 
   bool get isCompleted => status == PersonalityCardStatus.completed;
 
+  PersonalityCard copyWith({
+    String? shareCode,
+    PersonalityCardStatus? status,
+    List<PersonalityTrait>? selfTraits,
+    int? totalVotes,
+    int? requiredVotes,
+  }) {
+    return PersonalityCard(
+      shareCode: shareCode ?? this.shareCode,
+      status: status ?? this.status,
+      selfTraits: selfTraits ?? this.selfTraits,
+      totalVotes: totalVotes ?? this.totalVotes,
+      requiredVotes: requiredVotes ?? this.requiredVotes,
+    );
+  }
+
   factory PersonalityCard.fromJson(Map<String, dynamic> json) {
     final traits = json['selfTraits'];
     return PersonalityCard(
@@ -77,6 +93,53 @@ class PersonalityCard {
       ],
       totalVotes: json['totalVotes'] as int? ?? 0,
       requiredVotes: json['requiredVotes'] as int? ?? 0,
+    );
+  }
+}
+
+/// One trait with how many friends picked it.
+class PersonalityTraitCount {
+  const PersonalityTraitCount({
+    required this.id,
+    required this.name,
+    required this.votes,
+  });
+
+  final String id;
+  final String name;
+  final int votes;
+
+  factory PersonalityTraitCount.fromJson(Map<String, dynamic> json) {
+    return PersonalityTraitCount(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      votes: json['votes'] as int? ?? 0,
+    );
+  }
+}
+
+/// "You vs the crowd": `GET /api/v1/personality-cards/{shareCode}/results`,
+/// available once the card is completed.
+class PersonalityResults {
+  const PersonalityResults({
+    required this.totalVotes,
+    required this.crowdTopTraits,
+  });
+
+  final int totalVotes;
+
+  /// What friends picked most, most-picked first.
+  final List<PersonalityTraitCount> crowdTopTraits;
+
+  factory PersonalityResults.fromJson(Map<String, dynamic> json) {
+    final top = json['crowdTopTraits'];
+    return PersonalityResults(
+      totalVotes: json['totalVotes'] as int? ?? 0,
+      crowdTopTraits: [
+        if (top is List)
+          for (final item in top)
+            if (item is Map<String, dynamic>) PersonalityTraitCount.fromJson(item),
+      ],
     );
   }
 }

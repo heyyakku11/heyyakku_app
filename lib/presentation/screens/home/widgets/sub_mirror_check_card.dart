@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
-import 'package:yakku/presentation/screens/home/widgets/check_done_card.dart';
+import 'package:yakku/presentation/screens/home/widgets/check_preview_dialog.dart';
 import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
 
 class MoreChecksSection extends StatelessWidget {
-  const MoreChecksSection({super.key, required this.checks, this.onViewCard});
+  const MoreChecksSection({super.key, required this.checks});
 
   final List<MirrorCheck> checks;
-
-  /// Opens the user's card for a made check.
-  final void Function(MirrorCheck check)? onViewCard;
 
   @override
   Widget build(BuildContext context) {
@@ -74,14 +71,7 @@ class MoreChecksSection extends StatelessWidget {
                 itemBuilder: (context, index) {
                   return SizedBox(
                     width: cardWidth,
-                    child: checks[index].used
-                        ? CheckDoneCard(
-                            check: checks[index],
-                            onViewCard: onViewCard == null
-                                ? null
-                                : () => onViewCard!(checks[index]),
-                          )
-                        : SubMirrorCheckCard(check: checks[index]),
+                    child: SubMirrorCheckCard(check: checks[index]),
                   );
                 },
               ),
@@ -144,7 +134,7 @@ class SubMirrorCheckCard extends StatelessWidget {
               Row(
                 children: [
                   _CardPill(
-                    label: 'Ask friends',
+                    label: 'Ask now',
                     filled: true,
                     onTap: () => openAskFriendsCheck(context, draft),
                   ),
@@ -152,7 +142,7 @@ class SubMirrorCheckCard extends StatelessWidget {
                   _CardPill(
                     label: 'View',
                     icon: Icons.visibility_outlined,
-                    onTap: () => openAskFriendsCheck(context, draft),
+                    onTap: () => showCheckPreviewDialog(context, draft),
                   ),
                 ],
               ),

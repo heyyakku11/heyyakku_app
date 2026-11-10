@@ -1,18 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:yakku/core/network/api_exception.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
+import 'package:yakku/core/profile/avatar_preferences.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
-import 'package:yakku/presentation/screens/profile/my_asks_screen.dart';
+import 'package:yakku/presentation/screens/profile/my_cards_screen.dart';
 import 'package:yakku/presentation/screens/profile/saved_polls_screen.dart';
+import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
+import 'package:yakku/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:yakku/presentation/screens/profile/settings_screen.dart';
+import 'package:yakku/presentation/screens/profile/widgets/profile_avatar.dart';
+import 'package:yakku/presentation/screens/profile/widgets/profile_personality_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
 
@@ -29,12 +34,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
-  String? _phoneNumber;
-  bool _regenerating = false;
-  String? _planName;
+  final _avatarPrefs = AvatarPreferences();
+  AvatarColor _avatarColor = AvatarColors.defaultColor;
   int _cards = 0;
-  int _votes = 0;
-  int _streak = 0;
+
+  /// Visual only for now: Community is not built yet, so nothing is saved.
+  bool _showInCommunity = true;
   AuthController? _authController;
 
   @override
@@ -44,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       _authController = AppScope.of(context).authController;
       _authController!.addListener(_onAuthChanged);
+      _loadAvatar();
       _loadProfile();
     });
   }
@@ -62,43 +68,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  /// One authorized call: the server picks a new unique name, saves it and
-  /// returns it. Ignored while a request is already running.
-  Future<void> _regenerateName() async {
-    if (_regenerating) return;
-    final scope = AppScope.of(context);
-    setState(() => _regenerating = true);
-    try {
-      final name = await scope.userRemote.regenerateAnonymousName();
-      await scope.authController.updateDisplayName(name);
-      if (!mounted) return;
-      setState(() {
-        _name = name;
-      });
-      AppToast.show('Your anonymous name is now $name');
-    } catch (error) {
-      if (!mounted) return;
-      AppToast.show(_regenerateErrorMessage(error));
-    } finally {
-      if (mounted) setState(() => _regenerating = false);
-    }
+  Future<void> _loadAvatar() async {
+    final color = await _avatarPrefs.load();
+    if (!mounted) return;
+    setState(() => _avatarColor = color);
   }
 
-  String _regenerateErrorMessage(Object error) {
-    final api = DioErrorMapper.map(
-      error,
-      fallback: 'Could not change your name. Please try again.',
+  /// Opens the edit screen (new name, avatar colour); the colour is picked up
+  /// again when it closes. A new name arrives through the auth controller.
+  Future<void> _openEdit(String name) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            EditProfileScreen(name: name, avatarColor: _avatarColor),
+      ),
     );
-    if (api.code == 'ANONYMOUS_NAME_UNAVAILABLE') {
-      return 'Could not find a free name right now. Please try again.';
-    }
-    return switch (api.kind) {
-      ApiErrorKind.rateLimited =>
-        'You are changing your name too fast. Try again in a minute.',
-      ApiErrorKind.connection ||
-      ApiErrorKind.timeout => 'No connection. Check your network and retry.',
-      _ => api.message,
-    };
+    if (mounted) await _loadAvatar();
   }
 
   void _onAuthChanged() {
@@ -107,11 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!loggedIn) {
       setState(() {
         _name = null;
-        _phoneNumber = null;
-        _planName = null;
         _cards = 0;
-        _votes = 0;
-        _streak = 0;
       });
       return;
     }
@@ -124,26 +105,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _name = _nonEmpty(scope.authController.displayName);
-      _phoneNumber = _nonEmpty(scope.authController.phoneNumber);
     });
+    unawaited(AppScope.of(context).personalityCards.refresh());
 
     try {
       final me = await scope.userRemote.getMe();
       if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
       setState(() {
         final name = _nonEmpty(me.profile.anonymousName);
-        final phone = _nonEmpty(me.account.phoneNumber);
         if (name != null) _name = name;
-        if (phone != null) _phoneNumber = phone;
-        final plan = _nonEmpty(me.account.currentPlan?.name);
-        if (plan != null) _planName = plan;
-        // The server computes these (cards = polls + checks made, votes = votes cast
-        // on other people's cards, streak = the running day streak).
+        // The server counts the cards made (polls + checks).
         _cards = me.stats.cardsMade;
-        _votes = me.stats.votesCast;
-        _streak = me.stats.streak.currentStreak;
       });
     } catch (_) {}
+  }
+
+  Future<void> _onPersonalityAsk() async {
+    final store = AppScope.of(context).personalityCards;
+    final card = store.card;
+    if (card == null) return;
+    await openPersonalityAsk(context, card, store.traits);
   }
 
   Future<void> _openWhenLoggedIn(Widget screen) async {
@@ -162,19 +143,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final auth = AppScope.of(context).authController;
     final drafts = AppScope.of(context).draftPolls;
+    final cards = AppScope.of(context).personalityCards;
     final askBackInbox = AppScope.of(context).askBackInbox;
     final theme = Theme.of(context);
 
     return Scaffold(
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: Listenable.merge([auth, drafts, askBackInbox]),
+          listenable: Listenable.merge([auth, drafts, askBackInbox, cards]),
           builder: (context, _) {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
-            final phoneNumber = _phoneNumber ?? _nonEmpty(auth.phoneNumber);
             final name = displayName ?? 'You';
-            final initial = _initial(displayName);
 
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -183,18 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   const SizedBox(height: 20),
                   if (loggedIn) ...[
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: YakkuPalette.avatarPink,
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          color: YakkuPalette.textPrimary,
-                          fontSize: 34,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+                    ProfileAvatar(color: _avatarColor.color),
                     const SizedBox(height: 14),
                     Text(
                       name,
@@ -205,20 +174,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    TextButton.icon(
-                      onPressed: _regenerating ? null : _regenerateName,
-                      icon: _regenerating
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const FaIcon(FontAwesomeIcons.shuffle, size: 13),
-                      label: Text(
-                        _regenerating
-                            ? 'Changing name…'
-                            : 'Regenerate anonymous name',
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () => _openEdit(name),
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 14,
+                              color: YakkuPalette.Raspberry,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Edit name and avatar',
+                              style: TextStyle(
+                                color: YakkuPalette.Raspberry,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     // if (phoneNumber != null) ...[
@@ -232,8 +215,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     //     ),
                     //   ),
                     // ],
-                    const SizedBox(height: 18),
-                    _StatsCard(cards: _cards, votes: _votes, streak: _streak),
+                    if (cards.card != null) ...[
+                      const SizedBox(height: 14),
+                      ProfilePersonalityCard(
+                        card: cards.card!,
+                        traitCount: cards.traits.length,
+                        topTraits: cards.topTraits,
+                        showInCommunity: _showInCommunity,
+                        onAskNow: _onPersonalityAsk,
+                        onFullResult: () =>
+                            AppToast.show('Full results are coming soon'),
+                        onShowInCommunityChanged: (value) =>
+                            setState(() => _showInCommunity = value),
+                      ),
+                    ],
                   ] else ...[
                     const _GuestLoginPrompt(),
                   ],
@@ -249,21 +244,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: 'My cards',
                           badgeCount: _cards,
                           showDivider: true,
-                          onTap: () => _openWhenLoggedIn(const MyAsksScreen()),
+                          onTap: () => _openWhenLoggedIn(const MyCardsScreen()),
                         ),
-                        ProfileOptionTile(
-                          icon: FontAwesomeIcons.fileLines,
-                          label: 'Drafts',
-                          badgeCount: drafts.drafts.length,
-                          showDivider: true,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (context) => const DraftScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                        if (drafts.drafts.isNotEmpty)
+                          ProfileOptionTile(
+                            icon: FontAwesomeIcons.fileLines,
+                            label: 'Drafts',
+                            badgeCount: drafts.drafts.length,
+                            showDivider: true,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (context) => const DraftScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ProfileOptionTile(
                           icon: FontAwesomeIcons.arrowRotateLeft,
                           label: 'My ask backs',
@@ -289,12 +285,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ProfileOptionTile(
                           icon: FontAwesomeIcons.gear,
                           label: 'Settings',
-                          onTap: () => _openWhenLoggedIn(
-                            SettingsScreen(
-                              phoneNumber: phoneNumber,
-                              planName: _planName,
-                            ),
-                          ),
+                          onTap: () =>
+                              _openWhenLoggedIn(const SettingsScreen()),
                         ),
                       ],
                     ),
@@ -356,79 +348,8 @@ class _GuestLoginPrompt extends StatelessWidget {
   }
 }
 
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({
-    required this.cards,
-    required this.votes,
-    required this.streak,
-  });
-
-  final int cards;
-  final int votes;
-  final int streak;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.cardTheme.color ?? YakkuPalette.white,
-      borderRadius: BorderRadius.circular(22),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
-        child: Row(
-          children: [
-            _Stat(value: '$cards', label: 'Cards'),
-            _Stat(value: '$votes', label: 'Votes'),
-            _Stat(value: '$streak', label: 'Day streak'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 String? _nonEmpty(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
   return trimmed;
-}
-
-String _initial(String? name) {
-  final trimmed = name?.trim();
-  if (trimmed == null || trimmed.isEmpty) return 'Y';
-  return trimmed[0].toUpperCase();
 }

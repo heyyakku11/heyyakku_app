@@ -7,6 +7,10 @@ abstract final class ApiConstants {
 
   static const String baseUrl = isAppLive ? liveBasebaseUrl : stagingBaseUrl;
 
+  /// Where "Email to" and "Report a problem" in settings send mail. Empty until
+  /// the real support address is set; the rows then explain that.
+  static const String supportEmail = 'support@heyyakku.com';
+
   /// Public privacy policy and terms page on the website.
   static const String policyUrl = '$webBaseUrl/policy';
 

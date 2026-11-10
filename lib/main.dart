@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
@@ -49,6 +50,7 @@ import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
+import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
@@ -57,6 +59,11 @@ import 'package:yakku/presentation/widgets/internet_status_listener.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // The app is portrait only.
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.portraitUp,
+  ]);
 
   try {
     await Firebase.initializeApp();
@@ -152,6 +159,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final MediaUploadRepository _mediaUploads;
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
+  late final PersonalityCardStore _personalityCards;
   late final NotificationRemoteDataSource _notifications;
   late final AskBackRemoteDataSource _askBack;
   late final AskBackRealtimeService _askBackRealtime;
@@ -242,6 +250,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         widget.userRemoteDataSource ??
         UserRemoteDataSourceImpl(authenticatedDio);
 
+    _personalityCards = PersonalityCardStore(
+      remote: _userRemote,
+      auth: _authController,
+    );
+
     _notifications = NotificationRemoteDataSourceImpl(authenticatedDio);
 
     _askBack = AskBackRemoteDataSourceImpl(authenticatedDio);
@@ -324,6 +337,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authController.removeListener(_syncAskBackWithAuth);
+    _personalityCards.dispose();
     _askBackInbox.dispose();
     unawaited(_askBackRealtime.dispose());
     _themeController.dispose();
@@ -355,6 +369,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         mediaUploads: _mediaUploads,
         activityPolls: _activityPolls,
         userRemote: _userRemote,
+        personalityCards: _personalityCards,
         notifications: _notifications,
         deviceRegistration: _deviceRegistration,
         draftPolls: widget.draftPolls,

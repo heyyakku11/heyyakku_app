@@ -17,6 +17,7 @@ import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
+import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/domain/repositories/poll_repository.dart';
 
@@ -42,6 +43,7 @@ class AppScope extends InheritedWidget {
     required this.askBack,
     required this.askBackRealtime,
     required this.askBackInbox,
+    required this.personalityCards,
     required super.child,
   });
 
@@ -64,6 +66,9 @@ class AppScope extends InheritedWidget {
   final AskBackRemoteDataSource askBack;
   final AskBackRealtime askBackRealtime;
   final AskBackInboxController askBackInbox;
+
+  /// The user's personality card, shared by every screen that shows it.
+  final PersonalityCardStore personalityCards;
 
   PollRepository get repository => polls;
 
@@ -93,6 +98,7 @@ class AppScope extends InheritedWidget {
         draftPolls != oldWidget.draftPolls ||
         askBack != oldWidget.askBack ||
         askBackRealtime != oldWidget.askBackRealtime ||
-        askBackInbox != oldWidget.askBackInbox;
+        askBackInbox != oldWidget.askBackInbox ||
+        personalityCards != oldWidget.personalityCards;
   }
 }

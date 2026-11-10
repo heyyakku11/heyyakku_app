@@ -8,6 +8,13 @@ import 'package:yakku/data/models/user/user_profile_response.dart';
 abstract interface class UserRemoteDataSource {
   Future<UserProfileResponse> getMe();
 
+  /// `GET /api/v1/users/me/settings`: the account-level settings.
+  Future<UserSettings> getSettings();
+
+  /// `PATCH /api/v1/users/me/settings`: changes the settings that are given
+  /// and returns all of them. Independent of the device's push setting.
+  Future<UserSettings> updateSettings({bool? allowAskBack});
+
   /// `POST /api/v1/users/me/anonymous-name`: the server picks a new unique
   /// name, saves it to the profile and returns it.
   Future<String> regenerateAnonymousName();
@@ -21,6 +28,10 @@ abstract interface class UserRemoteDataSource {
   Future<PersonalitySelfAssessment> submitSelfAssessment(
     List<String> traitIds,
   );
+
+  /// `GET /api/v1/personality-cards/{shareCode}/results`: what friends said,
+  /// once the card is completed.
+  Future<PersonalityResults> getPersonalityResults(String shareCode);
 
   /// `GET /api/v1/personality/traits`: the predefined traits friends pick from.
   Future<List<PersonalityTrait>> getPersonalityTraits();

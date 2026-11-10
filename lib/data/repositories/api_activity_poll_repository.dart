@@ -69,6 +69,13 @@ class ApiActivityPollRepository implements ActivityPollRepository {
       status: _mapStatus(poll.status),
       options: List<PollOptionModel>.unmodifiable(options),
       totalVoteCount: poll.totalVoteCount,
+      expiresAt: poll.expiresAt,
+      closedAt: poll.closedAt,
+      minVotes: poll.minVotes,
+      voteProgress: poll.voteProgress,
+      resultsUnlocked: poll.resultsUnlocked,
+      checkTitle: poll.checkTitle,
+      checkColor: poll.checkColor,
       isCheck: poll.kind == 'check',
     );
   }

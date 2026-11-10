@@ -57,6 +57,27 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
+  Future<PersonalityResults> getPersonalityResults(String shareCode) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.personalityResults(shareCode),
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty personality results response');
+    }
+
+    final apiResponse = ApiResponse<PersonalityResults>.fromJson(
+      body,
+      (json) => PersonalityResults.fromJson(json as Map<String, dynamic>),
+    );
+    final results = apiResponse.data;
+    if (!apiResponse.success || results == null) {
+      throw StateError(apiResponse.message ?? 'Failed to load results');
+    }
+    return results;
+  }
+
+  @override
   Future<PersonalitySelfAssessment> submitSelfAssessment(
     List<String> traitIds,
   ) async {
@@ -103,6 +124,38 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       throw StateError(apiResponse.message ?? 'Failed to load traits');
     }
     return apiResponse.data ?? const [];
+  }
+
+  @override
+  Future<UserSettings> getSettings() async {
+    final response = await dio.get<Map<String, dynamic>>(ApiRoutes.mySettings);
+    return _readSettings(response.data);
+  }
+
+  @override
+  Future<UserSettings> updateSettings({bool? allowAskBack}) async {
+    final response = await dio.patch<Map<String, dynamic>>(
+      ApiRoutes.mySettings,
+      data: <String, dynamic>{
+        if (allowAskBack != null) 'allowAskBack': allowAskBack,
+      },
+    );
+    return _readSettings(response.data);
+  }
+
+  UserSettings _readSettings(Map<String, dynamic>? body) {
+    if (body == null) {
+      throw StateError('Empty settings response');
+    }
+    final apiResponse = ApiResponse<UserSettings>.fromJson(
+      body,
+      (json) => UserSettings.fromJson(json as Map<String, dynamic>),
+    );
+    final settings = apiResponse.data;
+    if (!apiResponse.success || settings == null) {
+      throw StateError(apiResponse.message ?? 'Failed to load settings');
+    }
+    return settings;
   }
 
   @override

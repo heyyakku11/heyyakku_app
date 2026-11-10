@@ -30,11 +30,13 @@ class UserProfileResponse {
   final UserProfileDetails profile;
   final UserAccountDetails account;
   final UserStatsDetails stats;
+  final UserSettings settings;
 
   const UserProfileResponse({
     required this.profile,
     required this.account,
     required this.stats,
+    this.settings = const UserSettings(),
   });
 
   factory UserProfileResponse.fromJson(Map<String, dynamic> json) {
@@ -42,7 +44,21 @@ class UserProfileResponse {
       profile: UserProfileDetails.fromJson(_asMap(json['profile'])),
       account: UserAccountDetails.fromJson(_asMap(json['account'])),
       stats: UserStatsDetails.fromJson(_asMap(json['stats'])),
+      settings: UserSettings.fromJson(_asMap(json['settings'])),
     );
+  }
+}
+
+/// Account-level settings: `GET/PATCH /api/v1/users/me/settings`. Push
+/// notifications are per device and are not part of this.
+class UserSettings {
+  /// Whether people the user answers may ask them back.
+  final bool allowAskBack;
+
+  const UserSettings({this.allowAskBack = true});
+
+  factory UserSettings.fromJson(Map<String, dynamic> json) {
+    return UserSettings(allowAskBack: json['allowAskBack'] as bool? ?? true);
   }
 }
 

@@ -19,6 +19,18 @@ class PollModel {
   /// True for a check the user made (shown alongside polls in "My asks").
   final bool isCheck;
 
+  /// When the card was closed; null while it is live.
+  final DateTime? closedAt;
+
+  /// Votes from others needed before results show, and how many so far.
+  final int minVotes;
+  final int voteProgress;
+  final bool resultsUnlocked;
+
+  /// Only for checks: the check's title and background colour (hex).
+  final String? checkTitle;
+  final String? checkColor;
+
   const PollModel({
     required this.id,
     this.shareCode = '',
@@ -32,6 +44,12 @@ class PollModel {
     this.whys = const [],
     this.expiresAt,
     this.isCheck = false,
+    this.closedAt,
+    this.minVotes = 0,
+    this.voteProgress = 0,
+    this.resultsUnlocked = false,
+    this.checkTitle,
+    this.checkColor,
   });
 
   int get totalWhyCount => whys.length;

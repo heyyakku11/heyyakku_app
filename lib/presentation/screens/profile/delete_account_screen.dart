@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:yakku/core/constants/api_constants.dart';
-import 'package:yakku/presentation/widgets/app_toast.dart';
+import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 
+/// Asks the user to type DELETE before the account deletion is requested.
+/// The word is only checked here in the app; the server just receives the
+/// delete request.
 class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
 
@@ -14,12 +17,29 @@ class DeleteAccountScreen extends StatefulWidget {
 }
 
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
-  bool _confirmed = false;
+  static const _confirmWord = 'DELETE';
 
+  final _controller = TextEditingController();
   bool _deleting = false;
 
+  /// The button works only when the exact word has been typed.
+  bool get _confirmed => _controller.text.trim() == _confirmWord;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _deleteAccount() async {
-    if (_deleting) return;
+    if (_deleting || !_confirmed) return;
+    FocusScope.of(context).unfocus();
     setState(() => _deleting = true);
 
     final auth = AppScope.of(context).authController;
@@ -39,200 +59,218 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     }
   }
 
-  Future<void> _openPolicy() async {
-    final opened = await launchUrl(
-      Uri.parse(ApiConstants.policyUrl),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened) AppToast.show('Could not open the policy page');
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      appBar: AppBar(centerTitle: true),
+      backgroundColor: YakkuPalette.cream,
+      appBar: AppBar(
+        backgroundColor: YakkuPalette.cream,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          onPressed: _deleting ? null : () => Navigator.of(context).maybePop(),
+          tooltip: 'Back',
+          icon: const FaIcon(
+            FontAwesomeIcons.chevronLeft,
+            size: 16,
+            color: YakkuPalette.Ink,
+          ),
+        ),
+        title: const Text(
+          'Delete account',
+          style: TextStyle(
+            color: YakkuPalette.Ink,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Delete your account?',
-                        style: TextStyle(
-                          fontSize: 28,
-                          height: 1.15,
-                          fontWeight: FontWeight.w800,
-                          color: theme.colorScheme.onSurface,
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.translucent,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 62,
+                          height: 62,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: YakkuPalette.Error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const FaIcon(
+                            FontAwesomeIcons.trashCan,
+                            size: 22,
+                            color: YakkuPalette.Error,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Your account will be permanently deleted after 30 days.',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      const _CheckLine(
-                        'Your account stays pending deletion for 30 days. '
-                        'Sign in again during that time and the deletion is cancelled.',
-                      ),
-                      const SizedBox(height: 16),
-                      const _CheckLine(
-                        'During those 30 days, your asks stay visible to other people.',
-                      ),
-                      const SizedBox(height: 16),
-                      const _CheckLine(
-                        'After 30 days, your account, phone number and asks are permanently deleted.',
-                      ),
-                      const SizedBox(height: 16),
-                      const _CheckLine(
-                        'Limited logs and payment records may be kept where needed for '
-                        'security, accounting or legal reasons.',
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: _openPolicy,
-                        style: TextButton.styleFrom(
-                          foregroundColor: YakkuPalette.primary,
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Read the full privacy policy',
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Delete your account?',
                           style: TextStyle(
-                            fontSize: 14,
+                            color: YakkuPalette.Ink,
+                            fontSize: 30,
+                            height: 1.1,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'This deletes your cards, votes, reasons, ask backs '
+                          'and your name. Yakku+ and Yakku passes are not '
+                          'refunded. It becomes permanent after 30 days; '
+                          'sign in again before then to cancel.',
+                          style: TextStyle(
+                            color: YakkuPalette.textSecondary,
+                            fontSize: 13.5,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Type DELETE to confirm',
+                          style: TextStyle(
+                            color: YakkuPalette.Ink,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _controller,
+                          enabled: !_deleting,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          textCapitalization: TextCapitalization.characters,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            // Whatever is typed or pasted becomes capitals.
+                            _UpperCaseFormatter(),
+                            LengthLimitingTextInputFormatter(
+                              _confirmWord.length,
+                            ),
+                          ],
+                          cursorColor: YakkuPalette.danger,
+                          style: const TextStyle(
+                            color: YakkuPalette.Ink,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: _confirmWord,
+                            hintStyle: const TextStyle(
+                              color: YakkuPalette.hint,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.6,
+                            ),
+                            filled: true,
+                            fillColor: YakkuPalette.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 18,
+                            ),
+                            border: _border(YakkuPalette.roseBorder),
+                            enabledBorder: _border(YakkuPalette.roseBorder),
+                            disabledBorder: _border(YakkuPalette.roseBorder),
+                            focusedBorder: _border(
+                              _confirmed
+                                  ? YakkuPalette.Ink
+                                  : YakkuPalette.danger,
+                              width: 1.4,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Checkbox(
-                      value: _confirmed,
-                      onChanged: (value) {
-                        setState(() => _confirmed = value ?? false);
-                      },
-                      activeColor: YakkuPalette.primary,
-                      side: BorderSide(
-                        color: theme.colorScheme.onSurfaceVariant,
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton(
+                    onPressed: _confirmed && !_deleting ? _deleteAccount : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: YakkuPalette.Ink,
+                      disabledBackgroundColor: YakkuPalette.Ink.withValues(
+                        alpha: 0.35,
                       ),
+                      foregroundColor: YakkuPalette.white,
+                      disabledForegroundColor: YakkuPalette.white,
+                      shape: const StadiumBorder(),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _confirmed = !_confirmed),
-                      child: Text(
-                        'I understand this is permanent',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _confirmed && !_deleting ? _deleteAccount : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: YakkuPalette.danger,
-                    disabledBackgroundColor: YakkuPalette.dangerDisabled,
-                    foregroundColor: YakkuPalette.white,
-                    disabledForegroundColor: YakkuPalette.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: _deleting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: YakkuPalette.white,
+                    child: _deleting
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: YakkuPalette.white,
+                            ),
+                          )
+                        : const Text(
+                            'Delete my account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        )
-                      : const Text('Delete my account'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: TextButton(
-                  onPressed: _deleting
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Keep my account',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: TextButton(
+                    onPressed: _deleting
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Keep my account',
+                      style: TextStyle(
+                        color: YakkuPalette.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  OutlineInputBorder _border(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
 }
 
-class _CheckLine extends StatelessWidget {
-  const _CheckLine(this.text);
-
-  final String text;
-
+/// Turns everything typed or pasted into upper case.
+class _UpperCaseFormatter extends TextInputFormatter {
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.check, size: 18, color: YakkuPalette.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.35,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ],
-    );
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }

@@ -13,7 +13,11 @@ class RemotePollList extends StatefulWidget {
     required this.emptyMessage,
     this.errorFallback = 'Could not load polls',
     this.ownerActions = false,
+    this.emptyView,
   });
+
+  /// Shown instead of [emptyMessage] when there is nothing to list.
+  final Widget? emptyView;
 
   final Future<List<PollModel>> Function() loadPolls;
   final String emptyMessage;
@@ -73,7 +77,7 @@ class _RemotePollListState extends State<RemotePollList> {
     }
 
     if (_polls.isEmpty) {
-      return _PollListMessage(text: widget.emptyMessage);
+      return widget.emptyView ?? _PollListMessage(text: widget.emptyMessage);
     }
 
     return ListView.separated(

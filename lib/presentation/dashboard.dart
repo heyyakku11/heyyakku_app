@@ -9,12 +9,25 @@ import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
+import 'package:yakku/presentation/screens/community/community_placeholder.dart';
 import 'package:yakku/presentation/screens/home/home_screen.dart';
 import 'package:yakku/data/models/notification/app_notification.dart';
 import 'package:yakku/presentation/screens/inbox/inbox_screen.dart';
 import 'package:yakku/presentation/screens/inbox/open_notification_target.dart';
 import 'package:yakku/presentation/screens/profile/profile_screen.dart';
 import 'package:yakku/presentation/widgets/notification_permission_dialog.dart';
+
+/// Lets screens pushed above the dashboard ask it to switch tab.
+abstract final class DashboardTabs {
+  static final ValueNotifier<int?> _request = ValueNotifier<int?>(null);
+
+  /// Brings the Home tab to the front (call after popping back to the dashboard).
+  static void showHome() => _request.value = 0;
+
+  /// Whether Home is showing its Friends part (not Community). The Home
+  /// screen keeps this up to date; the create button is only offered on Friends.
+  static final ValueNotifier<bool> friendsTabActive = ValueNotifier<bool>(true);
+}
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -47,6 +60,14 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       _listenForUnread();
     });
     _pageController = PageController();
+    DashboardTabs._request.addListener(_onTabRequest);
+  }
+
+  void _onTabRequest() {
+    final index = DashboardTabs._request.value;
+    if (index == null || !mounted) return;
+    DashboardTabs._request.value = null;
+    _onNavTap(index);
   }
 
   Future<void> _syncDeviceAndNotifications() async {
@@ -68,10 +89,19 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       final allow = await showNotificationPermissionDialog(context);
       if (!mounted || allow == null) return;
 
+      // The first answer covers both permissions: allowed (and granted by the
+      // system) turns push and ask backs on, anything else turns both off.
+      // They can be changed one by one later in Settings.
+      var granted = false;
       if (allow) {
-        await registration.applyAllowChoice();
+        granted = await registration.applyAllowChoice();
       } else {
         await registration.applySkipChoice();
+      }
+      try {
+        await scope.userRemote.updateSettings(allowAskBack: granted);
+      } catch (_) {
+        // Settings can still be changed later; don't block the user.
       }
     } catch (error) {
       if (!mounted) return;
@@ -156,6 +186,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       if (_unreadCount != 0) setState(() => _unreadCount = 0);
       return;
     }
+    // A push or coming back to the app may mean a friend voted: keep the
+    // personality card current on every screen that shows it.
+    unawaited(scope.personalityCards.refresh());
     try {
       final count = await scope.notifications.getUnreadCount();
       if (!mounted) return;
@@ -173,6 +206,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    DashboardTabs._request.removeListener(_onTabRequest);
     WidgetsBinding.instance.removeObserver(this);
     _pushSub?.cancel();
     _pushOpenedSub?.cancel();
@@ -220,13 +254,18 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         children: [
           const HomeScreen(),
           InboxScreen(onAskSomething: () => _onNavTap(_homeNavIndex)),
-          const _CommunityPlaceholder(),
+          const CommunityPlaceholder(),
           ProfileScreen(isActive: _navIndex == _profileNavIndex),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: _navIndex == _homeNavIndex
-          ? _CreateFab(onPressed: _openCreateSheet)
+          ? ValueListenableBuilder<bool>(
+              valueListenable: DashboardTabs.friendsTabActive,
+              builder: (context, friends, _) => friends
+                  ? _CreateFab(onPressed: _openCreateSheet)
+                  : const SizedBox.shrink(),
+            )
           : null,
       bottomNavigationBar: _BottomBar(
         currentIndex: _navIndex,
@@ -418,14 +457,5 @@ class _NavItem extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _CommunityPlaceholder extends StatelessWidget {
-  const _CommunityPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SafeArea(child: Center(child: Text('Community coming soon')));
   }
 }

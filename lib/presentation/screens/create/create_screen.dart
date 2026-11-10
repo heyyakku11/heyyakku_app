@@ -12,12 +12,13 @@ import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
+import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
+import 'package:yakku/presentation/screens/create/create_poll_claim_screen.dart';
 import 'package:yakku/presentation/screens/created_poll_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
-import 'package:yakku/presentation/widgets/pick_hint_finger.dart';
 
 String _capitalizeOption(String value) {
   final text = value.trim();
@@ -75,16 +76,13 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _isCreating = false;
   bool _isClosing = false;
   bool _allowPop = false;
-  int? _selectedOptionIndex;
   bool _showOptions = false;
   bool _showAddOption = false;
-  bool _showPickHint = false;
+  /// Set when Save is tapped while a mandatory field is empty, so those
+  /// fields show a red border until they are filled in.
+  bool _showErrors = false;
   bool _allowComments = true;
   bool _stopPlaceholder = false;
-  Timer? _pickHintTimer;
-
-  /// Anchors the pick-hint finger under option A's radio.
-  final LayerLink _pickHintLink = LayerLink();
 
   final ImagePicker _imagePicker = ImagePicker();
   File? _photoFile;
@@ -92,10 +90,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _isUploadingPhoto = false;
   int _mediaSelectionVersion = 0;
 
-  late final AnimationController _buttonShakeController;
-  late final AnimationController _radioPulseController;
   late final AnimationController _screenShakeController;
-  late final AnimationController _glowController;
 
   bool get _hasQuestion => _questionController.text.trim().isNotEmpty;
 
@@ -146,10 +141,9 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       !_isCreating &&
       !_isUploadingPhoto;
 
-  bool get _canCreate =>
-      _formReady &&
-      _selectedOptionIndex != null &&
-      (_photoFile == null || _mediaSessionId != null);
+  /// Save is available once the question and the minimum options are filled.
+  bool get _canSave =>
+      _formReady && (_photoFile == null || _mediaSessionId != null);
 
   bool get _hasSavableContent {
     if (_questionController.text.trim().isNotEmpty) return true;
@@ -165,21 +159,9 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   @override
   void initState() {
     super.initState();
-    _buttonShakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _radioPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
     _screenShakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 450),
-    );
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
     );
 
     final draft = widget.draft;
@@ -221,11 +203,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
 
   @override
   void dispose() {
-    _pickHintTimer?.cancel();
-    _buttonShakeController.dispose();
-    _radioPulseController.dispose();
     _screenShakeController.dispose();
-    _glowController.dispose();
     _questionController.removeListener(_onQuestionListen);
     _questionController.dispose();
     _questionFocus.dispose();
@@ -255,7 +233,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
         _showOptions = shouldShow;
         if (!shouldShow) {
           _showAddOption = false;
-          _showPickHint = false;
         }
       }
     });
@@ -265,15 +242,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   }
 
   void _onOptionListen() {
-    if (_selectedOptionIndex != null) {
-      final selected = _optionControllers[_selectedOptionIndex!];
-      if (selected.text.trim().isEmpty) {
-        _selectedOptionIndex = null;
-        _glowController.stop();
-        _glowController.value = 0;
-      }
-    }
-
     final typedInA =
         _optionControllers.isNotEmpty &&
         _optionControllers.first.text.trim().isNotEmpty;
@@ -284,15 +252,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       setState(() => _showAddOption = shouldShowAdd);
     } else {
       setState(() {});
-    }
-
-    if (_canCreate) {
-      if (!_glowController.isAnimating) {
-        _glowController.repeat();
-      }
-    } else {
-      _glowController.stop();
-      _glowController.value = 0;
     }
   }
 
@@ -366,19 +325,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     });
   }
 
-  void _selectOpinion(int index) {
-    if (_optionControllers[index].text.trim().isEmpty) return;
-    HapticFeedback.lightImpact();
-    setState(() {
-      _selectedOptionIndex = index;
-      _showPickHint = false;
-    });
-    _pickHintTimer?.cancel();
-    if (!_glowController.isAnimating) {
-      _glowController.repeat();
-    }
-  }
-
   void _resetOptionFields({bool clearText = true}) {
     for (final node in _optionFocusNodes) {
       if (node.hasFocus) node.unfocus();
@@ -388,7 +334,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
         controller.clear();
       }
     }
-    _selectedOptionIndex = null;
     _trimToMinOptions();
   }
 
@@ -530,60 +475,39 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     }
   }
 
-  Future<void> _onAskPressed() async {
-    if (_isCreating) return;
+  /// Save: with a mandatory field empty, highlight it; otherwise move on to
+  /// the claim screen where the user picks their own answer and creates the
+  /// poll.
+  Future<void> _onSavePressed() async {
+    if (_isCreating || _isUploadingPhoto) return;
 
     if (!_hasQuestion || !_optionsFilled) {
       HapticFeedback.mediumImpact();
+      setState(() => _showErrors = true);
       _screenShakeController.forward(from: 0);
       _focusMissingField();
       return;
     }
 
     if (_hasDuplicateOptions) {
+      HapticFeedback.mediumImpact();
       _showMessage(_duplicateMessage);
       return;
     }
 
-    if (_selectedOptionIndex == null) {
-      HapticFeedback.mediumImpact();
-      _buttonShakeController.forward(from: 0);
-      _radioPulseController.forward(from: 0);
-      setState(() => _showPickHint = true);
-      _pickHintTimer?.cancel();
-      _pickHintTimer = Timer(const Duration(milliseconds: 2500), () {
-        if (!mounted) return;
-        setState(() => _showPickHint = false);
-      });
-      return;
-    }
-
-    await _onCreate();
-  }
-
-  Future<void> _onCreate() async {
     final question = _questionController.text.trim();
-    if (question.isEmpty) {
-      _focusMissingField();
-      return;
-    }
     if (question.length > AppLimits.maxQuestionLength) {
       _showMessage(
         'Question must be at most ${AppLimits.maxQuestionLength} characters.',
       );
       return;
     }
-    if (!_optionsFilled) {
-      _focusMissingField();
-      return;
-    }
-    if (_hasDuplicateOptions) return;
-    final selectedIndex = _selectedOptionIndex;
-    if (selectedIndex == null) return;
 
-    final options = _optionControllers
-        .map((controller) => _capitalizeOption(controller.text))
-        .toList();
+    final options = [
+      for (final controller in _optionControllers)
+        if (controller.text.trim().isNotEmpty)
+          _capitalizeOption(controller.text),
+    ];
     if (options.any((option) => option.length > AppLimits.maxOptionLength)) {
       _showMessage(
         'Each option must be at most ${AppLimits.maxOptionLength} characters.',
@@ -591,88 +515,44 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       return;
     }
 
-    await _createPoll(
-      question: question,
-      options: options,
-      selectedOptionIndex: selectedIndex,
-    );
-  }
-
-  Future<void> _createPoll({
-    required String question,
-    required List<String> options,
-    required int selectedOptionIndex,
-  }) async {
-    if (_isCreating) return;
-
-    final filled = <String>[];
-    int? apiSelectedIndex;
-    for (var i = 0; i < options.length; i++) {
-      final text = options[i].trim();
-      if (text.isEmpty) continue;
-      if (i == selectedOptionIndex) {
-        apiSelectedIndex = filled.length;
-      }
-      filled.add(text);
-    }
-    if (apiSelectedIndex == null) {
-      _showMessage('Choose your opinion before creating the poll.');
-      return;
-    }
-
-    if (_photoFile != null && (_mediaSessionId == null || _isUploadingPhoto)) {
-      _showMessage('Wait for the photo to finish uploading');
-      return;
-    }
-
-    // Check authentication state before creating poll
+    // Creating a poll needs an account; ask before the user picks an answer.
     final auth = AppScope.of(context).authController;
     if (!auth.isLoggedIn) {
       openSignUp(context);
       return;
     }
 
-    setState(() => _isCreating = true);
-    try {
-      final scope = AppScope.of(context);
-      final sessionId = _mediaSessionId;
-      final poll = sessionId == null
-          ? await scope.pollApi.createTextPoll(
-              question: question,
-              options: filled,
-              selectedOptionIndex: apiSelectedIndex,
-            )
-          : await scope.pollApi.createImagePoll(
-              question: question,
-              options: filled,
-              selectedOptionIndex: apiSelectedIndex,
-              mediaUploadSessionId: sessionId,
-            );
-      if (!mounted) return;
-      // Close the create sheet and open the created poll in its place.
-      setState(() {
-        _isCreating = false;
-        _allowPop = true;
-      });
-      final route = MaterialPageRoute<void>(
-        builder: (context) => CreatedPollScreen(poll: poll),
-      );
-      final sheetNavigator = Navigator.of(context);
-      final rootNavigator = Navigator.of(context, rootNavigator: true);
-      if (identical(sheetNavigator, rootNavigator)) {
-        unawaited(sheetNavigator.pushReplacement(route));
-      } else {
-        // Sheet lives in a nested navigator; the poll screen must still cover
-        // the whole app, so close the sheet and push on the root navigator.
-        sheetNavigator.pop();
-        unawaited(rootNavigator.push(route));
-      }
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _isCreating = false);
-      _showMessage(
-        DioErrorMapper.map(error, fallback: 'Could not create poll').message,
-      );
+    FocusScope.of(context).unfocus();
+    setState(() => _showErrors = false);
+    final poll = await Navigator.of(context).push<PollResponse>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => CreatePollClaimScreen(
+          question: question,
+          options: options,
+          mediaUploadSessionId: _mediaSessionId,
+        ),
+      ),
+    );
+    if (poll == null || !mounted) return;
+    _finishWithPoll(poll);
+  }
+
+  /// Closes this sheet and opens the share screen for the new poll.
+  void _finishWithPoll(PollResponse poll) {
+    setState(() => _allowPop = true);
+    final route = MaterialPageRoute<void>(
+      builder: (context) => CreatedPollScreen(poll: poll),
+    );
+    final sheetNavigator = Navigator.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (identical(sheetNavigator, rootNavigator)) {
+      unawaited(sheetNavigator.pushReplacement(route));
+    } else {
+      // Sheet lives in a nested navigator; the poll screen must still cover
+      // the whole app, so close the sheet and push on the root navigator.
+      sheetNavigator.pop();
+      unawaited(rootNavigator.push(route));
     }
   }
 
@@ -695,7 +575,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final ready = _canCreate;
+    final ready = _canSave;
     // Extra gap above the sheet so the close control clears the status bar.
     const extraTopGap = 24.0;
     final topPadding = media.viewPadding.top + extraTopGap;
@@ -760,6 +640,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                               _QuestionCard(
                                 controller: _questionController,
                                 focusNode: _questionFocus,
+                                highlightError: _showErrors && !_hasQuestion,
                                 stopPlaceholder: _stopPlaceholder,
                                 examples: _questionPlaceholderPhrases,
                                 onSubmitted: _moveFocusFromQuestion,
@@ -810,25 +691,19 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                                               _optionControllers[i],
                                                           focusNode:
                                                               _optionFocusNodes[i],
-                                                          selected:
-                                                              _selectedOptionIndex ==
-                                                              i,
-                                                          showRadio:
-                                                              _optionControllers[i]
-                                                                  .text
-                                                                  .trim()
-                                                                  .isNotEmpty,
                                                           errorText:
                                                               _duplicateErrorFor(
                                                                 i,
                                                               ),
-                                                          pulseListenable:
-                                                              _radioPulseController,
-                                                          radioLink: i == 0
-                                                              ? _pickHintLink
-                                                              : null,
-                                                          onSelect: () =>
-                                                              _selectOpinion(i),
+                                                          highlightError:
+                                                              _showErrors &&
+                                                              i <
+                                                                  AppLimits
+                                                                      .minOptions &&
+                                                              _optionControllers[i]
+                                                                  .text
+                                                                  .trim()
+                                                                  .isEmpty,
                                                           onSubmitted: () =>
                                                               _moveFocusFromOption(
                                                                 i,
@@ -892,23 +767,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                                   ),
                                                 ],
                                               ),
-                                              if (_showPickHint &&
-                                                  _selectedOptionIndex == null)
-                                                Positioned(
-                                                  left: 0,
-                                                  top: 0,
-                                                  child: CompositedTransformFollower(
-                                                    link: _pickHintLink,
-                                                    showWhenUnlinked: false,
-                                                    targetAnchor:
-                                                        Alignment.bottomCenter,
-                                                    followerAnchor:
-                                                        Alignment.topCenter,
-                                                    offset: const Offset(0, 2),
-                                                    child:
-                                                        const PickHintFinger(),
-                                                  ),
-                                                ),
                                             ],
                                           ),
                                         ),
@@ -918,15 +776,10 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                           ),
                         ),
                       ),
-                      _AskFooter(
+                      _SaveFooter(
                         ready: ready,
                         isLoading: _isCreating || _isUploadingPhoto,
-                        showPickHint: _showPickHint,
-                        showPrivacy: _optionsFilled,
-                        picked: _selectedOptionIndex != null,
-                        shakeListenable: _buttonShakeController,
-                        glowListenable: _glowController,
-                        onPressed: _onAskPressed,
+                        onPressed: _onSavePressed,
                       ),
                     ],
                   ),
@@ -965,9 +818,13 @@ class _QuestionCard extends StatelessWidget {
     required this.onSubmitted,
     required this.onPhotoTap,
     required this.onClearPhoto,
+    this.highlightError = false,
     this.photoFile,
     this.isUploadingPhoto = false,
   });
+
+  /// Red border: the question is mandatory and still empty.
+  final bool highlightError;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -993,7 +850,12 @@ class _QuestionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: YakkuPalette.primary, width: 1.2),
+        border: Border.all(
+          color: highlightError
+              ? YakkuPalette.redAccent
+              : YakkuPalette.primary,
+          width: highlightError ? 1.8 : 1.2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1228,39 +1090,25 @@ class _OptionRow extends StatefulWidget {
     required this.index,
     required this.controller,
     required this.focusNode,
-    required this.selected,
-    required this.showRadio,
-    required this.onSelect,
     required this.onSubmitted,
-    required this.pulseListenable,
-    this.radioLink,
     this.errorText,
+    this.highlightError = false,
   });
 
   final int index;
   final TextEditingController controller;
   final FocusNode focusNode;
-  final bool selected;
-  final bool showRadio;
-  final VoidCallback onSelect;
   final VoidCallback onSubmitted;
-  final Animation<double> pulseListenable;
-
-  /// When set, the radio becomes the anchor for the pick-hint finger.
-  final LayerLink? radioLink;
   final String? errorText;
+
+  /// Red border: this option is mandatory and still empty.
+  final bool highlightError;
 
   @override
   State<_OptionRow> createState() => _OptionRowState();
 }
 
-class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
-  late final AnimationController _popController;
-  late final AnimationController _radioInController;
-  late final AnimationController _appearPulseController;
-  bool _wasSelected = false;
-  bool _wasShowingRadio = false;
-
+class _OptionRowState extends State<_OptionRow> {
   String get _letter => String.fromCharCode(65 + widget.index);
 
   bool get _nearLimit =>
@@ -1270,274 +1118,111 @@ class _OptionRowState extends State<_OptionRow> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _popController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-    _radioInController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-      value: widget.showRadio ? 1 : 0,
-    );
-    _appearPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _wasSelected = widget.selected;
-    _wasShowingRadio = widget.showRadio;
     widget.focusNode.addListener(_onFocusChange);
-  }
-
-  @override
-  void didUpdateWidget(covariant _OptionRow oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.selected && !_wasSelected) {
-      _popController.forward(from: 0);
-    }
-    _wasSelected = widget.selected;
-
-    if (widget.showRadio && !_wasShowingRadio) {
-      _radioInController.forward(from: 0).whenComplete(() {
-        if (!mounted || widget.selected) return;
-        _appearPulseController.forward(from: 0);
-      });
-    } else if (!widget.showRadio && _wasShowingRadio) {
-      _radioInController.value = 0;
-    }
-    _wasShowingRadio = widget.showRadio;
   }
 
   @override
   void dispose() {
     widget.focusNode.removeListener(_onFocusChange);
-    _popController.dispose();
-    _radioInController.dispose();
-    _appearPulseController.dispose();
     super.dispose();
   }
 
   void _onFocusChange() => setState(() {});
 
-  Widget _maybeLinkRadio(Widget radio) {
-    final link = widget.radioLink;
-    if (link == null) return radio;
-    return CompositedTransformTarget(link: link, child: radio);
-  }
-
-  double _popScale() {
-    final t = Curves.easeOut.transform(_popController.value);
-    if (t < 0.45) {
-      return 0.94 + (1.04 - 0.94) * (t / 0.45);
-    }
-    return 1.04 + (1.0 - 1.04) * ((t - 0.45) / 0.55);
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final focused = widget.focusNode.hasFocus;
-    final selected = widget.selected;
-    const ink = YakkuPalette.charcoal;
-    final borderColor = selected
-        ? ink
+    final highlight = widget.highlightError;
+    final borderColor = highlight
+        ? YakkuPalette.redAccent
         : focused
         ? YakkuPalette.primary
         : YakkuPalette.stepInactive;
-    final fill = selected ? ink : YakkuPalette.white;
-    final shadowColor = selected ? YakkuPalette.primary : ink;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedBuilder(
-          animation: _popController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: selected ? _popScale() : 1,
-              child: child,
-            );
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.fromLTRB(10, 4, 8, 4),
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: borderColor,
-                width: selected ? 1.6 : (focused ? 1.5 : 1),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.fromLTRB(10, 4, 8, 4),
+          decoration: BoxDecoration(
+            color: YakkuPalette.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: borderColor,
+              width: highlight ? 1.8 : (focused ? 1.5 : 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: YakkuPalette.pinkWash,
+                ),
+                child: Text(
+                  _letter,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: YakkuPalette.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: shadowColor,
-                        offset: const Offset(3, 3),
-                        blurRadius: 0,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected
-                        ? YakkuPalette.primary
-                        : YakkuPalette.pinkWash,
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  maxLength: AppLimits.maxOptionLength,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.sentences,
+                  cursorColor: YakkuPalette.primary,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: YakkuPalette.textPrimary,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Text(
-                    _letter,
-                    style: textTheme.labelLarge?.copyWith(
-                      color: selected
-                          ? YakkuPalette.white
-                          : YakkuPalette.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    maxLength: AppLimits.maxOptionLength,
-                    textInputAction: TextInputAction.next,
-                    textCapitalization: TextCapitalization.sentences,
-                    cursorColor: YakkuPalette.primary,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: selected
-                          ? YakkuPalette.white
-                          : YakkuPalette.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    onSubmitted: (_) => widget.onSubmitted(),
-                    onEditingComplete: widget.onSubmitted,
-                    buildCounter:
-                        (
-                          context, {
-                          required currentLength,
-                          required isFocused,
-                          required maxLength,
-                        }) {
-                          if (!_nearLimit) return const SizedBox.shrink();
-                          return Text(
-                            '$currentLength/$maxLength',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: selected
-                                  ? YakkuPalette.white70
-                                  : YakkuPalette.textSecondary,
-                              fontSize: 10,
-                            ),
-                          );
-                        },
-                    decoration: InputDecoration(
-                      isDense: true,
-                      filled: true,
-                      // Theme defaults to white fill — keep transparent so the
-                      // selected dark row (and white text) stay readable.
-                      fillColor: YakkuPalette.transparent,
-                      hintText: 'Option $_letter',
-                      hintStyle: textTheme.titleMedium?.copyWith(
-                        color: selected
-                            ? YakkuPalette.white54
-                            : YakkuPalette.placeholder,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      counterText: '',
-                    ),
-                  ),
-                ),
-                if (widget.showRadio)
-                  ScaleTransition(
-                    scale: Tween<double>(begin: 0.6, end: 1).animate(
-                      CurvedAnimation(
-                        parent: _radioInController,
-                        curve: Curves.easeOut,
-                      ),
-                    ),
-                    child: FadeTransition(
-                      opacity: _radioInController,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 6),
-                        child: AnimatedBuilder(
-                          animation: Listenable.merge([
-                            widget.pulseListenable,
-                            _appearPulseController,
-                          ]),
-                          builder: (context, child) {
-                            final validatePulse = widget.pulseListenable.value;
-                            final appearPulse = _appearPulseController.value;
-                            final pulse = math.max(validatePulse, appearPulse);
-                            final pulseScale =
-                                1 + math.sin(pulse * math.pi * 2) * 0.08;
-                            final glowing = !selected && pulse > 0 && pulse < 1;
-                            return Transform.scale(
-                              scale: selected ? 1 : pulseScale,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: glowing
-                                      ? [
-                                          BoxShadow(
-                                            color: YakkuPalette.primary
-                                                .withValues(alpha: 0.35),
-                                            blurRadius: 8,
-                                            spreadRadius: 1,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: _maybeLinkRadio(
-                            GestureDetector(
-                              onTap: widget.onSelect,
-                              behavior: HitTestBehavior.opaque,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: selected
-                                      ? YakkuPalette.primary
-                                      : YakkuPalette.transparent,
-                                  border: Border.all(
-                                    color: selected
-                                        ? YakkuPalette.primary
-                                        : YakkuPalette.primary.withValues(
-                                            alpha: 0.55,
-                                          ),
-                                    width: 1.6,
-                                  ),
-                                ),
-                                child: selected
-                                    ? const Icon(
-                                        Icons.check,
-                                        size: 14,
-                                        color: YakkuPalette.white,
-                                      )
-                                    : null,
-                              ),
-                            ),
+                  onSubmitted: (_) => widget.onSubmitted(),
+                  onEditingComplete: widget.onSubmitted,
+                  buildCounter:
+                      (
+                        context, {
+                        required currentLength,
+                        required isFocused,
+                        required maxLength,
+                      }) {
+                        if (!_nearLimit) return const SizedBox.shrink();
+                        return Text(
+                          '$currentLength/$maxLength',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: YakkuPalette.textSecondary,
+                            fontSize: 10,
                           ),
-                        ),
-                      ),
+                        );
+                      },
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: true,
+                    // Theme defaults to a white fill; keep it transparent.
+                    fillColor: YakkuPalette.transparent,
+                    hintText: 'Option $_letter',
+                    hintStyle: textTheme.titleMedium?.copyWith(
+                      color: YakkuPalette.placeholder,
+                      fontWeight: FontWeight.w500,
                     ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    counterText: '',
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
         if (widget.errorText != null)
@@ -1660,25 +1345,18 @@ class _FriendsSlot extends StatelessWidget {
   }
 }
 
-class _AskFooter extends StatelessWidget {
-  const _AskFooter({
+/// The Save button: raspberry when the mandatory fields are filled, faded
+/// otherwise. A faded button still takes taps so the screen can highlight
+/// what is missing.
+class _SaveFooter extends StatelessWidget {
+  const _SaveFooter({
     required this.ready,
     required this.isLoading,
-    required this.showPickHint,
-    required this.showPrivacy,
-    required this.picked,
-    required this.shakeListenable,
-    required this.glowListenable,
     required this.onPressed,
   });
 
   final bool ready;
   final bool isLoading;
-  final bool showPickHint;
-  final bool showPrivacy;
-  final bool picked;
-  final Animation<double> shakeListenable;
-  final Animation<double> glowListenable;
   final VoidCallback onPressed;
 
   @override
@@ -1692,142 +1370,44 @@ class _AskFooter extends StatelessWidget {
         AppSpacing.screen,
         16,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedOpacity(
-            opacity: showPickHint ? 1 : 0,
-            duration: const Duration(milliseconds: 200),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Pick your answer first',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: YakkuPalette.rose,
-                  fontWeight: FontWeight.w600,
-                ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: ready
+                ? YakkuPalette.primary
+                : YakkuPalette.primary.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(AppRadii.full),
+          ),
+          child: Material(
+            color: YakkuPalette.transparent,
+            child: InkWell(
+              onTap: isLoading ? null : onPressed,
+              borderRadius: BorderRadius.circular(AppRadii.full),
+              child: Center(
+                child: isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: YakkuPalette.white,
+                        ),
+                      )
+                    : Text(
+                        'Save',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: YakkuPalette.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
               ),
             ),
           ),
-          AnimatedBuilder(
-            animation: Listenable.merge([shakeListenable, glowListenable]),
-            builder: (context, child) {
-              final shakeT = shakeListenable.value;
-              final dx = math.sin(shakeT * math.pi * 8) * (1 - shakeT) * 10;
-              final glow = ready
-                  ? (0.18 +
-                        0.18 *
-                            (0.5 +
-                                0.5 *
-                                    math.sin(
-                                      glowListenable.value * math.pi * 2,
-                                    )))
-                  : 0.0;
-              return Transform.translate(
-                offset: Offset(dx, 0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadii.full),
-                    boxShadow: ready
-                        ? [
-                            BoxShadow(
-                              color: YakkuPalette.primary.withValues(
-                                alpha: glow,
-                              ),
-                              blurRadius: 18,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: child,
-                ),
-              );
-            },
-            child: SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                decoration: BoxDecoration(
-                  color: ready ? YakkuPalette.primary : YakkuPalette.white,
-                  borderRadius: BorderRadius.circular(AppRadii.full),
-                  border: Border.all(color: YakkuPalette.primary, width: 1.4),
-                ),
-                child: Material(
-                  color: YakkuPalette.transparent,
-                  child: InkWell(
-                    onTap: isLoading ? null : onPressed,
-                    borderRadius: BorderRadius.circular(AppRadii.full),
-                    child: Center(
-                      child: isLoading
-                          ? SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: ready
-                                    ? YakkuPalette.white
-                                    : YakkuPalette.primary,
-                              ),
-                            )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.ios_share_rounded,
-                                  size: 18,
-                                  color: ready
-                                      ? YakkuPalette.white
-                                      : YakkuPalette.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Ask my friends',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: ready
-                                        ? YakkuPalette.white
-                                        : YakkuPalette.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          AnimatedOpacity(
-            opacity: showPrivacy && !showPickHint ? 1 : 0,
-            duration: const Duration(milliseconds: 200),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 14,
-                    color: YakkuPalette.textSecondary.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    picked
-                        ? 'Only you know your pick'
-                        : 'Only you see your pick',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: YakkuPalette.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

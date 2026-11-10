@@ -1,39 +1,93 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yakku/core/constants/api_constants.dart';
-import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
-import 'package:yakku/presentation/screens/profile/yakku_plan_screen.dart';
+import 'package:yakku/presentation/widgets/app_toast.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.phoneNumber, this.planName});
-
-  /// From the get-user API; falls back to the stored session phone number.
-  final String? phoneNumber;
-
-  /// Current plan name from the get-user API (e.g. "Free").
-  final String? planName;
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  /// "Let people I answer ask me back": an account setting kept on the server,
+  /// independent of the device's push switch below.
+  bool _allowAskBack = true;
+  bool _askBackReady = false;
+  bool _askBackUpdating = false;
+
   /// Whether push is switched on for THIS device (the server's per-installation
   /// `isPushAllowed`; off until this device has been granted the permission).
   bool _pushAllowed = false;
   bool _pushReady = false;
   bool _pushUpdating = false;
 
+  String? _version;
+
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAskBack();
       _loadPushSetting();
     });
+  }
+
+  Future<void> _loadAskBack() async {
+    try {
+      final settings = await AppScope.of(context).userRemote.getSettings();
+      if (!mounted) return;
+      setState(() {
+        _allowAskBack = settings.allowAskBack;
+        _askBackReady = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _askBackReady = true);
+      _showError(error, fallback: 'Could not load your settings');
+    }
+  }
+
+  Future<void> _setAllowAskBack(bool value) async {
+    if (_askBackUpdating) return;
+    final previous = _allowAskBack;
+    setState(() {
+      _allowAskBack = value;
+      _askBackUpdating = true;
+    });
+    try {
+      final settings = await AppScope.of(
+        context,
+      ).userRemote.updateSettings(allowAskBack: value);
+      if (!mounted) return;
+      setState(() {
+        _allowAskBack = settings.allowAskBack;
+        _askBackUpdating = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _allowAskBack = previous;
+        _askBackUpdating = false;
+      });
+      _showError(error, fallback: 'Could not update your setting');
+    }
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _version = info.version);
+    } catch (_) {}
   }
 
   Future<void> _loadPushSetting() async {
@@ -117,12 +171,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     AppToast.show(message);
   }
 
+  /// The privacy policy and the terms live on the same website page.
   Future<void> _openPolicy() async {
     final opened = await launchUrl(
       Uri.parse(ApiConstants.policyUrl),
       mode: LaunchMode.externalApplication,
     );
-    if (!opened) AppToast.show('Could not open the policy page');
+    if (!opened) AppToast.show('Could not open the page');
+  }
+
+  Future<void> _emailSupport(String subject) async {
+    const email = ApiConstants.supportEmail;
+    if (email.isEmpty) {
+      AppToast.show('The support email is not set up yet');
+      return;
+    }
+    final opened = await launchUrl(
+      Uri(scheme: 'mailto', path: email, queryParameters: {'subject': subject}),
+    );
+    if (!opened) AppToast.show('Could not open your email app');
   }
 
   Future<void> _logOut() async {
@@ -152,65 +219,129 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await auth.logout();
   }
 
+  void _openDeleteAccount() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => const DeleteAccountScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final phoneNumber =
-        widget.phoneNumber ?? AppScope.of(context).authController.phoneNumber;
-    final maskedPhone = _maskPhoneNumber(phoneNumber);
-    final dividerColor = theme.dividerColor.withValues(alpha: 0.55);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
+      backgroundColor: YakkuPalette.cream,
+      appBar: AppBar(
+        backgroundColor: YakkuPalette.cream,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Back',
+          icon: const FaIcon(
+            FontAwesomeIcons.chevronLeft,
+            size: 16,
+            color: YakkuPalette.Ink,
+          ),
+        ),
+        title: const Text(
+          'Settings',
+          style: TextStyle(
+            color: YakkuPalette.Ink,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
       body: Theme(
-        data: theme.copyWith(switchTheme: _pinkSwitchTheme),
+        data: Theme.of(context).copyWith(switchTheme: _switchTheme),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            const _SectionLabel('NOTIFICATIONS'),
-            _SwitchRow(
-              title: 'Push notifications',
-              subtitle: 'Allow Yakku to send push alerts on this device',
-              value: _pushAllowed,
-              onChanged: _pushReady && !_pushUpdating ? _setPushAllowed : null,
-            ),
-            const SizedBox(height: 22),
-            const _SectionLabel('ACCOUNT'),
-            _AccountGroup(
-              dividerColor: dividerColor,
+            const _SectionLabel('PRIVACY'),
+            _SettingsCard(
               children: [
-                _PlanRow(
-                  planLabel: widget.planName ?? 'Free',
-                  actionLabel: 'See yakku plan',
-                  onActionTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (context) => YakkuPlanScreen(
-                          planName: widget.planName ?? 'Free',
-                        ),
-                      ),
-                    );
-                  },
+                _SettingsRow(
+                  icon: FontAwesomeIcons.arrowRotateLeft,
+                  title: 'Let people I answer ask me back',
+                  subtitle: 'You stay anonymous',
+                  trailing: Switch(
+                    value: _allowAskBack,
+                    onChanged: _askBackReady && !_askBackUpdating
+                        ? _setAllowAskBack
+                        : null,
+                  ),
                 ),
-                _ChevronRow(
-                  title: 'Phone number',
-                  subtitle: maskedPhone ?? 'Signed in',
-                  showChevron: false,
-                ),
-                _ChevronRow(title: 'Terms and privacy', onTap: _openPolicy),
-                _ChevronRow(title: 'Log out', onTap: _logOut),
-                _ChevronRow(
-                  title: 'Delete account',
-                  titleColor: YakkuPalette.primary,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (context) => const DeleteAccountScreen(),
-                      ),
-                    );
-                  },
+                _SettingsRow(
+                  icon: FontAwesomeIcons.bell,
+                  title: 'Notifications',
+                  trailing: Switch(
+                    value: _pushAllowed,
+                    onChanged: _pushReady && !_pushUpdating
+                        ? _setPushAllowed
+                        : null,
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 22),
+            const _SectionLabel('ABOUT'),
+            _SettingsCard(
+              children: [
+                _SettingsRow(
+                  icon: FontAwesomeIcons.shieldHalved,
+                  title: 'Privacy policy',
+                  onTap: _openPolicy,
+                  showChevron: true,
+                ),
+                _SettingsRow(
+                  icon: FontAwesomeIcons.circleInfo,
+                  title: 'Terms',
+                  onTap: _openPolicy,
+                  showChevron: true,
+                ),
+                _SettingsRow(
+                  icon: FontAwesomeIcons.comment,
+                  title: 'Email to',
+                  onTap: () => _emailSupport('Hello Yakku'),
+                  showChevron: true,
+                ),
+                _SettingsRow(
+                  icon: FontAwesomeIcons.flag,
+                  title: 'Report a problem',
+                  onTap: () => _emailSupport('Problem report'),
+                  showChevron: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _SettingsCard(
+              children: [
+                _SettingsRow(
+                  icon: FontAwesomeIcons.chevronLeft,
+                  title: 'Log out',
+                  onTap: _logOut,
+                  showChevron: true,
+                ),
+                _SettingsRow(
+                  icon: FontAwesomeIcons.trashCan,
+                  title: 'Delete account',
+                  color: YakkuPalette.primary,
+                  onTap: _openDeleteAccount,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                'Yakku Technologies Pvt Ltd'
+                '${_version == null ? '' : ' · v$_version'}',
+                style: const TextStyle(
+                  color: YakkuPalette.textSecondary,
+                  fontSize: 11.5,
+                ),
+              ),
             ),
           ],
         ),
@@ -219,13 +350,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-final _pinkSwitchTheme = SwitchThemeData(
+/// White track off / raspberry track on, with a white thumb.
+final _switchTheme = SwitchThemeData(
   thumbColor: WidgetStateProperty.all(YakkuPalette.white),
   trackColor: WidgetStateProperty.resolveWith((states) {
     if (states.contains(WidgetState.selected)) return YakkuPalette.primary;
     return YakkuPalette.settingsTile;
   }),
   trackOutlineColor: WidgetStateProperty.all(YakkuPalette.transparent),
+  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
 );
 
 class _SectionLabel extends StatelessWidget {
@@ -236,85 +369,25 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      padding: const EdgeInsets.fromLTRB(4, 4, 0, 10),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 12,
-          letterSpacing: 0.7,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        style: const TextStyle(
+          fontSize: 11.5,
+          letterSpacing: 0.8,
+          fontWeight: FontWeight.w800,
+          color: YakkuPalette.textSecondary,
         ),
       ),
     );
   }
 }
 
-class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.3,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Transform.scale(
-            scale: 0.8,
-            child: Switch(
-              value: value,
-              onChanged: onChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AccountGroup extends StatelessWidget {
-  const _AccountGroup({required this.children, required this.dividerColor});
+/// A white rounded card holding rows separated by thin dividers.
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({required this.children});
 
   final List<Widget> children;
-  final Color dividerColor;
 
   @override
   Widget build(BuildContext context) {
@@ -322,97 +395,62 @@ class _AccountGroup extends StatelessWidget {
     for (var i = 0; i < children.length; i++) {
       items.add(children[i]);
       if (i < children.length - 1) {
-        items.add(Divider(height: 1, thickness: 1, color: dividerColor));
+        items.add(
+          const Divider(
+            height: 1,
+            thickness: 1,
+            indent: 52,
+            color: YakkuPalette.roseBorder,
+          ),
+        );
       }
     }
-    return Column(children: items);
-  }
-}
-
-class _PlanRow extends StatelessWidget {
-  const _PlanRow({
-    required this.planLabel,
-    required this.actionLabel,
-    this.onActionTap,
-  });
-
-  final String planLabel;
-  final String actionLabel;
-  final VoidCallback? onActionTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your plan',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  planLabel,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onActionTap,
-            style: TextButton.styleFrom(
-              foregroundColor: YakkuPalette.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              actionLabel,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        color: YakkuPalette.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: YakkuPalette.roseBorder),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: items),
     );
   }
 }
 
-class _ChevronRow extends StatelessWidget {
-  const _ChevronRow({
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
     required this.title,
     this.subtitle,
+    this.trailing,
     this.onTap,
-    this.titleColor,
-    this.showChevron = true,
+    this.showChevron = false,
+    this.color = YakkuPalette.Ink,
   });
 
+  final FaIconData icon;
   final String title;
   final String? subtitle;
+
+  /// A switch, when the row is a setting.
+  final Widget? trailing;
   final VoidCallback? onTap;
-  final Color? titleColor;
   final bool showChevron;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
+            SizedBox(
+              width: 22,
+              child: Center(child: FaIcon(icon, size: 18, color: color)),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,53 +458,35 @@ class _ChevronRow extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor ?? theme.colorScheme.onSurface,
+                      color: color,
+                      fontSize: 15,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: theme.colorScheme.onSurfaceVariant,
+                      style: const TextStyle(
+                        color: YakkuPalette.textSecondary,
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
+            if (trailing != null) ...[const SizedBox(width: 10), trailing!],
             if (showChevron)
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant,
+              const FaIcon(
+                FontAwesomeIcons.chevronRight,
+                size: 13,
+                color: YakkuPalette.textSecondary,
               ),
           ],
         ),
       ),
     );
   }
-}
-
-/// Masks a phone like `+91 98xxx xx210` for the account row.
-String? _maskPhoneNumber(String? phone) {
-  if (phone == null) return null;
-  final trimmed = phone.trim();
-  if (trimmed.isEmpty) return null;
-
-  final digits = trimmed.replaceAll(RegExp(r'\D'), '');
-  if (digits.length < 10) return trimmed;
-
-  final hasCountry91 =
-      (digits.length >= 12 && digits.startsWith('91')) ||
-      trimmed.startsWith('+91');
-  final local = hasCountry91 && digits.length >= 12
-      ? digits.substring(digits.length - 10)
-      : digits.substring(digits.length - 10);
-
-  final masked =
-      '${local.substring(0, 2)}xxx xx${local.substring(local.length - 3)}';
-  return '+91 $masked';
 }
