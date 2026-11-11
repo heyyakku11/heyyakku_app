@@ -138,7 +138,8 @@ class PersonalityResults {
       crowdTopTraits: [
         if (top is List)
           for (final item in top)
-            if (item is Map<String, dynamic>) PersonalityTraitCount.fromJson(item),
+            if (item is Map<String, dynamic>)
+              PersonalityTraitCount.fromJson(item),
       ],
     );
   }

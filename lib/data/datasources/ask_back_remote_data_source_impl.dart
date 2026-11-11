@@ -36,7 +36,9 @@ class AskBackRemoteDataSourceImpl implements AskBackRemoteDataSource {
   @override
   Future<AskBackConversation> get(String conversationId) {
     return _conversation(
-      dio.get<Map<String, dynamic>>(ApiRoutes.askBackConversation(conversationId)),
+      dio.get<Map<String, dynamic>>(
+        ApiRoutes.askBackConversation(conversationId),
+      ),
       'Failed to load the conversation',
     );
   }
@@ -55,7 +57,11 @@ class AskBackRemoteDataSourceImpl implements AskBackRemoteDataSource {
       ApiRoutes.askBackMessages(conversationId),
       queryParameters: query.isEmpty ? null : query,
     );
-    return _page(response.data, AskBackMessage.fromJson, 'Failed to load messages');
+    return _page(
+      response.data,
+      AskBackMessage.fromJson,
+      'Failed to load messages',
+    );
   }
 
   @override

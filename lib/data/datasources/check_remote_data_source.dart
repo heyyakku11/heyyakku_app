@@ -7,7 +7,10 @@ abstract class CheckRemoteDataSource {
   /// Active checks for the current week (public).
   Future<List<CheckResponse>> getChecks();
 
-  /// Makes a check with the caller's own answer (login required).
+  /// Active just-for-fun cards (public). They have no live or expiry date.
+  Future<List<CheckResponse>> getFunCards();
+
+  /// Makes a check, or a just-for-fun card when [MakeCheckRequest.fun], with the caller's own answer (login required).
   Future<UserCheckResponse> makeCheck(MakeCheckRequest request);
 
   /// The caller's made checks (login required).

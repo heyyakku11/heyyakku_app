@@ -143,9 +143,21 @@ class FeedOptionChips extends StatelessWidget {
   }
 }
 
-BoxDecoration feedCardDecoration(Color background, {double radius = 22}) {
+BoxDecoration feedCardDecoration(
+  Color background, {
+  double radius = 22,
+  List<Color>? gradient,
+}) {
+  final hasGradient = gradient != null && gradient.length >= 2;
   return BoxDecoration(
-    color: background,
+    color: hasGradient ? null : background,
+    gradient: hasGradient
+        ? LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: gradient,
+          )
+        : null,
     borderRadius: BorderRadius.circular(radius),
     boxShadow: const [
       BoxShadow(

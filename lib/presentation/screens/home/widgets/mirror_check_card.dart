@@ -30,7 +30,11 @@ class CurrentMirrorCheckCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => openAskFriendsCheck(context, draft),
       child: DecoratedBox(
-        decoration: feedCardDecoration(check.backgroundColor, radius: 28),
+        decoration: feedCardDecoration(
+          check.backgroundColor,
+          radius: 28,
+          gradient: check.backgroundGradient,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
           child: Column(
@@ -101,7 +105,7 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                     Expanded(
                       child: _CurrentCheckSticker(
                         text: check.sticker!,
-                        color: check.accentColor,
+                        color: check.stickerColor ?? check.accentColor,
                       ),
                     ),
                 ],
@@ -123,7 +127,7 @@ class CurrentMirrorCheckCard extends StatelessWidget {
                 Text(
                   check.question,
                   style: TextStyle(
-                    color: check.foregroundColor,
+                    color: check.questionColor ?? check.foregroundColor,
                     fontSize: 20,
                     height: 1.2,
                     fontWeight: FontWeight.w600,
@@ -269,6 +273,7 @@ class _LetteredOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final outlined = option.outlined;
     final badgeColor = check.accentColor.withValues(alpha: 0.14);
+    final optionText = check.optionTextColor ?? check.foregroundColor;
     final dashColor = YakkuPalette.Raspberry.withAlpha(90);
 
     final row = Padding(
@@ -286,7 +291,7 @@ class _LetteredOption extends StatelessWidget {
             child: Text(
               letter,
               style: TextStyle(
-                color: outlined ? YakkuPalette.Ink : check.foregroundColor,
+                color: outlined ? YakkuPalette.Ink : optionText,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -297,7 +302,7 @@ class _LetteredOption extends StatelessWidget {
             child: Text(
               option.label,
               style: TextStyle(
-                color: outlined ? YakkuPalette.Ink : check.foregroundColor,
+                color: outlined ? YakkuPalette.Ink : optionText,
                 fontSize: 15,
                 fontWeight: outlined ? FontWeight.w800 : FontWeight.w600,
               ),

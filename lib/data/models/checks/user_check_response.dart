@@ -41,7 +41,6 @@ class UserCheckResponse {
     required this.title,
     required this.question,
     required this.backgroundColor,
-    required this.sticker,
     required this.shareCode,
     required this.isOwner,
     required this.options,
@@ -60,7 +59,6 @@ class UserCheckResponse {
   final String title;
   final String question;
   final String backgroundColor;
-  final String sticker;
   final String shareCode;
   final bool isOwner;
   final String? myVoteOptionId;
@@ -88,7 +86,6 @@ class UserCheckResponse {
       title: json['title']?.toString() ?? '',
       question: json['question']?.toString() ?? '',
       backgroundColor: json['backgroundColor']?.toString() ?? '',
-      sticker: json['sticker']?.toString() ?? '',
       shareCode: json['shareCode']?.toString() ?? '',
       isOwner: json['isOwner'] as bool? ?? false,
       myVoteOptionId: json['myVoteOptionId']?.toString(),

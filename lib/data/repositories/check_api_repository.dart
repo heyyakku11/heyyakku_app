@@ -7,9 +7,16 @@ import 'package:yakku/data/models/checks/user_check_response.dart';
 
 /// This week's checks plus the caller's made checks, loaded together.
 class HomeChecks {
-  const HomeChecks({required this.checks, required this.myChecks});
+  const HomeChecks({
+    required this.checks,
+    required this.myChecks,
+    this.funCards = const [],
+  });
 
   final List<CheckResponse> checks;
+
+  /// Active just-for-fun cards (no live date).
+  final List<CheckResponse> funCards;
   final List<UserCheckResponse> myChecks;
 }
 
@@ -20,6 +27,8 @@ class CheckApiRepository extends ChangeNotifier {
   final CheckRemoteDataSource _remote;
 
   Future<List<CheckResponse>> getChecks() => _remote.getChecks();
+
+  Future<List<CheckResponse>> getFunCards() => _remote.getFunCards();
 
   Future<UserCheckResponse> makeCheck(MakeCheckRequest request) async {
     final made = await _remote.makeCheck(request);
@@ -95,6 +104,14 @@ class CheckApiRepository extends ChangeNotifier {
     final mineFuture = loggedIn
         ? _remote.getMyChecks().catchError((_) => <UserCheckResponse>[])
         : Future.value(const <UserCheckResponse>[]);
-    return HomeChecks(checks: await checksFuture, myChecks: await mineFuture);
+    // The fun cards are extra: the feed still loads without them.
+    final funFuture = _remote.getFunCards().catchError(
+      (_) => <CheckResponse>[],
+    );
+    return HomeChecks(
+      checks: await checksFuture,
+      myChecks: await mineFuture,
+      funCards: await funFuture,
+    );
   }
 }

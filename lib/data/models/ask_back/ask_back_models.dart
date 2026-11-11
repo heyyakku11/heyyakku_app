@@ -17,7 +17,10 @@ enum AskBackStatus {
 }
 
 class AskBackParticipant {
-  const AskBackParticipant({required this.anonymousName, this.isDeleted = false});
+  const AskBackParticipant({
+    required this.anonymousName,
+    this.isDeleted = false,
+  });
 
   final String anonymousName;
   final bool isDeleted;
@@ -247,7 +250,10 @@ class AskBackReadEvent {
 
 /// `ConversationClosed` (closed or blocked) and `ConversationReopened`.
 class AskBackStatusEvent {
-  const AskBackStatusEvent({required this.conversationId, required this.status});
+  const AskBackStatusEvent({
+    required this.conversationId,
+    required this.status,
+  });
 
   final String conversationId;
   final AskBackStatus status;

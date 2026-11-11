@@ -30,7 +30,11 @@ class AskFriendsCheck {
     this.meta,
     this.sticker,
     this.checkId,
+    this.isFun = false,
   });
+
+  /// True for a just-for-fun card: made through the fun-cards endpoint.
+  final bool isFun;
 
   /// Backend check id; set only for checks that come from the API.
   final String? checkId;
@@ -47,6 +51,7 @@ class AskFriendsCheck {
   factory AskFriendsCheck.fromMirrorCheck(MirrorCheck check) {
     return AskFriendsCheck(
       checkId: check.id,
+      isFun: check.isFun,
       title: check.title,
       question: check.question,
       backgroundColor: check.backgroundColor,

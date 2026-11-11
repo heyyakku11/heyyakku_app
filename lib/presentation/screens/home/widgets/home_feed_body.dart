@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/models/home/question_worth_asking.dart';
+import 'package:yakku/presentation/screens/home/widgets/just_for_fun_section.dart';
 import 'package:yakku/presentation/screens/home/widgets/mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/write_own_question_cta.dart';
@@ -12,8 +13,12 @@ class HomeFeedBody extends StatelessWidget {
     required this.mirrorChecks,
     this.errorMessage,
     required this.questionsWorthAsking,
+    this.funCards = const [],
     this.leading,
   });
+
+  /// Active just-for-fun cards; the ones already made are not shown.
+  final List<MirrorCheck> funCards;
 
   /// Shown first, above the checks (the personality card).
   final Widget? leading;
@@ -32,6 +37,10 @@ class HomeFeedBody extends StatelessWidget {
     ];
     final featured = ordered.isEmpty ? null : ordered.first;
     final moreChecks = ordered.skip(1).toList();
+    final fun = [
+      for (final card in funCards)
+        if (!card.used) card,
+    ];
     final theme = Theme.of(context);
     final ink = theme.brightness == Brightness.dark
         ? theme.colorScheme.onSurface
@@ -51,7 +60,9 @@ class HomeFeedBody extends StatelessWidget {
           const SizedBox(height: 28),
         ],
         MoreChecksSection(checks: moreChecks),
-        const SizedBox(height: 28),
+        if (moreChecks.isNotEmpty) const SizedBox(height: 28),
+        JustForFunSection(cards: fun),
+        if (fun.isNotEmpty) const SizedBox(height: 28),
         const WriteOwnQuestionCta(),
       ],
     );

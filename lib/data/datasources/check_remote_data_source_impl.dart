@@ -24,9 +24,20 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   }
 
   @override
+  Future<List<CheckResponse>> getFunCards() async {
+    final response = await dio.get<Map<String, dynamic>>(ApiRoutes.funCards);
+    return _unwrapList(
+      response.data,
+      emptyMessage: 'Empty cards response',
+      failureMessage: 'Failed to load cards',
+      itemFromJson: CheckResponse.fromJson,
+    );
+  }
+
+  @override
   Future<UserCheckResponse> makeCheck(MakeCheckRequest request) async {
     final response = await dio.post<Map<String, dynamic>>(
-      ApiRoutes.makeCheck,
+      request.fun ? ApiRoutes.makeFunCard : ApiRoutes.makeCheck,
       data: request.toJson(),
     );
     final body = response.data;

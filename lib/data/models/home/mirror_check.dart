@@ -60,7 +60,16 @@ class MirrorCheck {
     this.sticker,
     this.id,
     this.used = false,
+    this.questionColor,
+    this.stickerColor,
+    this.backgroundGradient,
+    this.optionTextColor,
+    this.checkType,
+    this.isFun = false,
   });
+
+  /// True for a just-for-fun card: made through the fun-cards endpoint.
+  final bool isFun;
 
   /// Backend check id; null for dummy cards.
   final String? id;
@@ -73,27 +82,38 @@ class MirrorCheck {
   final Color foregroundColor;
   final Color chipColor;
   final Color accentColor;
+
+  /// Theme extras; null means "use the shared card defaults".
+  final Color? questionColor;
+  final Color? stickerColor;
+  final List<Color>? backgroundGradient;
+  final Color? optionTextColor;
+  final String? checkType;
   final String? eyebrow;
   final String? meta;
   final String? sticker;
   final List<MirrorCheckOption> options;
 
-  /// The backend only sends the background colour; the rest follows the
-  /// shared card palette.
-  factory MirrorCheck.fromCheck(CheckResponse check) {
+  /// Built from the theme the backend assigned to the check (never from per-type constants).
+  factory MirrorCheck.fromCheck(CheckResponse check, {bool isFun = false}) {
+    final theme = check.theme;
+    final sticker = theme.stickerLabel.trim();
     return MirrorCheck(
       id: check.id,
       used: check.used,
-      title: check.title,
+      isFun: isFun,
+      checkType: check.checkType ?? theme.checkType,
+      title: theme.heading.trim().isEmpty ? check.title : theme.heading,
       question: check.question,
-      backgroundColor: parseHexColor(
-        check.backgroundColor,
-        fallback: YakkuPalette.cream,
-      ),
-      foregroundColor: YakkuPalette.textPrimary,
-      chipColor: YakkuPalette.white,
-      accentColor: YakkuPalette.primary,
-      sticker: check.sticker.trim().isEmpty ? null : check.sticker,
+      backgroundColor: theme.backgroundColor,
+      backgroundGradient: theme.backgroundGradient,
+      foregroundColor: theme.headingColor,
+      questionColor: theme.questionColor,
+      chipColor: theme.optionBackgroundColor,
+      accentColor: theme.accentColor,
+      stickerColor: theme.stickerColor,
+      optionTextColor: theme.optionTextColor,
+      sticker: sticker.isEmpty ? null : sticker,
       options: [
         for (var i = 0; i < check.options.length; i++)
           MirrorCheckOption(

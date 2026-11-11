@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool? _wasLoggedIn;
 
   List<MirrorCheck> _checks = const [];
+  List<MirrorCheck> _funCards = const [];
   bool _loading = true;
   String? _error;
   HomeFeedTab _tab = HomeFeedTab.friends;
@@ -88,6 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _checks = [
           for (final check in data.checks) MirrorCheck.fromCheck(check),
         ];
+        _funCards = [
+          for (final card in data.funCards)
+            MirrorCheck.fromCheck(card, isFun: true),
+        ];
         _error = null;
         _loading = false;
       });
@@ -136,6 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final card = store.card;
                                 return HomeFeedBody(
                                   mirrorChecks: _checks,
+                                  funCards: _funCards,
                                   questionsWorthAsking: questionsWorthAsking,
                                   errorMessage: _checks.isEmpty ? _error : null,
                                   leading: card == null

@@ -39,9 +39,7 @@ class VerifyOtpUser {
   const VerifyOtpUser({required this.anonymousName});
 
   factory VerifyOtpUser.fromJson(Map<String, dynamic> json) {
-    return VerifyOtpUser(
-      anonymousName: json['anonymousName'] as String? ?? '',
-    );
+    return VerifyOtpUser(anonymousName: json['anonymousName'] as String? ?? '');
   }
 }
 

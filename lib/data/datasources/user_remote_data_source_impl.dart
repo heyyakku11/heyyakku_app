@@ -51,7 +51,9 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     );
     final card = apiResponse.data;
     if (!apiResponse.success || card == null) {
-      throw StateError(apiResponse.message ?? 'Failed to load personality card');
+      throw StateError(
+        apiResponse.message ?? 'Failed to load personality card',
+      );
     }
     return card;
   }
@@ -92,7 +94,8 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
 
     final apiResponse = ApiResponse<PersonalitySelfAssessment>.fromJson(
       body,
-      (json) => PersonalitySelfAssessment.fromJson(json as Map<String, dynamic>),
+      (json) =>
+          PersonalitySelfAssessment.fromJson(json as Map<String, dynamic>),
     );
     final result = apiResponse.data;
     if (!apiResponse.success || result == null) {
@@ -170,13 +173,17 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     }
 
     final apiResponse = ApiResponse<String>.fromJson(body, (json) {
-      final data = json is Map<String, dynamic> ? json : const <String, dynamic>{};
+      final data = json is Map<String, dynamic>
+          ? json
+          : const <String, dynamic>{};
       return data['anonymousName'] as String? ?? '';
     });
 
     final name = apiResponse.data;
     if (!apiResponse.success || name == null || name.isEmpty) {
-      throw StateError(apiResponse.message ?? 'Failed to update anonymous name');
+      throw StateError(
+        apiResponse.message ?? 'Failed to update anonymous name',
+      );
     }
 
     return name;

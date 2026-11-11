@@ -66,10 +66,7 @@ class UserProfileDetails {
   final String anonymousName;
   final String? avatarUrl;
 
-  const UserProfileDetails({
-    required this.anonymousName,
-    this.avatarUrl,
-  });
+  const UserProfileDetails({required this.anonymousName, this.avatarUrl});
 
   factory UserProfileDetails.fromJson(Map<String, dynamic> json) {
     return UserProfileDetails(

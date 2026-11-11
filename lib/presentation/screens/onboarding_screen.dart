@@ -13,19 +13,58 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+/// 0..1 progress of [t] between [a] and [b], clamped.
+double _ramp(double t, double a, double b) =>
+    ((t - a) / (b - a)).clamp(0.0, 1.0);
+
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   static const _slideCount = 3;
   static const _stepLabels = ['Ask', 'Guess', 'Share', 'Compare'];
   static const _pageDuration = Duration(milliseconds: 320);
+  static const _stepDuration = Duration(milliseconds: 2500); // 2.5s
 
   final _pageController = PageController();
+  // Drives the slide 2 demo: one 0..1 run per sub tab, then on to the next tab.
+  late final AnimationController _stepController;
   int _page = 0;
   int _step = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _stepController = AnimationController(vsync: this, duration: _stepDuration)
+      ..addStatusListener((status) {
+        if (status != AnimationStatus.completed || !mounted || _page != 1) {
+          return;
+        }
+        setState(() => _step = (_step + 1) % _stepLabels.length);
+        _stepController.forward(from: 0);
+      });
+  }
+
+  @override
   void dispose() {
+    _stepController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _page = page;
+      if (page == 1) _step = 0;
+    });
+    if (page == 1) {
+      _stepController.forward(from: 0);
+    } else {
+      _stepController.stop();
+    }
+  }
+
+  void _selectStep(int step) {
+    setState(() => _step = step);
+    _stepController.forward(from: 0);
   }
 
   String get _buttonLabel => switch (_page) {
@@ -95,13 +134,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               controller: _pageController,
               // Slides only advance from the button, not by swiping.
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (page) => setState(() => _page = page),
+              onPageChanged: _onPageChanged,
               children: [
                 const _SlideAsk(),
                 _SlideHowItWorks(
                   step: _step,
                   labels: _stepLabels,
-                  onStepSelected: (step) => setState(() => _step = step),
+                  progress: _stepController,
+                  onStepSelected: _selectStep,
                 ),
                 const _SlideCommunity(),
               ],
@@ -266,11 +306,13 @@ class _SlideHowItWorks extends StatelessWidget {
   const _SlideHowItWorks({
     required this.step,
     required this.labels,
+    required this.progress,
     required this.onStepSelected,
   });
 
   final int step;
   final List<String> labels;
+  final Animation<double> progress;
   final ValueChanged<int> onStepSelected;
 
   static const _titles = [
@@ -279,6 +321,10 @@ class _SlideHowItWorks extends StatelessWidget {
     'Share it. Friends answer anonymously.',
     'See if they agree.',
   ];
+
+  // Each step fades in at its start and out at its end, so steps cross-fade.
+  static double _stepOpacity(double t) =>
+      _ramp(t, 0, 0.08) * (1 - _ramp(t, 0.92, 1));
 
   // Vertical proportions of the three sections, fixed for every step.
   static const _tabsFlex = 1;
@@ -315,30 +361,51 @@ class _SlideHowItWorks extends StatelessWidget {
         // Section 2: step content.
         Expanded(
           flex: _contentFlex,
-          child: SizedBox(
-            width: double.infinity,
-            child: switch (step) {
-              0 => const _VibeCheckCard(key: ValueKey('ask-step')),
-              1 => const _VibeCheckCard(
-                key: ValueKey('guess-step'),
-                guessed: true,
-              ),
-              2 => const _ShareStepCard(key: ValueKey('share-step')),
-              _ => const _CompareStepCard(key: ValueKey('compare-step')),
+          child: AnimatedBuilder(
+            animation: progress,
+            builder: (context, _) {
+              final t = progress.value;
+              return Opacity(
+                opacity: _stepOpacity(t),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: switch (step) {
+                    0 => _VibeCheckCard(key: const ValueKey('ask-step'), t: t),
+                    1 => _VibeCheckCard(
+                      key: const ValueKey('guess-step'),
+                      guessed: true,
+                      t: t,
+                    ),
+                    2 => _ShareStepCard(
+                      key: const ValueKey('share-step'),
+                      t: t,
+                    ),
+                    _ => _CompareStepCard(
+                      key: const ValueKey('compare-step'),
+                      t: t,
+                    ),
+                  },
+                ),
+              );
             },
           ),
         ),
         // Section 3: step headline.
         Expanded(
           flex: _textFlex,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.bottomLeft,
-              child: SizedBox(
-                width: 340,
-                child: _Headline(spans: [TextSpan(text: _titles[step])]),
+          child: AnimatedBuilder(
+            animation: progress,
+            builder: (context, child) =>
+                Opacity(opacity: _stepOpacity(progress.value), child: child),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.bottomLeft,
+                child: SizedBox(
+                  width: 340,
+                  child: _Headline(spans: [TextSpan(text: _titles[step])]),
+                ),
               ),
             ),
           ),
@@ -389,9 +456,13 @@ class _StepTab extends StatelessWidget {
 /// Vibe-check poll card used by slide 2. Step 1 ("Ask") shows it tilted;
 /// step 2 ("Guess", [guessed]) shows it straight with the first option picked.
 class _VibeCheckCard extends StatelessWidget {
-  const _VibeCheckCard({super.key, this.guessed = false});
+  const _VibeCheckCard({super.key, this.guessed = false, this.t = 1});
 
   final bool guessed;
+
+  /// Progress through the 5s step (0..1). On the Guess step a tap lands on the
+  /// first option at ~30% and it turns selected at ~38%.
+  final double t;
 
   static const _options = [
     ('Fully chill', 0.012),
@@ -487,9 +558,46 @@ class _VibeCheckCard extends StatelessWidget {
   }
 
   Widget _optionPill(String label, double angle, int index) {
-    final selected = guessed && index == 0;
+    final selected = guessed && index == 0 && t >= 0.38;
+    final tap = guessed && index == 0 ? _ramp(t, 0.28, 0.38) : 0.0;
     return Transform.rotate(
       angle: guessed ? 0 : angle,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          _optionBox(label, selected),
+          if (tap > 0)
+            // Gold tap marker that presses onto the option, then fades.
+            Positioned(
+              left: 52,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Opacity(
+                  opacity: (tap * (1 - _ramp(t, 0.75, 0.9))).clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: 1.4 - 0.4 * tap,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: YakkuPalette.Gold.withValues(alpha: 0.85),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: YakkuPalette.Ink, width: 1),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _optionBox(String label, bool selected) {
+    return Transform.rotate(
+      angle: 0,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -525,7 +633,11 @@ class _VibeCheckCard extends StatelessWidget {
 /// Step 3 ("Share") of slide 2: the poll card, a Share button and the three
 /// share targets. Laid out on a fixed canvas and scaled down to fit.
 class _ShareStepCard extends StatelessWidget {
-  const _ShareStepCard({super.key});
+  const _ShareStepCard({super.key, this.t = 1});
+
+  /// Progress through the 5s step: the Share button lands first, then the
+  /// Instagram, WhatsApp and Snapchat tiles pop in one after another.
+  final double t;
 
   static const _canvasWidth = 330.0;
   static const _canvasHeight = 440.0;
@@ -554,84 +666,105 @@ class _ShareStepCard extends StatelessWidget {
               right: 0,
               top: 270,
               child: Center(
-                child: Container(
-                  width: 190,
-                  height: 50,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: YakkuPalette.primary,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: YakkuPalette.Ink, width: 2),
-                    boxShadow: const [
-                      BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 5)),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.ios_share_rounded,
-                        size: 20,
-                        color: YakkuPalette.white,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Share',
-                        style: TextStyle(
-                          color: YakkuPalette.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
+                child: Opacity(
+                  opacity: _ramp(t, 0.08, 0.2),
+                  child: Container(
+                    width: 190,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: YakkuPalette.primary,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: YakkuPalette.Ink, width: 2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: YakkuPalette.Ink,
+                          offset: Offset(0, 5),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.ios_share_rounded,
+                          size: 20,
+                          color: YakkuPalette.white,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Share',
+                          style: TextStyle(
+                            color: YakkuPalette.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 0,
               top: 320,
               width: _canvasWidth,
               height: 40,
-              child: CustomPaint(painter: _ShareArrowsPainter()),
+              child: CustomPaint(
+                painter: _ShareArrowsPainter(
+                  _ramp(t, 0.3, 0.4),
+                  _ramp(t, 0.45, 0.55),
+                  _ramp(t, 0.6, 0.7),
+                ),
+              ),
             ),
-            const Positioned(
+            Positioned(
               left: 32,
               top: 360,
-              child: _ShareTile(
-                angle: -0.14,
-                gradient: LinearGradient(
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                  colors: [
-                    YakkuPalette.instagramOrange,
-                    YakkuPalette.instagramPink,
-                    YakkuPalette.instagramPurple,
-                  ],
+              child: _Pop(
+                value: _ramp(t, 0.3, 0.42),
+                child: const _ShareTile(
+                  angle: -0.14,
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                    colors: [
+                      YakkuPalette.instagramOrange,
+                      YakkuPalette.instagramPink,
+                      YakkuPalette.instagramPurple,
+                    ],
+                  ),
+                  icon: FontAwesomeIcons.instagram,
+                  iconColor: YakkuPalette.white,
                 ),
-                icon: FontAwesomeIcons.instagram,
-                iconColor: YakkuPalette.white,
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 134,
               top: 360,
-              child: _ShareTile(
-                angle: 0.03,
-                color: YakkuPalette.whatsappGreen,
-                icon: FontAwesomeIcons.whatsapp,
-                iconColor: YakkuPalette.white,
+              child: _Pop(
+                value: _ramp(t, 0.45, 0.57),
+                child: const _ShareTile(
+                  angle: 0.03,
+                  color: YakkuPalette.whatsappGreen,
+                  icon: FontAwesomeIcons.whatsapp,
+                  iconColor: YakkuPalette.white,
+                ),
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 236,
               top: 360,
-              child: _ShareTile(
-                angle: 0.14,
-                color: YakkuPalette.snapchatYellow,
-                icon: FontAwesomeIcons.snapchat,
-                iconColor: YakkuPalette.white,
+              child: _Pop(
+                value: _ramp(t, 0.6, 0.72),
+                child: const _ShareTile(
+                  angle: 0.14,
+                  color: YakkuPalette.snapchatYellow,
+                  icon: FontAwesomeIcons.snapchat,
+                  iconColor: YakkuPalette.white,
+                ),
               ),
             ),
           ],
@@ -770,6 +903,25 @@ class _ShareStepCard extends StatelessWidget {
   }
 }
 
+/// Scales and fades [child] in as [value] goes 0..1.
+class _Pop extends StatelessWidget {
+  const _Pop({required this.value, required this.child});
+
+  final double value;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: value,
+      child: Transform.scale(
+        scale: 0.6 + 0.4 * Curves.easeOutBack.transform(value),
+        child: child,
+      ),
+    );
+  }
+}
+
 class _ShareTile extends StatelessWidget {
   const _ShareTile({
     required this.angle,
@@ -809,7 +961,12 @@ class _ShareTile extends StatelessWidget {
 }
 
 class _ShareArrowsPainter extends CustomPainter {
-  const _ShareArrowsPainter();
+  const _ShareArrowsPainter(this.left, this.centre, this.right);
+
+  /// 0..1 draw progress of each arrow.
+  final double left;
+  final double centre;
+  final double right;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -823,13 +980,13 @@ class _ShareArrowsPainter extends CustomPainter {
     // Left and right arcs leave the button sideways, then curve down onto the
     // tiles; the centre arrow goes straight down.
     const startInset = 60.0;
-    final left = Path()
+    final leftPath = Path()
       ..moveTo(mid - startInset, 0)
       ..cubicTo(mid - startInset - 40, 0, 62, h * 0.25, 62, h - 4);
-    final centre = Path()
+    final centrePath = Path()
       ..moveTo(mid, 0)
       ..lineTo(mid, h - 4);
-    final right = Path()
+    final rightPath = Path()
       ..moveTo(mid + startInset, 0)
       ..cubicTo(
         mid + startInset + 40,
@@ -840,23 +997,37 @@ class _ShareArrowsPainter extends CustomPainter {
         h - 4,
       );
 
-    for (final path in [left, centre, right]) {
-      canvas.drawPath(path, paint);
-    }
-    for (final x in [62.0, mid, size.width - 62]) {
-      canvas.drawLine(Offset(x, h - 4), Offset(x - 6, h - 13), paint);
-      canvas.drawLine(Offset(x, h - 4), Offset(x + 6, h - 13), paint);
+    final arrows = [
+      (leftPath, left, 62.0),
+      (centrePath, centre, mid),
+      (rightPath, right, size.width - 62),
+    ];
+    for (final (path, progress, x) in arrows) {
+      if (progress <= 0) continue;
+      // Draw the path partially, then the arrow head once it has arrived.
+      for (final metric in path.computeMetrics()) {
+        canvas.drawPath(metric.extractPath(0, metric.length * progress), paint);
+      }
+      if (progress >= 1) {
+        canvas.drawLine(Offset(x, h - 4), Offset(x - 6, h - 13), paint);
+        canvas.drawLine(Offset(x, h - 4), Offset(x + 6, h - 13), paint);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ShareArrowsPainter old) =>
+      old.left != left || old.centre != centre || old.right != right;
 }
 
 /// Step 4 ("Compare") of slide 2: your answer vs. your circle, then the vote
 /// breakdown. Laid out on a fixed canvas and scaled down to fit.
 class _CompareStepCard extends StatelessWidget {
-  const _CompareStepCard({super.key});
+  const _CompareStepCard({super.key, this.t = 1});
+
+  /// Progress through the 5s step: the vote bars fill one by one, then the
+  /// "Plot twist." sticker lands.
+  final double t;
 
   static const _canvasWidth = 330.0;
   static const _canvasHeight = 400.0;
@@ -878,24 +1049,27 @@ class _CompareStepCard extends StatelessWidget {
               right: 0,
               top: 0,
               child: Center(
-                child: Transform.rotate(
-                  angle: 0.1,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: YakkuPalette.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: YakkuPalette.Ink, width: 1.5),
-                    ),
-                    child: const Text(
-                      'Plot twist.',
-                      style: TextStyle(
-                        fontFamily: 'Pacifico',
-                        color: YakkuPalette.primary,
-                        fontSize: 18,
+                child: Opacity(
+                  opacity: _ramp(t, 0.75, 0.82),
+                  child: Transform.rotate(
+                    angle: 0.1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: YakkuPalette.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: YakkuPalette.Ink, width: 1.5),
+                      ),
+                      child: const Text(
+                        'Plot twist.',
+                        style: TextStyle(
+                          fontFamily: 'Pacifico',
+                          color: YakkuPalette.primary,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
                   ),
@@ -931,24 +1105,27 @@ class _CompareStepCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const _VoteRow(
+                  _VoteRow(
                     label: 'Chaotic',
                     percent: 63,
                     comments: 5,
                     highlighted: true,
+                    fill: _ramp(t, 0.12, 0.35),
                   ),
                   const SizedBox(height: 8),
-                  const _VoteRow(
+                  _VoteRow(
                     label: 'Fully chill',
                     percent: 22,
                     comments: 2,
                     isYou: true,
+                    fill: _ramp(t, 0.35, 0.5),
                   ),
                   const SizedBox(height: 8),
-                  const _VoteRow(
+                  _VoteRow(
                     label: 'Both, honestly',
                     percent: 15,
                     comments: 1,
+                    fill: _ramp(t, 0.5, 0.62),
                   ),
                 ],
               ),
@@ -1103,7 +1280,11 @@ class _VoteRow extends StatelessWidget {
     required this.comments,
     this.highlighted = false,
     this.isYou = false,
+    this.fill = 1,
   });
+
+  /// 0..1: how far the bar, percentage and comment badge have appeared.
+  final double fill;
 
   final String label;
   final int percent;
@@ -1140,7 +1321,7 @@ class _VoteRow extends StatelessWidget {
           Positioned.fill(
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: percent / 100,
+              widthFactor: percent / 100 * fill,
               child: ColoredBox(
                 color: highlighted ? YakkuPalette.Blush : YakkuPalette.hairline,
               ),
@@ -1182,45 +1363,47 @@ class _VoteRow extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  Text(
-                    '$percent%',
-                    style: const TextStyle(
-                      color: YakkuPalette.Ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                  if (fill > 0)
+                    Text(
+                      '${(percent * fill).round()}%',
+                      style: const TextStyle(
+                        color: YakkuPalette.Ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: YakkuPalette.pinkMist,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: YakkuPalette.pinkWash),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const FaIcon(
-                          FontAwesomeIcons.comment,
-                          size: 14,
-                          color: YakkuPalette.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$comments',
-                          style: const TextStyle(
+                  if (fill >= 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: YakkuPalette.pinkMist,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: YakkuPalette.pinkWash),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const FaIcon(
+                            FontAwesomeIcons.comment,
+                            size: 14,
                             color: YakkuPalette.primary,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Text(
+                            '$comments',
+                            style: const TextStyle(
+                              color: YakkuPalette.primary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

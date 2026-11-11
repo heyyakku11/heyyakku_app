@@ -25,9 +25,7 @@ abstract interface class UserRemoteDataSource {
   /// `POST /api/v1/personality-cards/me/self-assessment`: claims exactly 3
   /// distinct traits for the user's own card. Allowed once; the card then
   /// starts collecting friends' votes.
-  Future<PersonalitySelfAssessment> submitSelfAssessment(
-    List<String> traitIds,
-  );
+  Future<PersonalitySelfAssessment> submitSelfAssessment(List<String> traitIds);
 
   /// `GET /api/v1/personality-cards/{shareCode}/results`: what friends said,
   /// once the card is completed.

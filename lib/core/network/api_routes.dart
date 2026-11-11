@@ -15,6 +15,10 @@ abstract final class ApiRoutes {
   static const String checks = '/api/v1/checks';
   static const String makeCheck = '/api/v1/checks/make';
   static const String myChecks = '/api/v1/checks/mine';
+
+  // Just-for-fun cards (no live or expiry date; made the same way as checks)
+  static const String funCards = '/api/v1/fun-cards';
+  static const String makeFunCard = '/api/v1/fun-cards/make';
   static String closeMyCheck(String id) => '/api/v1/checks/mine/$id/close';
   static String deleteMyCheck(String id) => '/api/v1/checks/mine/$id';
   static String checkOptionReasons(String checkId, String optionId) =>
@@ -70,19 +74,23 @@ abstract final class ApiRoutes {
   static String notificationRead(String id) => '$notifications/$id/read';
 
   /// Marks the user's notifications about one card read (`contentType` is poll|check).
-  static String notificationsContentRead(String contentType, String contentId) =>
-      '$notifications/content/$contentType/$contentId/read';
+  static String notificationsContentRead(
+    String contentType,
+    String contentId,
+  ) => '$notifications/content/$contentType/$contentId/read';
 
   // Ask back
   static const String askBackConversations = '/api/v1/ask-back/conversations';
   static String askBackConversation(String id) => '$askBackConversations/$id';
-  static String askBackMessages(String id) => '$askBackConversations/$id/messages';
+  static String askBackMessages(String id) =>
+      '$askBackConversations/$id/messages';
   static String askBackRead(String id) => '$askBackConversations/$id/read';
   static String askBackMute(String id) => '$askBackConversations/$id/mute';
   static String askBackClose(String id) => '$askBackConversations/$id/close';
   static String askBackReopen(String id) => '$askBackConversations/$id/reopen';
   static String askBackBlock(String id) => '$askBackConversations/$id/block';
-  static String askBackUnblock(String id) => '$askBackConversations/$id/unblock';
+  static String askBackUnblock(String id) =>
+      '$askBackConversations/$id/unblock';
 
   /// SignalR hub for Ask Back real-time events (path only; see [ApiConstants.baseUrl]).
   static const String askBackHub = '/hubs/ask-back';

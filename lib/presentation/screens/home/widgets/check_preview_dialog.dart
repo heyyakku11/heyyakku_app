@@ -6,9 +6,8 @@ import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/presentation/widgets/guess_flow_widgets.dart';
 
 /// Opens a preview of [check] over a blurred feed: the card with its options
-/// and the Save, Edit and Ask now actions. Tapping outside closes it.
-///
-/// The three actions are shown but not wired up yet.
+/// and the Ask now action. Checks can't be edited or saved. Tapping outside
+/// closes it.
 Future<void> showCheckPreviewDialog(
   BuildContext context,
   AskFriendsCheck check,
@@ -103,24 +102,6 @@ class _CheckPreview extends StatelessWidget {
                         letter: String.fromCharCode(65 + options.length),
                       ),
                       const SizedBox(height: 14),
-                      const Row(
-                        children: [
-                          Expanded(
-                            child: _OutlineAction(
-                              icon: Icons.bookmark_border_rounded,
-                              label: 'Save',
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: _OutlineAction(
-                              icon: Icons.edit_outlined,
-                              label: 'Edit',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
                       const _AskNowAction(),
                     ],
                   ),
@@ -257,43 +238,6 @@ class _FriendsSlot extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Save / Edit: outlined pills. Not wired up yet, so they take no taps.
-class _OutlineAction extends StatelessWidget {
-  const _OutlineAction({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: YakkuPalette.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: YakkuPalette.Ink, width: 1.5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: YakkuPalette.Ink),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: YakkuPalette.Ink,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ],
       ),
     );
   }

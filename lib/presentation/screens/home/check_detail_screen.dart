@@ -115,7 +115,11 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
     final int minVotes;
     if (checkId != null && optionId != null) {
       final made = await scope.checkApi.makeCheck(
-        MakeCheckRequest(checkId: checkId, checkOptionId: optionId),
+        MakeCheckRequest(
+          checkId: checkId,
+          checkOptionId: optionId,
+          fun: check.isFun,
+        ),
       );
       shareCode = made.shareCode;
       minVotes = made.minVotes;
@@ -183,7 +187,9 @@ class _CheckDetailScreenState extends State<CheckDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 IconButton(
-                  onPressed: _sending ? null : () => Navigator.of(context).pop(),
+                  onPressed: _sending
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   tooltip: 'Close',
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,

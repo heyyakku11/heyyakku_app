@@ -6,7 +6,12 @@ class MakeCheckRequest {
     this.checkOptionId,
     this.reason,
     this.customAnswer,
+    this.fun = false,
   });
+
+  /// True when the card is a just-for-fun card: it is made through
+  /// `POST /api/v1/fun-cards/make`. Not part of the request body.
+  final bool fun;
 
   final String checkId;
   final String? checkOptionId;
