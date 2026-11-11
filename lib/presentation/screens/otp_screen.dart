@@ -28,6 +28,7 @@ class OtpScreen extends StatefulWidget {
 
 class _OtpScreenState extends State<OtpScreen> {
   static const _length = 6;
+
   /// How long the user waits before requesting another code: 2 minutes.
   static const _resendSeconds = 120;
   static const _boxSize = Size(48, 56);
@@ -128,11 +129,9 @@ class _OtpScreenState extends State<OtpScreen> {
     });
     try {
       final device = await scope.deviceRegistration.loginDevice();
-      final guests = scope.guestTokenStore;
       await scope.loginAuth.verifyOtpInBackground(
         phone: _phone,
         otp: otp,
-        guestToken: guests.hasValidGuest ? guests.guestToken : null,
         device: device,
       );
       // Logged in: the router replaces this screen on its own.

@@ -287,7 +287,11 @@ class _FriendsAddOption extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(Icons.add_rounded, size: 16, color: YakkuPalette.Raspberry),
+          const Icon(
+            Icons.add_rounded,
+            size: 16,
+            color: YakkuPalette.Raspberry,
+          ),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
+import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
 import 'package:yakku/presentation/widgets/guess_flow_widgets.dart';
 
 /// Opens a preview of [check] over a blurred feed: the card with its options
@@ -18,8 +19,14 @@ Future<void> showCheckPreviewDialog(
     barrierLabel: 'Close preview',
     barrierColor: Colors.black.withValues(alpha: 0.35),
     transitionDuration: const Duration(milliseconds: 220),
-    pageBuilder: (context, animation, secondaryAnimation) =>
-        _CheckPreview(check: check),
+    pageBuilder: (dialogContext, animation, secondaryAnimation) => _CheckPreview(
+      check: check,
+      // Same as the featured "Ask now": close the preview, then open the card.
+      onAskNow: () {
+        Navigator.of(dialogContext).pop();
+        openAskFriendsCheck(context, check);
+      },
+    ),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
@@ -43,9 +50,10 @@ Future<void> showCheckPreviewDialog(
 }
 
 class _CheckPreview extends StatelessWidget {
-  const _CheckPreview({required this.check});
+  const _CheckPreview({required this.check, required this.onAskNow});
 
   final AskFriendsCheck check;
+  final VoidCallback onAskNow;
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +110,7 @@ class _CheckPreview extends StatelessWidget {
                         letter: String.fromCharCode(65 + options.length),
                       ),
                       const SizedBox(height: 14),
-                      const _AskNowAction(),
+                      _AskNowAction(onTap: onAskNow),
                     ],
                   ),
                 ),
@@ -243,37 +251,50 @@ class _FriendsSlot extends StatelessWidget {
   }
 }
 
-/// The main action: raspberry with an ink edge. Not wired up yet.
+/// The main action: raspberry with an ink edge. Opens the card, like the featured "Ask now".
 class _AskNowAction extends StatelessWidget {
-  const _AskNowAction();
+  const _AskNowAction({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: YakkuPalette.Raspberry,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [
-          BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 4)),
-        ],
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.ios_share_rounded, size: 17, color: YakkuPalette.white),
-          SizedBox(width: 8),
-          Text(
-            'Ask now',
-            style: TextStyle(
-              color: YakkuPalette.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              decoration: TextDecoration.none,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Container(
+          height: 54,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: YakkuPalette.Raspberry,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: const [
+              BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 4)),
+            ],
           ),
-        ],
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.ios_share_rounded,
+                size: 17,
+                color: YakkuPalette.white,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Ask now',
+                style: TextStyle(
+                  color: YakkuPalette.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

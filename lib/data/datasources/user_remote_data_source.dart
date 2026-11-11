@@ -11,6 +11,9 @@ abstract interface class UserRemoteDataSource {
   /// `GET /api/v1/users/me/settings`: the account-level settings.
   Future<UserSettings> getSettings();
 
+  /// Adds the signed-in user to the queue notified when the community goes live. Safe to repeat.
+  Future<void> joinCommunityWaitlist();
+
   /// `PATCH /api/v1/users/me/settings`: changes the settings that are given
   /// and returns all of them. Independent of the device's push setting.
   Future<UserSettings> updateSettings({bool? allowAskBack});

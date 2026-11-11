@@ -5,9 +5,6 @@ abstract final class ApiRoutes {
   static const String refresh = '/api/v1/auth/refresh';
   static const String logout = '/api/v1/auth/logout';
 
-  // Guests
-  static const String guests = '/api/v1/guests';
-
   // Devices
   static const String currentDevice = '/api/v1/devices/me';
 
@@ -63,6 +60,9 @@ abstract final class ApiRoutes {
   static const String personalitySelfAssessment =
       '/api/v1/personality-cards/me/self-assessment';
   static const String mySettings = '/api/v1/users/me/settings';
+
+  /// Asks to be notified when the community goes live.
+  static const String communityNotifyMe = '/api/v1/community/notify-me';
   static const String regenerateAnonymousName =
       '/api/v1/users/me/anonymous-name';
 

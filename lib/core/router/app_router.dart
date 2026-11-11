@@ -15,6 +15,10 @@ import 'package:yakku/presentation/screens/sign_up_screen.dart';
 import 'package:yakku/presentation/screens/shared_poll_screen.dart';
 
 abstract final class AppRouter {
+  /// Where a signed-out user starts: onboarding on the first launch, sign-up after that.
+  static String _entryRoute(AuthController auth) =>
+      auth.hasSeenOnboarding ? AppRoutes.signUp : AppRoutes.onboarding;
+
   static GoRouter create(
     AuthController authController, {
     GlobalKey<NavigatorState>? navigatorKey,
@@ -23,21 +27,29 @@ abstract final class AppRouter {
       navigatorKey: navigatorKey,
       initialLocation: authController.canEnterApp
           ? AppRoutes.main
-          : AppRoutes.onboarding,
+          : _entryRoute(authController),
       refreshListenable: authController,
       redirect: (context, state) {
         final canEnter = authController.canEnterApp;
         final onOnboarding = state.matchedLocation == AppRoutes.onboarding;
         final onOtp = state.matchedLocation == AppRoutes.otp;
-        final onSignUp =
-            state.matchedLocation == AppRoutes.signUp || onOtp;
+        final onSignUp = state.matchedLocation == AppRoutes.signUp || onOtp;
+        final entryRoute = _entryRoute(authController);
+
+        // Onboarding is first-launch only; afterwards signed-out users start at sign-up.
+        if (!canEnter &&
+            onOnboarding &&
+            authController.hasSeenOnboarding &&
+            state.uri.queryParameters.isEmpty) {
+          return entryRoute;
+        }
 
         if (!canEnter && !onOnboarding && !onSignUp) {
           // Keep a shared-poll destination through onboarding / login.
           final shareCode = PollDeepLink.shareCodeFromPath(state.uri);
-          if (shareCode == null) return AppRoutes.onboarding;
+          if (shareCode == null) return entryRoute;
           return Uri(
-            path: AppRoutes.onboarding,
+            path: entryRoute,
             queryParameters: {
               PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(shareCode),
             },

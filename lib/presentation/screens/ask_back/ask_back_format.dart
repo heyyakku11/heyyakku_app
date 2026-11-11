@@ -1,8 +1,18 @@
 /// Short, locale-free time labels for the Ask Back screens.
 abstract final class AskBackFormat {
   static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _clock(DateTime local) {
@@ -15,9 +25,11 @@ abstract final class AskBackFormat {
   static String messageTime(DateTime time, {DateTime? now}) {
     final local = time.toLocal();
     final today = now ?? DateTime.now();
-    final days = DateTime(today.year, today.month, today.day)
-        .difference(DateTime(local.year, local.month, local.day))
-        .inDays;
+    final days = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime(local.year, local.month, local.day)).inDays;
     if (days <= 0) return _clock(local);
     if (days == 1) return 'Yesterday ${_clock(local)}';
     return '${local.day} ${_months[local.month - 1]} ${_clock(local)}';
@@ -27,9 +39,11 @@ abstract final class AskBackFormat {
   static String listTime(DateTime time, {DateTime? now}) {
     final local = time.toLocal();
     final today = now ?? DateTime.now();
-    final days = DateTime(today.year, today.month, today.day)
-        .difference(DateTime(local.year, local.month, local.day))
-        .inDays;
+    final days = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime(local.year, local.month, local.day)).inDays;
     if (days <= 0) return _clock(local);
     if (days == 1) return 'Yesterday';
     return '${local.day} ${_months[local.month - 1]}';

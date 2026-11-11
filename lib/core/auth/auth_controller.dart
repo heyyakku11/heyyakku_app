@@ -18,12 +18,13 @@ class AuthController extends ChangeNotifier {
     required AuthRemoteDataSource authRemote,
     this._draftPolls,
     bool isUserLogged = false,
-    this._hasEnteredAsGuest = false,
+    bool hasSeenOnboarding = false,
     String? this._phoneNumber,
     String? this._displayName,
   }) : _tokenStore = tokenStore,
        _authRemote = authRemote,
-       _isLoggedIn = isUserLogged;
+       _isLoggedIn = isUserLogged,
+       _hasSeenOnboarding = hasSeenOnboarding;
 
   final UserPreferences userPreferences;
   final AuthTokenStore _tokenStore;
@@ -31,30 +32,25 @@ class AuthController extends ChangeNotifier {
   final DraftPollStore? _draftPolls;
 
   bool _isLoggedIn;
-  bool _hasEnteredAsGuest;
+  bool _hasSeenOnboarding;
   String? _phoneNumber;
   String? _displayName;
 
   bool get isLoggedIn => _isLoggedIn;
-  bool get hasEnteredAsGuest => _hasEnteredAsGuest;
-  bool get canEnterApp => _isLoggedIn || _hasEnteredAsGuest;
+
+  /// True once onboarding has been shown on this device; the router then skips it.
+  bool get hasSeenOnboarding => _hasSeenOnboarding;
+
+  /// Records that onboarding was shown. Does not notify, so leaving the screen is not interrupted
+  /// by a router refresh.
+  Future<void> markOnboardingSeen() async {
+    if (_hasSeenOnboarding) return;
+    _hasSeenOnboarding = true;
+    await userPreferences.setHasSeenOnboarding(true);
+  }
+  bool get canEnterApp => _isLoggedIn;
   String? get phoneNumber => _phoneNumber;
   String? get displayName => _displayName;
-
-  Future<void> enterAsGuest() async {
-    if (_hasEnteredAsGuest) return;
-    await userPreferences.setHasEnteredAsGuest(true);
-    _hasEnteredAsGuest = true;
-    notifyListeners();
-  }
-
-  /// Clears local guest entry so GoRouter returns the user to onboarding.
-  Future<void> revokeGuestEntry() async {
-    if (!_hasEnteredAsGuest) return;
-    await userPreferences.setHasEnteredAsGuest(false);
-    _hasEnteredAsGuest = false;
-    notifyListeners();
-  }
 
   Future<SendOtpData> sendOtp(String phoneNumber) {
     return _authRemote.sendOtp(SendOtpRequestModel(phoneNumber: phoneNumber));
@@ -63,12 +59,10 @@ class AuthController extends ChangeNotifier {
   Future<void> verifyOtp({
     required String phone,
     required String otp,
-    String? guestToken,
     LoginDeviceModel? device,
   }) async {
     final data = await _authRemote.verifyOtp(
       VerifyOtpRequestModel(phoneNumber: phone, otp: otp, device: device),
-      guestToken: guestToken,
     );
 
     await _tokenStore.saveTokens(
@@ -81,6 +75,14 @@ class AuthController extends ChangeNotifier {
     await userPreferences.setPhoneNumber(phone);
     await userPreferences.setDisplayName(displayName);
     await userPreferences.setIsUserLogged(true);
+    // The server is the source of truth for the community "Notify me" button.
+    await userPreferences.setCommunityNotifyRequested(
+      data.user.communityNotifyRequested,
+    );
+
+    // Signing in implies onboarding is done (covers installs that predate the flag).
+    _hasSeenOnboarding = true;
+    await userPreferences.setHasSeenOnboarding(true);
 
     _isLoggedIn = true;
     _phoneNumber = phone;
@@ -145,7 +147,6 @@ class AuthController extends ChangeNotifier {
     await userPreferences.clearAuth();
 
     _isLoggedIn = false;
-    _hasEnteredAsGuest = false;
     _phoneNumber = null;
     _displayName = null;
     notifyListeners();
@@ -161,12 +162,14 @@ class AuthController extends ChangeNotifier {
 
     final isUserLogged = await userPreferences.getIsUserLogged();
     final hasTokens = tokenStore.hasSessionTokens;
-    final hasEnteredAsGuest = await userPreferences.getHasEnteredAsGuest();
+    // A signed-in user has necessarily been through onboarding.
+    final hasSeenOnboarding =
+        isUserLogged || await userPreferences.getHasSeenOnboarding();
 
     if (isUserLogged && hasTokens) {
       return AuthSessionBootstrap(
         isUserLogged: true,
-        hasEnteredAsGuest: hasEnteredAsGuest,
+        hasSeenOnboarding: true,
         phoneNumber: await userPreferences.getPhoneNumber(),
         displayName: await userPreferences.getDisplayName(),
       );
@@ -177,12 +180,15 @@ class AuthController extends ChangeNotifier {
         tokenStore.hasRefreshToken) {
       await tokenStore.clear();
       await userPreferences.clearAuth();
-      return const AuthSessionBootstrap(isUserLogged: false);
+      return AuthSessionBootstrap(
+        isUserLogged: false,
+        hasSeenOnboarding: hasSeenOnboarding,
+      );
     }
 
     return AuthSessionBootstrap(
       isUserLogged: false,
-      hasEnteredAsGuest: hasEnteredAsGuest,
+      hasSeenOnboarding: hasSeenOnboarding,
     );
   }
 }
@@ -190,13 +196,13 @@ class AuthController extends ChangeNotifier {
 class AuthSessionBootstrap {
   const AuthSessionBootstrap({
     required this.isUserLogged,
-    this.hasEnteredAsGuest = false,
+    this.hasSeenOnboarding = false,
     this.phoneNumber,
     this.displayName,
   });
 
   final bool isUserLogged;
-  final bool hasEnteredAsGuest;
+  final bool hasSeenOnboarding;
   final String? phoneNumber;
   final String? displayName;
 }

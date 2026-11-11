@@ -23,7 +23,10 @@ Future<bool> openOwnCardResults(BuildContext context, PollModel poll) async {
     } catch (error) {
       if (!context.mounted) return false;
       AppToast.show(
-        DioErrorMapper.map(error, fallback: 'Could not open this check').message,
+        DioErrorMapper.map(
+          error,
+          fallback: 'Could not open this check',
+        ).message,
       );
     }
     return false;

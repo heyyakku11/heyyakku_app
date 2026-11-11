@@ -70,7 +70,6 @@ class LoginAuthService {
   Future<void> verifyOtpInBackground({
     required String phone,
     required String otp,
-    String? guestToken,
     LoginDeviceModel? device,
   }) {
     final running = _verifyCompleter;
@@ -89,7 +88,6 @@ class LoginAuthService {
           await _authController.verifyOtp(
             phone: phone,
             otp: otp,
-            guestToken: guestToken,
             device: device,
           );
           return null;

@@ -106,7 +106,8 @@ class AskBackChatController extends ChangeNotifier {
     if (readAt == null) return null;
     for (var i = _confirmed.length - 1; i >= 0; i--) {
       final message = _confirmed[i];
-      if (message.isMine && !message.createdAt.isAfter(readAt)) return message.id;
+      if (message.isMine && !message.createdAt.isAfter(readAt))
+        return message.id;
     }
     return null;
   }
@@ -123,10 +124,26 @@ class AskBackChatController extends ChangeNotifier {
   Future<void> init() async {
     _inbox.setActive(conversationId);
     _subscriptions
-      ..add(_realtime.messages.where((m) => m.conversationId == conversationId).listen(_onIncoming))
-      ..add(_realtime.reads.where((e) => e.conversationId == conversationId).listen(_onRead))
-      ..add(_realtime.statuses.where((e) => e.conversationId == conversationId).listen((_) => refreshConversation()))
-      ..add(_realtime.typing.where((e) => e.conversationId == conversationId).listen(_onTyping))
+      ..add(
+        _realtime.messages
+            .where((m) => m.conversationId == conversationId)
+            .listen(_onIncoming),
+      )
+      ..add(
+        _realtime.reads
+            .where((e) => e.conversationId == conversationId)
+            .listen(_onRead),
+      )
+      ..add(
+        _realtime.statuses
+            .where((e) => e.conversationId == conversationId)
+            .listen((_) => refreshConversation()),
+      )
+      ..add(
+        _realtime.typing
+            .where((e) => e.conversationId == conversationId)
+            .listen(_onTyping),
+      )
       ..add(_realtime.reconnected.listen((_) => catchUp()));
     await load();
     unawaited(_join());
@@ -151,7 +168,10 @@ class AskBackChatController extends ChangeNotifier {
       _inbox.sync(_conversation!);
       unawaited(_markRead());
     } catch (error) {
-      _error = DioErrorMapper.map(error, fallback: 'Could not open this conversation').message;
+      _error = DioErrorMapper.map(
+        error,
+        fallback: 'Could not open this conversation',
+      ).message;
     } finally {
       _loading = false;
       _notify();
@@ -196,7 +216,11 @@ class AskBackChatController extends ChangeNotifier {
         return;
       }
       for (var i = 0; i < 20; i++) {
-        final page = await _remote.messages(conversationId, cursor: cursor, newer: true);
+        final page = await _remote.messages(
+          conversationId,
+          cursor: cursor,
+          newer: true,
+        );
         for (final message in page.items) {
           _mergeConfirmed(ChatMessage.fromServer(message));
         }
@@ -302,7 +326,10 @@ class AskBackChatController extends ChangeNotifier {
   /// Inserts or replaces by message id, then by client message id (which also
   /// resolves my own pending copy). Keeps [_confirmed] oldest first.
   void _mergeConfirmed(ChatMessage message) {
-    _pending.removeWhere((pending) => pending.clientMessageId == message.clientMessageId && message.isMine);
+    _pending.removeWhere(
+      (pending) =>
+          pending.clientMessageId == message.clientMessageId && message.isMine,
+    );
 
     final byId = _confirmed.indexWhere((existing) => existing.id == message.id);
     if (byId >= 0) {
@@ -319,7 +346,8 @@ class AskBackChatController extends ChangeNotifier {
 
   bool _after(ChatMessage a, ChatMessage b) {
     final byTime = a.createdAt.compareTo(b.createdAt);
-    return byTime > 0 || (byTime == 0 && (a.id ?? '').compareTo(b.id ?? '') > 0);
+    return byTime > 0 ||
+        (byTime == 0 && (a.id ?? '').compareTo(b.id ?? '') > 0);
   }
 
   // ---- read state ----
@@ -364,7 +392,8 @@ class AskBackChatController extends ChangeNotifier {
       return;
     }
     final now = DateTime.now();
-    if (_lastTypingSent == null || now.difference(_lastTypingSent!) > const Duration(seconds: 3)) {
+    if (_lastTypingSent == null ||
+        now.difference(_lastTypingSent!) > const Duration(seconds: 3)) {
       _lastTypingSent = now;
       unawaited(_realtime.typingStarted(conversationId));
     }
@@ -382,13 +411,17 @@ class AskBackChatController extends ChangeNotifier {
 
   // ---- actions ----
 
-  Future<void> setMuted(bool muted) => _apply(() => _remote.setMuted(conversationId, muted));
+  Future<void> setMuted(bool muted) =>
+      _apply(() => _remote.setMuted(conversationId, muted));
 
-  Future<void> closeConversation() => _apply(() => _remote.close(conversationId));
+  Future<void> closeConversation() =>
+      _apply(() => _remote.close(conversationId));
 
-  Future<void> reopenConversation() => _apply(() => _remote.reopen(conversationId));
+  Future<void> reopenConversation() =>
+      _apply(() => _remote.reopen(conversationId));
 
-  Future<void> block({String? reason}) => _apply(() => _remote.block(conversationId, reason: reason));
+  Future<void> block({String? reason}) =>
+      _apply(() => _remote.block(conversationId, reason: reason));
 
   Future<void> unblock() => _apply(() => _remote.unblock(conversationId));
 

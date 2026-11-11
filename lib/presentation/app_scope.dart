@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
-import 'package:yakku/core/auth/guest_session_service.dart';
-import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
@@ -9,7 +7,6 @@ import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
-import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
@@ -26,9 +23,6 @@ class AppScope extends InheritedWidget {
     super.key,
     required this.themeController,
     required this.authController,
-    required this.guestRemote,
-    required this.guestTokenStore,
-    required this.guestSession,
     required this.loginAuth,
     required this.backgroundApiWorker,
     required this.polls,
@@ -49,9 +43,6 @@ class AppScope extends InheritedWidget {
 
   final ThemeController themeController;
   final AuthController authController;
-  final GuestRemoteDataSource guestRemote;
-  final GuestTokenStore guestTokenStore;
-  final GuestSessionService guestSession;
   final LoginAuthService loginAuth;
   final BackgroundApiWorker backgroundApiWorker;
   final MockPollRepository polls;
@@ -82,9 +73,6 @@ class AppScope extends InheritedWidget {
   bool updateShouldNotify(AppScope oldWidget) {
     return themeController != oldWidget.themeController ||
         authController != oldWidget.authController ||
-        guestRemote != oldWidget.guestRemote ||
-        guestTokenStore != oldWidget.guestTokenStore ||
-        guestSession != oldWidget.guestSession ||
         loginAuth != oldWidget.loginAuth ||
         backgroundApiWorker != oldWidget.backgroundApiWorker ||
         polls != oldWidget.polls ||

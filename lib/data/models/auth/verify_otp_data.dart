@@ -36,10 +36,20 @@ class VerifyOtpData {
 class VerifyOtpUser {
   final String anonymousName;
 
-  const VerifyOtpUser({required this.anonymousName});
+  /// True when the user already asked to be notified when the community opens.
+  final bool communityNotifyRequested;
+
+  const VerifyOtpUser({
+    required this.anonymousName,
+    this.communityNotifyRequested = false,
+  });
 
   factory VerifyOtpUser.fromJson(Map<String, dynamic> json) {
-    return VerifyOtpUser(anonymousName: json['anonymousName'] as String? ?? '');
+    return VerifyOtpUser(
+      anonymousName: json['anonymousName'] as String? ?? '',
+      communityNotifyRequested:
+          json['communityNotifyRequested'] as bool? ?? false,
+    );
   }
 }
 

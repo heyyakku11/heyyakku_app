@@ -36,7 +36,10 @@ class _AskBackButtonState extends State<AskBackButton> {
       unawaited(router.push(AppRoutes.askBackChatLocation(conversation.id)));
     } catch (error) {
       AppToast.show(
-        DioErrorMapper.map(error, fallback: 'Could not start the conversation').message,
+        DioErrorMapper.map(
+          error,
+          fallback: 'Could not start the conversation',
+        ).message,
       );
     } finally {
       if (mounted) setState(() => _busy = false);

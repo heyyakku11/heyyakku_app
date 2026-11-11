@@ -17,12 +17,13 @@ class UserPreferences {
     await _storage.updateBool(StorageKeys.isUserLogged, value);
   }
 
-  Future<bool> getHasEnteredAsGuest() async {
-    return await _storage.readBool(StorageKeys.hasEnteredAsGuest) ?? false;
+  /// Whether the first-launch onboarding was already shown on this device. Not cleared on logout.
+  Future<bool> getHasSeenOnboarding() async {
+    return await _storage.readBool(StorageKeys.hasSeenOnboarding) ?? false;
   }
 
-  Future<void> setHasEnteredAsGuest(bool value) async {
-    await _storage.updateBool(StorageKeys.hasEnteredAsGuest, value);
+  Future<void> setHasSeenOnboarding(bool value) async {
+    await _storage.updateBool(StorageKeys.hasSeenOnboarding, value);
   }
 
   Future<String?> getPhoneNumber() async {
@@ -49,11 +50,21 @@ class UserPreferences {
     await _storage.update(StorageKeys.displayName, displayName);
   }
 
+  /// Whether the signed-in user asked to be notified when the community opens. Set from the login
+  /// response and after tapping "Notify me"; false when never set.
+  Future<bool> getCommunityNotifyRequested() async {
+    return await _storage.readBool(StorageKeys.communityNotifyMe) ?? false;
+  }
+
+  Future<void> setCommunityNotifyRequested(bool value) async {
+    await _storage.updateBool(StorageKeys.communityNotifyMe, value);
+  }
+
   Future<void> clearAuth() async {
     await _storage.delete(StorageKeys.phoneNumber);
     await _storage.delete(StorageKeys.legacyEmail);
     await _storage.delete(StorageKeys.displayName);
+    await _storage.delete(StorageKeys.communityNotifyMe);
     await _storage.updateBool(StorageKeys.isUserLogged, false);
-    await _storage.updateBool(StorageKeys.hasEnteredAsGuest, false);
   }
 }

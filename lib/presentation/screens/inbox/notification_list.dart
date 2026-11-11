@@ -438,14 +438,13 @@ class _NotificationTile extends StatelessWidget {
                 width: 34,
                 height: 34,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: avatar),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: avatar,
+                ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _Eye(),
-                    SizedBox(width: 5),
-                    _Eye(),
-                  ],
+                  children: [_Eye(), SizedBox(width: 5), _Eye()],
                 ),
               ),
               const SizedBox(width: 12),
@@ -460,7 +459,9 @@ class _NotificationTile extends StatelessWidget {
                       color: YakkuPalette.Ink,
                       fontSize: 15,
                       height: 1.25,
-                      fontWeight: item.isRead ? FontWeight.w700 : FontWeight.w900,
+                      fontWeight: item.isRead
+                          ? FontWeight.w700
+                          : FontWeight.w900,
                     ),
                   ),
                   if (item.body.isNotEmpty) ...[

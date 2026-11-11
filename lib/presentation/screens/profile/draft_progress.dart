@@ -19,7 +19,8 @@ class DraftProgress {
 
   bool get hasQuestion => question.isNotEmpty;
   bool get hasOptions => options.length >= AppLimits.minOptions;
-  int get optionsMissing => (AppLimits.minOptions - options.length).clamp(0, AppLimits.minOptions);
+  int get optionsMissing =>
+      (AppLimits.minOptions - options.length).clamp(0, AppLimits.minOptions);
 
   /// Steps done, out of three.
   int get stepsDone => (hasQuestion ? 1 : 0) + (hasOptions ? 1 : 0);

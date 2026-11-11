@@ -32,7 +32,7 @@ class PollCustomAnswer {
   final String? reason;
   final DateTime? createdAt;
 
-  /// Only a registered user can be chatted back to; guests cannot.
+  /// Only a registered user can be chatted back to.
   final bool canAskBack;
 
   PollCustomAnswer withoutReason() => PollCustomAnswer(
@@ -116,7 +116,7 @@ class PollReason {
   final String text;
   final DateTime? createdAt;
 
-  /// Only a registered user can be chatted back to; guests cannot.
+  /// Only a registered user can be chatted back to.
   final bool canAskBack;
 
   factory PollReason.fromJson(Map<String, dynamic> json) {

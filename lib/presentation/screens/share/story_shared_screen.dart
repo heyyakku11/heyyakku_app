@@ -36,9 +36,8 @@ class _StorySharedScreenState extends State<StorySharedScreen> {
 
   SharePlatformAdapter? _busy;
 
-  int get _votes => widget.minVotes > 0
-      ? widget.minVotes
-      : AppLimits.minVotesToReveal;
+  int get _votes =>
+      widget.minVotes > 0 ? widget.minVotes : AppLimits.minVotesToReveal;
 
   String get _closesLabel {
     final hours = widget.closesIn.inHours;

@@ -9,10 +9,7 @@ import '../models/auth/verify_otp_request_model.dart';
 abstract interface class AuthRemoteDataSource {
   Future<SendOtpData> sendOtp(SendOtpRequestModel request);
 
-  Future<VerifyOtpData> verifyOtp(
-    VerifyOtpRequestModel request, {
-    String? guestToken,
-  });
+  Future<VerifyOtpData> verifyOtp(VerifyOtpRequestModel request);
 
   Future<TokenResponse> refresh(RefreshTokenRequest request);
 

@@ -66,19 +66,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<VerifyOtpData> verifyOtp(
-    VerifyOtpRequestModel request, {
-    String? guestToken,
-  }) async {
-    final headers = <String, dynamic>{};
-    if (guestToken != null && guestToken.isNotEmpty) {
-      headers['X-Guest-Token'] = guestToken;
-    }
-
+  Future<VerifyOtpData> verifyOtp(VerifyOtpRequestModel request) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.verifyOtp,
       data: request.toJson(),
-      options: Options(headers: headers.isEmpty ? null : headers),
     );
 
     final body = response.data;

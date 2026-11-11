@@ -53,7 +53,8 @@ class AskBackRealtimeService implements AskBackRealtime {
   final _messages = StreamController<AskBackMessage>.broadcast();
   final _reads = StreamController<AskBackReadEvent>.broadcast();
   final _statuses = StreamController<AskBackStatusEvent>.broadcast();
-  final _typing = StreamController<({String conversationId, bool typing})>.broadcast();
+  final _typing =
+      StreamController<({String conversationId, bool typing})>.broadcast();
   final _reconnected = StreamController<void>.broadcast();
 
   /// `ReceiveMessage`, for both sides (`isMine` says which).
@@ -86,7 +87,8 @@ class AskBackRealtimeService implements AskBackRealtime {
   Future<void> ensureConnected() {
     _wanted = true;
     final connection = _connection;
-    if (connection != null && connection.state == HubConnectionState.Connected) {
+    if (connection != null &&
+        connection.state == HubConnectionState.Connected) {
       return Future<void>.value();
     }
     return _starting ??= _start().whenComplete(() => _starting = null);
@@ -171,7 +173,10 @@ class AskBackRealtimeService implements AskBackRealtime {
   void _typingEvent(List<Object?>? args, bool typing) {
     final map = _first(args);
     if (map == null) return;
-    _typing.add((conversationId: map['conversationId'] as String, typing: typing));
+    _typing.add((
+      conversationId: map['conversationId'] as String,
+      typing: typing,
+    ));
   }
 
   Map<String, dynamic>? _first(List<Object?>? args) {
@@ -214,10 +219,12 @@ class AskBackRealtimeService implements AskBackRealtime {
   }
 
   @override
-  Future<void> typingStarted(String conversationId) => _quiet('TypingStarted', conversationId);
+  Future<void> typingStarted(String conversationId) =>
+      _quiet('TypingStarted', conversationId);
 
   @override
-  Future<void> typingStopped(String conversationId) => _quiet('TypingStopped', conversationId);
+  Future<void> typingStopped(String conversationId) =>
+      _quiet('TypingStopped', conversationId);
 
   Future<void> _quiet(String method, String conversationId) async {
     if (_connection?.state != HubConnectionState.Connected) return;
@@ -275,7 +282,9 @@ class AskBackRealtimeService implements AskBackRealtime {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
-      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
       final exp = (jsonDecode(payload) as Map<String, dynamic>)['exp'];
       if (exp is! num) return null;
       return exp.toInt() - DateTime.now().millisecondsSinceEpoch ~/ 1000;

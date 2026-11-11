@@ -8,8 +8,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
-import 'package:yakku/core/auth/guest_session_service.dart';
-import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/auth/token_refresh_service.dart';
 import 'package:yakku/core/auth/user_preferences.dart';
@@ -34,8 +32,6 @@ import 'package:yakku/data/datasources/activity_poll_remote_data_source_impl.dar
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/device_remote_data_source_impl.dart';
-import 'package:yakku/data/datasources/guest_remote_data_source.dart';
-import 'package:yakku/data/datasources/guest_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/media_upload_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/check_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
@@ -54,7 +50,6 @@ import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
-import 'package:yakku/presentation/widgets/background_job_effects.dart';
 import 'package:yakku/presentation/widgets/internet_status_listener.dart';
 
 Future<void> main() async {
@@ -77,6 +72,11 @@ Future<void> main() async {
   final userPreferences = UserPreferences(storage: preferenceStorage);
   final secureStorage = SecureStorageService();
   final tokenStore = AuthTokenStore(secureStorage: secureStorage);
+  // Older versions kept a guest identity on the device. Guests no longer exist, so drop what they left
+  // behind. Safe to delete once no installed version predates this.
+  await secureStorage.clearKeys(['guestToken', 'guestId', 'guestExpiresAt']);
+  await preferenceStorage.clearAuthPrefs(keys: ['hasEnteredAsGuest']);
+
   final session = await AuthController.bootstrap(
     userPreferences: userPreferences,
     tokenStore: tokenStore,
@@ -87,7 +87,7 @@ Future<void> main() async {
   runApp(
     MyApp(
       isUserLogged: session.isUserLogged,
-      hasEnteredAsGuest: session.hasEnteredAsGuest,
+      hasSeenOnboarding: session.hasSeenOnboarding,
       phoneNumber: session.phoneNumber,
       displayName: session.displayName,
       userPreferences: userPreferences,
@@ -103,12 +103,10 @@ class MyApp extends StatefulWidget {
   const MyApp({
     super.key,
     this.isUserLogged = false,
-    this.hasEnteredAsGuest = false,
+    this.hasSeenOnboarding = false,
     this.phoneNumber,
     this.displayName,
     this.authRemoteDataSource,
-    this.guestRemoteDataSource,
-    this.guestTokenStore,
     this.pollApiRepository,
     this.activityPollRepository,
     this.userRemoteDataSource,
@@ -122,12 +120,10 @@ class MyApp extends StatefulWidget {
   });
 
   final bool isUserLogged;
-  final bool hasEnteredAsGuest;
+  final bool hasSeenOnboarding;
   final String? phoneNumber;
   final String? displayName;
   final AuthRemoteDataSource? authRemoteDataSource;
-  final GuestRemoteDataSource? guestRemoteDataSource;
-  final GuestTokenStore? guestTokenStore;
   final PollApiRepository? pollApiRepository;
   final ActivityPollRepository? activityPollRepository;
   final UserRemoteDataSource? userRemoteDataSource;
@@ -149,10 +145,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _rootNavigatorKey =
       GlobalKey<NavigatorState>();
   late final AuthController _authController;
-  late final GuestRemoteDataSource _guestRemote;
-  late final GuestTokenStore _guestTokenStore;
   late final BackgroundApiWorker _backgroundApiWorker;
-  late final GuestSessionService _guestSession;
   late final LoginAuthService _loginAuth;
   late final PollApiRepository _pollApi;
   late final CheckApiRepository _checkApi;
@@ -192,20 +185,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       authRemote: authRemote,
     );
 
-    _guestTokenStore =
-        widget.guestTokenStore ?? GuestTokenStore(secureStorage: secureStorage);
-    if (!_guestTokenStore.isHydrated) {
-      unawaited(_guestTokenStore.hydrate());
-    }
-    _guestRemote =
-        widget.guestRemoteDataSource ??
-        GuestRemoteDataSourceImpl(unauthenticatedDio);
     _backgroundApiWorker = BackgroundApiWorker();
-    _guestSession = GuestSessionService(
-      guestRemote: _guestRemote,
-      guestTokenStore: _guestTokenStore,
-      worker: _backgroundApiWorker,
-    );
 
     _authController = AuthController(
       userPreferences:
@@ -214,7 +194,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       authRemote: authRemote,
       draftPolls: widget.draftPolls,
       isUserLogged: widget.isUserLogged,
-      hasEnteredAsGuest: widget.hasEnteredAsGuest,
+      hasSeenOnboarding: widget.hasSeenOnboarding,
       phoneNumber: widget.phoneNumber,
       displayName: widget.displayName,
     );
@@ -227,7 +207,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       tokenStore: tokenStore,
       tokenRefreshService: tokenRefreshService,
       onSessionExpired: () => _authController.clearLocalSession(),
-      guestTokenStore: _guestTokenStore,
     );
 
     _pollApi =
@@ -358,9 +337,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: AppScope(
         themeController: _themeController,
         authController: _authController,
-        guestRemote: _guestRemote,
-        guestTokenStore: _guestTokenStore,
-        guestSession: _guestSession,
         loginAuth: _loginAuth,
         backgroundApiWorker: _backgroundApiWorker,
         polls: _polls,
@@ -387,14 +363,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               themeMode: _themeController.themeMode,
               routerConfig: _router,
               builder: (context, child) {
-                return BackgroundJobEffects(
-                  worker: _backgroundApiWorker,
-                  authController: _authController,
-                  guestTokenStore: _guestTokenStore,
-                  navigatorKey: _rootNavigatorKey,
-                  child: SplashOverlay(
-                    child: InternetStatusListener(child: child),
-                  ),
+                return SplashOverlay(
+                  child: InternetStatusListener(child: child),
                 );
               },
             );

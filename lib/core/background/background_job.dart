@@ -12,7 +12,7 @@ class BackgroundJob {
   /// Dedupes pending/in-flight jobs with the same id.
   final String id;
 
-  /// Feature key (e.g. `createGuest`) for result filtering.
+  /// Feature key (e.g. `verifyOtp`) for result filtering.
   final String type;
 
   final Future<Object?> Function() execute;

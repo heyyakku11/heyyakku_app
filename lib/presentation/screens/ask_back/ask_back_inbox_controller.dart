@@ -41,7 +41,8 @@ class AskBackInboxController extends ChangeNotifier {
   String? get error => _error;
 
   /// Unread messages across the conversations loaded so far (the badge).
-  int get unreadTotal => _items.fold<int>(0, (sum, item) => sum + item.unreadCount);
+  int get unreadTotal =>
+      _items.fold<int>(0, (sum, item) => sum + item.unreadCount);
 
   /// Starts listening and loads the first page. Safe to call again.
   Future<void> start() async {
@@ -71,7 +72,10 @@ class AskBackInboxController extends ChangeNotifier {
       _hasMore = page.hasMore;
       _loaded = true;
     } catch (error) {
-      _error = DioErrorMapper.map(error, fallback: 'Could not load conversations').message;
+      _error = DioErrorMapper.map(
+        error,
+        fallback: 'Could not load conversations',
+      ).message;
     } finally {
       _loading = false;
       notifyListeners();
@@ -123,7 +127,9 @@ class AskBackInboxController extends ChangeNotifier {
   }
 
   void _onMessage(AskBackMessage message) {
-    final index = _items.indexWhere((item) => item.id == message.conversationId);
+    final index = _items.indexWhere(
+      (item) => item.id == message.conversationId,
+    );
     if (index < 0) {
       // A conversation the list has not seen (the first message of a new one).
       _scheduleRefresh();

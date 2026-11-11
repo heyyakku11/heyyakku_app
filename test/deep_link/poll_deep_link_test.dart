@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
 import 'package:yakku/core/auth/user_preferences.dart';
-import 'package:yakku/core/auth/guest_session_service.dart';
-import 'package:yakku/core/auth/guest_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
@@ -14,10 +12,11 @@ import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
-import 'package:yakku/data/datasources/guest_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
+import 'package:yakku/data/models/auth/verify_otp_data.dart';
+import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
@@ -98,12 +97,42 @@ class _FakePollRemote extends Fake implements PollRemoteDataSource {
 
 class _FakePrefs extends Fake implements UserPreferences {
   @override
-  Future<void> setHasEnteredAsGuest(bool value) async {}
+  Future<void> setPhoneNumber(String phoneNumber) async {}
+
+  @override
+  Future<void> setDisplayName(String displayName) async {}
+
+  @override
+  Future<void> setIsUserLogged(bool value) async {}
+
+  @override
+  Future<void> setCommunityNotifyRequested(bool value) async {}
 }
 
-class _FakeTokens extends Fake implements AuthTokenStore {}
+class _FakeTokens extends Fake implements AuthTokenStore {
+  @override
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {}
+}
 
-class _FakeAuthRemote extends Fake implements AuthRemoteDataSource {}
+class _FakeAuthRemote extends Fake implements AuthRemoteDataSource {
+  @override
+  Future<VerifyOtpData> verifyOtp(VerifyOtpRequestModel request) async {
+    return const VerifyOtpData(
+      purpose: 'Login',
+      accountRestored: false,
+      user: VerifyOtpUser(anonymousName: 'Tester'),
+      auth: VerifyOtpAuth(
+        accessToken: 'a',
+        refreshToken: 'r',
+        accessTokenExpiresInSeconds: 900,
+        refreshTokenExpiresInSeconds: 3600,
+      ),
+    );
+  }
+}
 
 DioException _http(int status) => DioException(
   requestOptions: RequestOptions(path: '/x'),
@@ -114,13 +143,12 @@ DioException _http(int status) => DioException(
 );
 
 class _Harness {
-  _Harness({bool loggedIn = false, bool guest = false, required this.remote}) {
+  _Harness({bool loggedIn = false, required this.remote}) {
     auth = AuthController(
       userPreferences: _FakePrefs(),
       tokenStore: _FakeTokens(),
       authRemote: _FakeAuthRemote(),
       isUserLogged: loggedIn,
-      hasEnteredAsGuest: guest,
     );
     router = AppRouter.create(auth, navigatorKey: GlobalKey<NavigatorState>());
   }
@@ -136,6 +164,10 @@ class _Harness {
   );
 
   String get location => router.state.uri.toString();
+
+  /// Signs the user in, as finishing the OTP screen would.
+  Future<void> signIn() =>
+      auth.verifyOtp(phone: '+910000000000', otp: '123456');
 }
 
 class _Scope extends StatelessWidget {
@@ -154,9 +186,6 @@ class _Scope extends StatelessWidget {
     return AppScope(
       themeController: _F1(),
       authController: auth,
-      guestRemote: _F2(),
-      guestTokenStore: _F3(),
-      guestSession: _F4(),
       loginAuth: _F5(),
       backgroundApiWorker: _F6(),
       polls: _F7(),
@@ -178,12 +207,6 @@ class _Scope extends StatelessWidget {
 }
 
 class _F1 extends Fake implements ThemeController {}
-
-class _F2 extends Fake implements GuestRemoteDataSource {}
-
-class _F3 extends Fake implements GuestTokenStore {}
-
-class _F4 extends Fake implements GuestSessionService {}
 
 class _F5 extends Fake implements LoginAuthService {}
 
@@ -313,7 +336,7 @@ void main() {
       expect(h.location, startsWith('/onboarding'));
       expect(remote.requested, isEmpty);
 
-      await h.auth.enterAsGuest();
+      await h.signIn();
       await tester.pumpAndSettle();
       expect(h.location, '/vote/$_id');
       expect(find.text('Pizza'), findsOneWidget);
@@ -331,7 +354,7 @@ void main() {
       h.router.go('/onboarding?from=https%3A%2F%2Fevil.com');
       await tester.pumpWidget(h.build());
       await tester.pumpAndSettle();
-      await h.auth.enterAsGuest();
+      await h.signIn();
       await tester.pumpAndSettle();
       expect(h.location, '/main');
       await _drain(tester);
@@ -553,7 +576,6 @@ void main() {
     }) async {
       final h = _Harness(
         loggedIn: loggedIn,
-        guest: !loggedIn,
         remote: _FakePollRemote((_) async => poll),
       );
       h.router.go('/vote/$_id');
@@ -603,16 +625,6 @@ void main() {
       );
       expect(find.text('Write your own answer'), findsOneWidget);
       expect(find.text('Send vote'), findsOneWidget);
-    });
-
-    testWidgets('guest sees the card with a login prompt', (tester) async {
-      await open(
-        tester,
-        _poll(voting: const VotingStateResponse()),
-        loggedIn: false,
-      );
-      expect(find.text('Pizza'), findsOneWidget);
-      expect(find.text('Log in to vote'), findsOneWidget);
     });
   });
 }

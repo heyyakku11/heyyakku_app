@@ -118,7 +118,9 @@ class _DraftTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = DraftProgress(draft);
-    final question = progress.hasQuestion ? progress.question : 'Untitled draft';
+    final question = progress.hasQuestion
+        ? progress.question
+        : 'Untitled draft';
 
     return GestureDetector(
       onTap: onTap,

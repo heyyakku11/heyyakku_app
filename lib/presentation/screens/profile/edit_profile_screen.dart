@@ -250,7 +250,10 @@ class _ColorDot extends StatelessWidget {
             ),
           ),
           child: DecoratedBox(
-            decoration: BoxDecoration(shape: BoxShape.circle, color: option.color),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: option.color,
+            ),
           ),
         ),
       ),

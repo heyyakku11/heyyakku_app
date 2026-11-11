@@ -162,6 +162,19 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
+  Future<void> joinCommunityWaitlist() async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.communityNotifyMe,
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty notify me response');
+    final apiResponse = ApiResponse<Object?>.fromJson(body, null);
+    if (!apiResponse.success) {
+      throw StateError(apiResponse.message ?? 'Could not save your request');
+    }
+  }
+
+  @override
   Future<String> regenerateAnonymousName() async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.regenerateAnonymousName,

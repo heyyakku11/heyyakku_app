@@ -91,13 +91,13 @@ class CheckApiRepository extends ChangeNotifier {
       try {
         return await preloaded;
       } catch (_) {
-        // Preload failed (e.g. no guest token yet); fetch again below.
+        // Preload failed (e.g. the session is not ready yet); fetch again below.
       }
     }
     return _fetchHome(loggedIn: loggedIn);
   }
 
-  /// Loads the home data in parallel. Guests have no made checks; a failure
+  /// Loads the home data in parallel. A failure
   /// of the "mine" call is not fatal for the feed.
   Future<HomeChecks> _fetchHome({required bool loggedIn}) async {
     final checksFuture = _remote.getChecks();

@@ -106,7 +106,11 @@ class _Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     final dotDrop = CurvedAnimation(
       parent: progress,
-      curve: const Interval(_dotStart * _k, _dotEnd * _k, curve: Curves.bounceOut),
+      curve: const Interval(
+        _dotStart * _k,
+        _dotEnd * _k,
+        curve: Curves.bounceOut,
+      ),
     );
     final dotAppear = CurvedAnimation(
       parent: progress,

@@ -2,13 +2,9 @@ abstract final class StorageKeys {
   // Secure storage
   static const accessToken = 'accessToken';
   static const refreshToken = 'refreshToken';
-  static const guestToken = 'guestToken';
-  static const guestId = 'guestId';
-  static const guestExpiresAt = 'guestExpiresAt';
 
   // Preferences
   static const isUserLogged = 'isUserLogged';
-  static const hasEnteredAsGuest = 'hasEnteredAsGuest';
   static const phoneNumber = 'phoneNumber';
 
   /// The avatar background colour chosen on the edit-profile screen.
@@ -18,6 +14,9 @@ abstract final class StorageKeys {
   static const legacyEmail = 'email';
   static const displayName = 'displayName';
   static const installationId = 'installationId';
+
+  /// Set once the first-launch onboarding has been shown. Device level: kept across logout.
+  static const hasSeenOnboarding = 'hasSeenOnboarding';
   static const isNotificationAllowed = 'isNotificationAllowed';
   static const notificationPermissionAsked = 'notificationPermissionAsked';
 

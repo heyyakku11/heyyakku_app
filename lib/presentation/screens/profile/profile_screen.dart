@@ -7,7 +7,6 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/profile/avatar_preferences.dart';
-import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
@@ -229,8 +228,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             setState(() => _showInCommunity = value),
                       ),
                     ],
-                  ] else ...[
-                    const _GuestLoginPrompt(),
                   ],
                   const SizedBox(height: 16),
                   Material(
@@ -296,53 +293,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _GuestLoginPrompt extends StatelessWidget {
-  const _GuestLoginPrompt();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.sm,
-      ),
-      child: Column(
-        children: [
-          // Text(
-          //   'Log in to see your profile',
-          //   textAlign: TextAlign.center,
-          //   style: theme.textTheme.titleMedium?.copyWith(
-          //     fontWeight: FontWeight.w700,
-          //     color: theme.colorScheme.onSurface,
-          //   ),
-          // ),
-          // const SizedBox(height: 8),
-          Text(
-            'Your asks, votes, and saved polls will show up here once you\'re signed in.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () => openSignUp(context),
-              child: const Text('Log in'),
-            ),
-          ),
-        ],
       ),
     );
   }

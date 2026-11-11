@@ -165,7 +165,6 @@ class ShareOption extends StatelessWidget {
   }
 }
 
-
 /// A row of the standard destinations. [busy] is the adapter currently
 /// running (shown as a spinner); taps are ignored while [onTap] is null.
 class ShareDestinationRow extends StatelessWidget {

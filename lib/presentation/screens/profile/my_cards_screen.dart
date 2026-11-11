@@ -15,7 +15,9 @@ import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
 import 'package:yakku/presentation/screens/profile/open_own_card.dart';
+import 'package:yakku/presentation/screens/create/create_screen.dart';
 import 'package:yakku/presentation/screens/profile/widgets/my_card_menu.dart';
+import 'package:yakku/presentation/screens/profile/widgets/my_cards_empty_state.dart';
 import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
@@ -119,9 +121,18 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  List<_Item> get _live => [for (final i in _items) if (i.kind != _Kind.saved && i.live) i];
-  List<_Item> get _closed => [for (final i in _items) if (i.kind != _Kind.saved && !i.live) i];
-  List<_Item> get _saved => [for (final i in _items) if (i.kind == _Kind.saved) i];
+  List<_Item> get _live => [
+    for (final i in _items)
+      if (i.kind != _Kind.saved && i.live) i,
+  ];
+  List<_Item> get _closed => [
+    for (final i in _items)
+      if (i.kind != _Kind.saved && !i.live) i,
+  ];
+  List<_Item> get _saved => [
+    for (final i in _items)
+      if (i.kind == _Kind.saved) i,
+  ];
 
   Future<void> _load() async {
     if (!mounted) return;
@@ -182,7 +193,8 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     final now = DateTime.now();
     final items = <_Item>[];
 
-    if (personality != null && personality.status != PersonalityCardStatus.draft) {
+    if (personality != null &&
+        personality.status != PersonalityCardStatus.draft) {
       final done = personality.isCompleted;
       items.add(
         _Item(
@@ -383,7 +395,10 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     }
   }
 
-  Future<void> _run(String failure, Future<Object?> Function(AppScope scope) run) async {
+  Future<void> _run(
+    String failure,
+    Future<Object?> Function(AppScope scope) run,
+  ) async {
     try {
       await run(AppScope.of(context));
       if (mounted) await _load();
@@ -488,17 +503,14 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                const SizedBox(height: 80),
-                Center(
-                  child: Text(
-                    switch (_tab) {
-                      _Tab.all => 'No cards yet',
-                      _Tab.live => 'No live cards',
-                      _Tab.closed => 'No closed cards',
-                      _Tab.saved => 'No saved cards',
-                    },
-                    style: const TextStyle(color: YakkuPalette.textSecondary),
-                  ),
+                MyCardsEmptyState(
+                  kind: switch (_tab) {
+                    _Tab.all => MyCardsEmptyKind.all,
+                    _Tab.live => MyCardsEmptyKind.live,
+                    _Tab.closed => MyCardsEmptyKind.closed,
+                    _Tab.saved => MyCardsEmptyKind.saved,
+                  },
+                  onAction: () => showCreatePollSheet(context),
                 ),
               ],
             )
@@ -632,7 +644,11 @@ class _CardTile extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.only(left: 12, bottom: 4),
-                      child: Icon(Icons.more_horiz_rounded, size: 22, color: text),
+                      child: Icon(
+                        Icons.more_horiz_rounded,
+                        size: 22,
+                        color: text,
+                      ),
                     ),
                   ),
               ],
@@ -671,7 +687,11 @@ class _CardTile extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: FaIcon(FontAwesomeIcons.share, size: 16, color: text),
+                      child: FaIcon(
+                        FontAwesomeIcons.share,
+                        size: 16,
+                        color: text,
+                      ),
                     ),
                   ),
               ],

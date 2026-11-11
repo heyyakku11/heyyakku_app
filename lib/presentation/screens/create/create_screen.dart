@@ -78,6 +78,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _allowPop = false;
   bool _showOptions = false;
   bool _showAddOption = false;
+
   /// Set when Save is tapped while a mandatory field is empty, so those
   /// fields show a red border until they are filled in.
   bool _showErrors = false;
@@ -851,9 +852,7 @@ class _QuestionCard extends StatelessWidget {
         color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: highlightError
-              ? YakkuPalette.redAccent
-              : YakkuPalette.primary,
+          color: highlightError ? YakkuPalette.redAccent : YakkuPalette.primary,
           width: highlightError ? 1.8 : 1.2,
         ),
       ),

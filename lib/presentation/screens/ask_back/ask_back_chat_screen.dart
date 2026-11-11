@@ -86,7 +86,9 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
     try {
       await action();
     } catch (error) {
-      AppToast.show(DioErrorMapper.map(error, fallback: 'Something went wrong').message);
+      AppToast.show(
+        DioErrorMapper.map(error, fallback: 'Something went wrong').message,
+      );
     }
   }
 
@@ -114,8 +116,14 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Block')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Block'),
+          ),
         ],
       ),
     );
@@ -178,10 +186,17 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       itemBuilder: (context) => [
         PopupMenuItem(
           value: 'mute',
-          child: Text(conversation.isMuted ? 'Unmute notifications' : 'Mute notifications'),
+          child: Text(
+            conversation.isMuted
+                ? 'Unmute notifications'
+                : 'Mute notifications',
+          ),
         ),
         if (conversation.status == AskBackStatus.active)
-          const PopupMenuItem(value: 'close', child: Text('Close conversation')),
+          const PopupMenuItem(
+            value: 'close',
+            child: Text('Close conversation'),
+          ),
         if (conversation.status != AskBackStatus.blocked)
           const PopupMenuItem(value: 'block', child: Text('Block & report')),
       ],
@@ -204,7 +219,10 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              FilledButton(onPressed: chat.load, child: const Text('Try again')),
+              FilledButton(
+                onPressed: chat.load,
+                child: const Text('Try again'),
+              ),
             ],
           ),
         ),
@@ -247,7 +265,8 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
               final message = messages[messages.length - 1 - index];
               return _Bubble(
                 message: message,
-                seen: message.id != null && message.id == chat.lastSeenMessageId,
+                seen:
+                    message.id != null && message.id == chat.lastSeenMessageId,
                 onRetry: () => chat.retry(message),
               );
             },
@@ -258,7 +277,10 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
     );
   }
 
-  Widget _composer(AskBackChatController chat, AskBackConversation conversation) {
+  Widget _composer(
+    AskBackChatController chat,
+    AskBackConversation conversation,
+  ) {
     if (!chat.canSend) {
       return _ClosedBar(
         conversation: conversation,
@@ -272,7 +294,9 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4))),
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -341,7 +365,9 @@ class _ContextCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               info.question!,
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
           if (info.selectedOption != null) ...[
@@ -354,13 +380,19 @@ class _ContextCard extends StatelessWidget {
           Text(
             info.reason ?? 'No longer available',
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontStyle: info.reason == null ? FontStyle.italic : FontStyle.normal,
+              fontStyle: info.reason == null
+                  ? FontStyle.italic
+                  : FontStyle.normal,
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.lock_outline_rounded, size: 13, color: theme.colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -379,7 +411,11 @@ class _ContextCard extends StatelessWidget {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message, required this.seen, required this.onRetry});
+  const _Bubble({
+    required this.message,
+    required this.seen,
+    required this.onRetry,
+  });
 
   final ChatMessage message;
   final bool seen;
@@ -390,20 +426,29 @@ class _Bubble extends StatelessWidget {
     final theme = Theme.of(context);
     final mine = message.isMine;
     final failed = message.state == ChatMessageState.failed;
-    final background = mine ? YakkuPalette.primary : theme.colorScheme.surfaceContainerHighest;
+    final background = mine
+        ? YakkuPalette.primary
+        : theme.colorScheme.surfaceContainerHighest;
     final foreground = mine ? Colors.white : theme.colorScheme.onSurface;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Column(
-        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: mine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onTap: failed ? onRetry : null,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+              ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: background,
                   borderRadius: BorderRadius.only(
@@ -415,7 +460,9 @@ class _Bubble extends StatelessWidget {
                 ),
                 child: Text(
                   message.content,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: foreground),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: foreground,
+                  ),
                 ),
               ),
             ),
@@ -528,7 +575,11 @@ class _Banner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
       color: Colors.amber.withValues(alpha: 0.25),
-      child: Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12),
+      ),
     );
   }
 }

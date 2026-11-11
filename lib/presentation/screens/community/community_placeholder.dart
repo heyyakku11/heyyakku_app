@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/storage/preference_storage_service.dart';
 import 'package:yakku/core/storage/storage_keys.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
@@ -49,8 +50,10 @@ class _CommunityPlaceholderState extends State<CommunityPlaceholder> {
 
   final _prefs = PreferenceStorageService();
 
-  /// "Notify me when it opens": remembered on this device for now.
+  /// Whether the user asked to be notified when Community opens. False until they do; set from the
+  /// login response and kept on this device.
   bool _notifyMe = false;
+  bool _notifySubmitting = false;
 
   @override
   void initState() {
@@ -67,13 +70,31 @@ class _CommunityPlaceholderState extends State<CommunityPlaceholder> {
   }
 
   Future<void> _setNotifyMe() async {
-    if (_notifyMe) return;
+    if (_notifyMe || _notifySubmitting) return;
     HapticFeedback.selectionClick();
-    setState(() => _notifyMe = true);
+    final userRemote = AppScope.of(context).userRemote;
+    setState(() => _notifySubmitting = true);
     try {
-      await _prefs.updateBool(StorageKeys.communityNotifyMe, true);
-    } catch (_) {}
-    AppToast.show('We’ll let you know when Community opens');
+      await userRemote.joinCommunityWaitlist();
+      try {
+        await _prefs.updateBool(StorageKeys.communityNotifyMe, true);
+      } catch (_) {
+        // Only the local copy is lost; the server has the request.
+      }
+      if (!mounted) return;
+      setState(() => _notifyMe = true);
+      AppToast.show('We’ll let you know when Community opens');
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        DioErrorMapper.map(
+          error,
+          fallback: 'Could not save your request. Please try again.',
+        ).message,
+      );
+    } finally {
+      if (mounted) setState(() => _notifySubmitting = false);
+    }
   }
 
   Future<void> _askNow() async {
@@ -129,7 +150,11 @@ class _CommunityPlaceholderState extends State<CommunityPlaceholder> {
                   ),
                   const SizedBox(height: 14),
                 ],
-                _NotifyCard(notifying: _notifyMe, onNotify: _setNotifyMe),
+                _NotifyCard(
+                  notifying: _notifyMe,
+                  busy: _notifySubmitting,
+                  onNotify: _setNotifyMe,
+                ),
                 if (card != null) ...[
                   const SizedBox(height: 14),
                   _earlyAccess(card, store.traits),
@@ -164,9 +189,17 @@ class _CommunityPlaceholderState extends State<CommunityPlaceholder> {
 /// The dark "Ask the community…" card: a locked question box and the notify
 /// button.
 class _NotifyCard extends StatelessWidget {
-  const _NotifyCard({required this.notifying, required this.onNotify});
+  const _NotifyCard({
+    required this.notifying,
+    required this.onNotify,
+    this.busy = false,
+  });
 
+  /// The user already asked to be notified: the button shows that and stays off.
   final bool notifying;
+
+  /// The request is being sent.
+  final bool busy;
   final VoidCallback onNotify;
 
   @override
@@ -276,7 +309,7 @@ class _NotifyCard extends StatelessWidget {
             width: double.infinity,
             height: 50,
             child: FilledButton(
-              onPressed: notifying ? null : onNotify,
+              onPressed: (notifying || busy) ? null : onNotify,
               style: FilledButton.styleFrom(
                 backgroundColor: YakkuPalette.Gold,
                 disabledBackgroundColor: YakkuPalette.Gold.withValues(
@@ -289,15 +322,29 @@ class _NotifyCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    notifying
-                        ? Icons.notifications_active_rounded
-                        : Icons.notifications_none_rounded,
-                    size: 18,
-                  ),
+                  if (busy)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: YakkuPalette.Ink,
+                      ),
+                    )
+                  else
+                    Icon(
+                      notifying
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_none_rounded,
+                      size: 18,
+                    ),
                   const SizedBox(width: 8),
                   Text(
-                    notifying ? 'We’ll notify you' : 'Notify me when it opens',
+                    busy
+                        ? 'Saving…'
+                        : notifying
+                        ? 'We’ll notify you'
+                        : 'Notify me when it opens',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,

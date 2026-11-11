@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/app_scope.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -33,6 +34,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    // Onboarding is shown on the first launch only; remember that it has been.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppScope.of(context).authController.markOnboardingSeen();
+    });
     _stepController = AnimationController(vsync: this, duration: _stepDuration)
       ..addStatusListener((status) {
         if (status != AnimationStatus.completed || !mounted || _page != 1) {

@@ -23,7 +23,10 @@ class ActiveCardsStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cards.isEmpty) return const SizedBox.shrink();
-    final width = (MediaQuery.of(context).size.width * 0.72).clamp(240.0, 320.0);
+    final width = (MediaQuery.of(context).size.width * 0.72).clamp(
+      240.0,
+      320.0,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,10 +109,9 @@ class _ActiveCard extends StatelessWidget {
         ? parseHexColor(poll.checkColor, fallback: _pollColor)
         : _pollColor;
     // A darker shade of the card's own colour for the small labels and bars.
-    final accent = HSLColor.fromColor(color)
-        .withLightness(0.27)
-        .withSaturation(0.55)
-        .toColor();
+    final accent = HSLColor.fromColor(
+      color,
+    ).withLightness(0.27).withSaturation(0.55).toColor();
     final label = poll.isCheck
         ? (poll.checkTitle ?? 'CHECK').toUpperCase()
         : 'YOUR QUESTION';
