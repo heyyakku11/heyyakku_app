@@ -16,6 +16,7 @@ import 'package:yakku/presentation/screens/personality/personality_navigation.da
 import 'package:yakku/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:yakku/presentation/screens/profile/settings_screen.dart';
 import 'package:yakku/presentation/screens/profile/widgets/profile_avatar.dart';
+import 'package:yakku/presentation/screens/profile/widgets/profile_skeleton.dart';
 import 'package:yakku/presentation/screens/profile/widgets/profile_personality_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
@@ -39,6 +40,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Visual only for now: Community is not built yet, so nothing is saved.
   bool _showInCommunity = true;
+
+  /// False until the profile has loaded once (it then stays true): the You tab shows a skeleton until then.
+  bool _profileLoaded = false;
   AuthController? _authController;
 
   @override
@@ -116,7 +120,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // The server counts the cards made (polls + checks).
         _cards = me.stats.cardsMade;
       });
-    } catch (_) {}
+    } catch (_) {
+      // The screen still shows what it has (the saved name, a zero count).
+    } finally {
+      if (mounted && !_profileLoaded) setState(() => _profileLoaded = true);
+    }
   }
 
   Future<void> _onPersonalityAsk() async {
@@ -156,6 +164,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final loggedIn = auth.isLoggedIn;
             final displayName = _name ?? _nonEmpty(auth.displayName);
             final name = displayName ?? 'You';
+
+            // Signed in but not loaded yet: placeholders instead of a flash of "You" and an empty list.
+            if (loggedIn && !_profileLoaded) return const ProfileSkeleton();
 
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),

@@ -22,7 +22,11 @@ class CardShareScreen extends StatefulWidget {
     required this.preview,
     required this.story,
     this.minVotes = AppLimits.minVotesToReveal,
+    this.title,
   });
+
+  /// Optional heading shown above the preview (for example "Share your result").
+  final String? title;
 
   /// Votes needed before results show, mentioned on the "sent" screen.
   final int minVotes;
@@ -112,6 +116,20 @@ class _CardShareScreenState extends State<CardShareScreen> {
                 ),
               ),
             ),
+            if (widget.title != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Text(
+                  widget.title!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: YakkuPalette.Ink,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ),
             Expanded(
               child: Center(
                 child: SingleChildScrollView(

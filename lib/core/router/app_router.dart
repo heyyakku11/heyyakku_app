@@ -10,7 +10,7 @@ import 'package:yakku/presentation/screens/ask_back/ask_back_list_screen.dart';
 import 'package:yakku/presentation/screens/onboarding_screen.dart';
 import 'package:yakku/presentation/screens/otp_screen.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
-import 'package:yakku/presentation/screens/poll_results_screen.dart';
+import 'package:yakku/presentation/screens/card_results_screen.dart';
 import 'package:yakku/presentation/screens/sign_up_screen.dart';
 import 'package:yakku/presentation/screens/shared_poll_screen.dart';
 
@@ -142,7 +142,7 @@ abstract final class AppRouter {
             if (args is! PollResultsArgs) {
               return const Dashboard();
             }
-            return PollResultsScreen(
+            return CardResultsScreen(
               poll: args.poll,
               selectedOptionId: args.selectedOptionId,
             );

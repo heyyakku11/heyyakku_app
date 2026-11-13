@@ -9,10 +9,13 @@ abstract final class ApiConstants {
 
   /// Where "Email to" and "Report a problem" in settings send mail. Empty until
   /// the real support address is set; the rows then explain that.
-  static const String supportEmail = 'support@heyyakku.com';
+  static const String supportEmail = 'contact@heyyakku.com';
 
   /// Public privacy policy and terms page on the website.
   static const String policyUrl = '$webBaseUrl/policy';
+
+  /// Public terms of service page on the website.
+  static const String termsUrl = '$webBaseUrl/terms';
 
   /// The link friends open to vote on someone's personality card.
   static String personalityCardUrl(String shareCode) =>

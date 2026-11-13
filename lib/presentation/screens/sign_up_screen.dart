@@ -1,7 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -30,6 +33,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -279,28 +284,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  late final TapGestureRecognizer _termsTap = TapGestureRecognizer()
+    ..onTap = () => _openPage(ApiConstants.termsUrl);
+  late final TapGestureRecognizer _privacyTap = TapGestureRecognizer()
+    ..onTap = () => _openPage(ApiConstants.policyUrl);
+
+  Future<void> _openPage(String url) async {
+    final opened = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open the page')));
+    }
+  }
+
   Widget _buildTerms() {
-    return const Text.rich(
+    return Text.rich(
       TextSpan(
         text: 'By signing up you agree to the ',
-        style: TextStyle(fontSize: 12),
+        style: const TextStyle(fontSize: 12),
         children: [
           TextSpan(
             text: 'Terms',
-            style: TextStyle(
+            recognizer: _termsTap,
+            style: const TextStyle(
               color: YakkuPalette.primary,
               decoration: TextDecoration.underline,
             ),
           ),
-          TextSpan(text: ' and '),
+          const TextSpan(text: ' and '),
           TextSpan(
             text: 'Privacy policy',
-            style: TextStyle(
+            recognizer: _privacyTap,
+            style: const TextStyle(
               color: YakkuPalette.primary,
               decoration: TextDecoration.underline,
             ),
           ),
-          TextSpan(
+          const TextSpan(
             text: ', and to get messages from Yakku on SMS and WhatsApp.',
           ),
         ],

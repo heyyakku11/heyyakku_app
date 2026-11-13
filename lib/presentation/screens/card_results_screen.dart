@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:yakku/data/models/home/ask_friends_check.dart';
-import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/presentation/widgets/ask_back_button.dart';
-import 'package:yakku/presentation/widgets/ask_next_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
@@ -24,10 +21,10 @@ import 'package:yakku/presentation/widgets/results_locked_view.dart';
 ///
 /// Three entry points share one design:
 /// * the default constructor, shown right after the user answers a poll;
-/// * [PollResultsScreen.byPollId], the owner's view of a poll they created;
-/// * [PollResultsScreen.check], the owner's view of a check they made.
-class PollResultsScreen extends StatefulWidget {
-  const PollResultsScreen({
+/// * [CardResultsScreen.byPollId], the owner's view of a poll they created;
+/// * [CardResultsScreen.check], the owner's view of a check they made.
+class CardResultsScreen extends StatefulWidget {
+  const CardResultsScreen({
     super.key,
     required PollResponse this.poll,
     required String this.selectedOptionId,
@@ -35,12 +32,12 @@ class PollResultsScreen extends StatefulWidget {
        check = null;
 
   /// Loads the poll by id and shows its current results.
-  const PollResultsScreen.byPollId({super.key, required String this.pollId})
+  const CardResultsScreen.byPollId({super.key, required String this.pollId})
     : poll = null,
       selectedOptionId = null,
       check = null;
 
-  const PollResultsScreen.check({
+  const CardResultsScreen.check({
     super.key,
     required UserCheckResponse this.check,
   }) : poll = null,
@@ -57,10 +54,10 @@ class PollResultsScreen extends StatefulWidget {
   bool get _justVoted => poll != null;
 
   @override
-  State<PollResultsScreen> createState() => _PollResultsScreenState();
+  State<CardResultsScreen> createState() => _CardResultsScreenState();
 }
 
-class _PollResultsScreenState extends State<PollResultsScreen> {
+class _CardResultsScreenState extends State<CardResultsScreen> {
   static const _ink = YakkuPalette.textPrimary;
   static const _muted = YakkuPalette.textSecondary;
 
@@ -70,8 +67,8 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
   bool _loading = false;
   String? _error;
 
-  /// A check of the week this user has not made yet, offered under a check's results.
-  AskFriendsCheck? _nextCheckCard;
+  /// Set once the owner closes a made check from the menu.
+  bool _checkClosed = false;
 
   @override
   void initState() {
@@ -79,9 +76,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     if (widget.pollId != null) {
       _loading = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadPoll());
-    }
-    if (widget.check != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadNextCheck());
     }
     if (_canSeeReasons) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -168,24 +162,6 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     }
   }
 
-  /// Picks a check of the week the user has not made yet; none (or a failed
-  /// load) simply leaves the card hidden.
-  Future<void> _loadNextCheck() async {
-    try {
-      final checks = await AppScope.of(context).checkApi.getChecks();
-      if (!mounted) return;
-      final unused = checks.where((check) => !check.used).toList();
-      if (unused.isEmpty) return;
-      setState(() {
-        _nextCheckCard = AskFriendsCheck.fromMirrorCheck(
-          MirrorCheck.fromCheck(unused.first),
-        );
-      });
-    } catch (_) {
-      // The suggestion is optional.
-    }
-  }
-
   Future<void> _loadPoll() async {
     if (!mounted) return;
     setState(() {
@@ -218,66 +194,74 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     }
   }
 
-  /// Live means open for answers: not closed/expired by status or by time.
-  bool _isPollLive(PollResponse poll) {
-    final status = poll.status.toLowerCase();
-    if (status == 'closed' ||
-        status == 'expired' ||
-        status == '2' ||
-        status == '3') {
-      return false;
-    }
-    final at = poll.expiresAt;
-    return at == null || at.isAfter(DateTime.now().toUtc());
-  }
-
+  /// The owner's "..." menu: close the card now, or delete it. Once a card has ended it cannot be
+  /// reshared for more votes, so only Delete is left.
   Future<void> _openMenu() async {
+    final check = widget.check;
     final poll = _loadedPoll;
-    if (poll == null) return;
+    if (check == null && poll == null) return;
+
+    final data = _data();
+    final live = data?.isLive ?? false;
+    final votes = data?.voters ?? 0;
+    final left = data?.timeLeftLabel();
+    final subtitle = live
+        ? '$votes vote${votes == 1 ? '' : 's'}${left == null ? '' : ' · closes in $left'}'
+        : '$votes vote${votes == 1 ? '' : 's'} · ended';
 
     final action = await showCardActionsSheet(
       context,
-      question: poll.question,
-      isLive: _isPollLive(poll),
+      question: check != null
+          ? (check.question.trim().isNotEmpty ? check.question : check.title)
+          : poll!.question,
+      subtitle: subtitle,
+      isLive: live,
     );
     if (action == null || !mounted) return;
 
     switch (action) {
-      case CardAction.shareAgain:
-        await Navigator.of(context).push(pollShareRoute(poll));
       case CardAction.closeNow:
         await _confirmAndRun(
-          poll,
           title: 'Close this card?',
           message: 'People will no longer be able to answer it.',
           confirmLabel: 'Close',
           failure: 'Could not close the card',
           run: (users) async {
-            final closed = await users.closePoll(poll.id);
-            if (!mounted) return;
-            setState(() => _loadedPoll = closed);
+            if (check != null) {
+              await AppScope.of(context).checkApi.closeMyCheck(check.id);
+              if (!mounted) return;
+              setState(() => _checkClosed = true);
+            } else {
+              final closed = await users.closePoll(poll!.id);
+              if (!mounted) return;
+              setState(() => _loadedPoll = closed);
+            }
             _changed = true;
           },
         );
       case CardAction.delete:
         await _confirmAndRun(
-          poll,
           title: 'Delete this card?',
           message: 'This card will be removed.',
           confirmLabel: 'Delete',
           failure: 'Could not delete the card',
           run: (users) async {
-            await users.deletePoll(poll.id);
+            if (check != null) {
+              await AppScope.of(context).checkApi.deleteMyCheck(check.id);
+            } else {
+              await users.deletePoll(poll!.id);
+            }
             if (!mounted) return;
             _changed = true;
             Navigator.of(context).pop(true);
           },
         );
+      case CardAction.shareAgain:
+        break;
     }
   }
 
-  Future<void> _confirmAndRun(
-    PollResponse poll, {
+  Future<void> _confirmAndRun({
     required String title,
     required String message,
     required String confirmLabel,
@@ -360,7 +344,10 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       customPick: check.myVoteOptionId == null ? check.myCustomAnswer : null,
       voters: total,
       customCount: check.customAnswerVotes ?? 0,
-      showStatus: false,
+      expiresAt: check.expiresAt,
+      closed: check.isClosed || _checkClosed,
+      tag: check.title.trim().isEmpty ? null : check.title,
+      showStatus: true,
     );
   }
 
@@ -386,7 +373,10 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
             children: [
               _TopBar(
                 onBack: _onBack,
-                onMenu: _loadedPoll == null ? null : _openMenu,
+                onMenu:
+                    (_loadedPoll != null || (widget.check?.isOwner ?? false))
+                    ? _openMenu
+                    : null,
                 // Under the vote limit a made check is titled by its type (for example Trust Check).
                 title: _lockedCheckTitle ?? 'Results',
               ),
@@ -445,24 +435,38 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
   ) {
     final leader = tallies.first;
     final pick = mine ?? leader;
-    final headline = mine == null
-        ? 'In the lead.'
+    final verdict = mine == null
+        ? null
         : mine.id == leader.id
-        ? 'Nailed it.'
+        ? 'Bang on.'
         : 'Plot twist.';
+    final check = widget.check;
+    final poll = widget.poll ?? _loadedPoll;
+    final shareCode = check?.shareCode ?? poll?.shareCode ?? '';
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ShareResultScreen(
+          shareCode: shareCode,
           question: data.question,
           myLabel: pick.label,
           crowdLabel: leader.label,
           crowdPercent: leader.percent,
-          voters: data.voters,
-          headline: headline,
-          tag: widget.check?.title ?? 'Mirror Check',
+          verdict: verdict,
+          pickLabel: mine != null && mine.id != _Tally.customId
+              ? mine.label
+              : null,
+          tag: data.tag ?? 'Poll',
+          options: [for (final t in tallies) t.label],
+          minVotes: check?.minVotes ?? poll?.minVotes ?? 3,
         ),
       ),
     );
+  }
+
+  Route<void> _shareRoute() {
+    final check = widget.check;
+    if (check != null) return checkShareRoute(check);
+    return pollShareRoute((widget.poll ?? _loadedPoll)!);
   }
 
   Future<void> _shareAgain(Route<void> route) {
@@ -527,6 +531,29 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (data.tag != null) ...[
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: YakkuPalette.pinkWash,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Text(
+                  data.tag!,
+                  style: const TextStyle(
+                    color: YakkuPalette.Raspberry,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             data.question,
             style: const TextStyle(
@@ -543,33 +570,34 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
             leader: standings.first,
             runnerUp: standings.length > 1 ? standings[1] : null,
             voters: data.voters,
-            status: data.showStatus ? data.statusLabel() : null,
             live: data.isLive,
-            onShare: () => _openSharePoster(data, standings, mine),
+            timeLeft: data.timeLeft,
+            timeLeftLabel: data.timeLeftLabel(),
+            canShareMore: _canSeeReasons,
+            onShareMore: () => _shareAgain(_shareRoute()),
+            onShareResult: () => _openSharePoster(data, standings, mine),
           ),
           const SizedBox(height: 24),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'How they voted',
-                style: TextStyle(
+                data.isLive ? 'How they are voting' : 'How they voted',
+                style: const TextStyle(
                   color: _ink,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Row(
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  FaIcon(FontAwesomeIcons.handPointer, size: 11, color: _muted),
-                  SizedBox(width: 6),
                   Text(
                     'Tap an answer',
                     style: TextStyle(
                       color: _muted,
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -593,10 +621,17 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
             loadAnswers: _canSeeReasons ? _loadCustomAnswers : null,
             onReport: _reportReason,
           ),
-          if (_nextCheckCard != null) ...[
-            const SizedBox(height: 24),
-            AskNextCard(check: _nextCheckCard!),
-          ],
+          const SizedBox(height: 24),
+          const Text(
+            'Tap an answer to read one reason free. Every other %, reason and added option opens with a plan.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _muted,
+              fontSize: 14,
+              height: 1.4,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
         ],
       ),
     );
@@ -613,6 +648,7 @@ class _ResultsData {
     required this.showStatus,
     this.expiresAt,
     this.customPick,
+    this.tag,
     this.closed = false,
   });
 
@@ -626,6 +662,9 @@ class _ResultsData {
   final bool showStatus;
   final DateTime? expiresAt;
 
+  /// The check's type name (Mirror Check...), shown above the question.
+  final String? tag;
+
   /// The owner closed it (or it expired), whatever its end time says.
   final bool closed;
 
@@ -633,6 +672,24 @@ class _ResultsData {
     if (closed) return false;
     final at = expiresAt;
     return at == null || at.isAfter(DateTime.now().toUtc());
+  }
+
+  /// Time until the card closes; null when it is closed or has no end time.
+  Duration? get timeLeft {
+    final at = expiresAt;
+    if (!isLive || at == null) return null;
+    return at.difference(DateTime.now().toUtc());
+  }
+
+  /// "2d 5h", "3h", "12m" or "under a minute"; null when not live.
+  String? timeLeftLabel() {
+    final left = timeLeft;
+    if (left == null) return null;
+    if (left.inMinutes < 1) return 'under a minute';
+    if (left.inHours < 1) return '${left.inMinutes}m';
+    if (left.inHours < 24) return '${left.inHours}h';
+    final hours = left.inHours % 24;
+    return hours == 0 ? '${left.inDays}d' : '${left.inDays}d ${hours}h';
   }
 
   /// "Live · 2d 5h left", "Live · 3h left", "Live · 12m left", or "Closed".
@@ -695,7 +752,7 @@ class _TopBar extends StatelessWidget {
               onPressed: onBack,
               icon: const Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: _PollResultsColors.ink,
+                color: _CardResultsColors.ink,
                 size: 18,
               ),
             ),
@@ -703,7 +760,7 @@ class _TopBar extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: _PollResultsColors.ink,
+              color: _CardResultsColors.ink,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -715,8 +772,8 @@ class _TopBar extends StatelessWidget {
                 onPressed: onMenu,
                 tooltip: 'More',
                 icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: _PollResultsColors.ink,
+                  Icons.more_horiz_rounded,
+                  color: _CardResultsColors.ink,
                   size: 22,
                 ),
               ),
@@ -727,23 +784,25 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-abstract final class _PollResultsColors {
+abstract final class _CardResultsColors {
   static const ink = YakkuPalette.textPrimary;
-  static const panel = YakkuPalette.charcoal;
-  static const crowdPanel = YakkuPalette.crowdPanel;
-  static const pink = YakkuPalette.cardPink;
 }
 
-/// Dark card: the user's pick vs. the crowd's top answer.
+/// Dark card: the viewer's pick vs. their circle. While live the right panel is
+/// the clock; once voting is over it shows the circle's answer, and a sticker
+/// on the card's edge says "Plot twist." or "Bang on.".
 class _VersusCard extends StatelessWidget {
   const _VersusCard({
     required this.mine,
     required this.leader,
     required this.runnerUp,
     required this.voters,
-    required this.status,
     required this.live,
-    required this.onShare,
+    required this.timeLeft,
+    required this.timeLeftLabel,
+    required this.canShareMore,
+    required this.onShareMore,
+    required this.onShareResult,
   });
 
   /// The viewer's own pick, when known. Without it the card compares the top
@@ -752,148 +811,368 @@ class _VersusCard extends StatelessWidget {
   final _Tally leader;
   final _Tally? runnerUp;
   final int voters;
-  final String? status;
   final bool live;
-  final VoidCallback onShare;
+  final Duration? timeLeft;
+  final String? timeLeftLabel;
+
+  /// Only the owner can ask for more votes.
+  final bool canShareMore;
+  final VoidCallback onShareMore;
+  final VoidCallback onShareResult;
+
+  static const _yellow = Color(0xFFFFC72C);
+  static const _yellowEdge = Color(0xFFD99A00);
+  static const _night = Color(0xFF1F191C);
 
   @override
   Widget build(BuildContext context) {
     final pick = mine;
-    final String caption;
-    if (pick == null) {
-      caption = '"${leader.label}" is in the lead.';
-    } else if (pick.id == leader.id) {
-      caption = 'Nailed it. The crowd agrees with you.';
-    } else if (leader.id == _Tally.customId) {
-      caption = 'Plot twist. Most of them wrote their own answer.';
-    } else {
-      caption = 'Plot twist. They picked "${leader.label}".';
-    }
-    // Left panel: the viewer's pick, else the leader. Right: the crowd's top
-    // answer, else the runner-up.
     final left = pick ?? leader;
     final right = pick != null ? leader : runnerUp;
+    final bangOn = pick != null && pick.id == leader.id;
+    final showSticker = !live && pick != null;
+    final fraction = timeLeft == null
+        ? 0.0
+        : (timeLeft!.inSeconds / const Duration(hours: 24).inSeconds).clamp(
+            0.0,
+            1.0,
+          );
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: _PollResultsColors.panel,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _SidePanel(
-                          color: _PollResultsColors.pink,
-                          tag: pick != null ? 'You' : 'Top answer',
-                          avatar: pick != null,
-                          trailing: '${left.percent}%',
-                          label: left.label,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _SidePanel(
-                          color: _PollResultsColors.crowdPanel,
-                          tag: pick != null ? 'Crowd' : 'Runner-up',
-                          trailing: right == null ? null : '${right.percent}%',
-                          label: right?.label ?? '-',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 30,
-                  height: 30,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: _PollResultsColors.panel,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    'vs',
-                    style: TextStyle(
-                      color: YakkuPalette.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                caption,
-                style: const TextStyle(
-                  color: YakkuPalette.white,
-                  fontSize: 16,
-                  height: 1.25,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Row(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          margin: EdgeInsets.only(top: showSticker ? 14 : 0),
+          decoration: BoxDecoration(
+            color: _night,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          voters == 1
-                              ? '1 person voted'
-                              : '$voters people voted',
-                          style: const TextStyle(
-                            color: YakkuPalette.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: _SidePanel(
+                            color: YakkuPalette.cardPink,
+                            tag: pick != null ? 'You' : 'Top answer',
+                            label: left.label,
                           ),
                         ),
-                        if (status != null) ...[
-                          const SizedBox(height: 8),
-                          _StatusPill(label: status!, live: live),
-                        ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: live
+                              ? _ClockPanel(
+                                  label: timeLeftLabel ?? '',
+                                  fraction: fraction,
+                                )
+                              : _SidePanel(
+                                  color: YakkuPalette.white,
+                                  tag: pick != null
+                                      ? 'Your circle'
+                                      : 'Runner-up',
+                                  percent: right == null
+                                      ? null
+                                      : '${right.percent}%',
+                                  label: right?.label ?? '-',
+                                  light: true,
+                                ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Material(
-                    color: _PollResultsColors.pink,
-                    shape: const StadiumBorder(),
-                    child: InkWell(
-                      onTap: onShare,
-                      customBorder: const StadiumBorder(),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 9,
-                        ),
-                        child: Text(
-                          'Share this',
-                          style: TextStyle(
-                            color: YakkuPalette.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _night,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: YakkuPalette.white, width: 2),
+                    ),
+                    child: const Text(
+                      'vs',
+                      style: TextStyle(
+                        color: YakkuPalette.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 0, 2, 2),
+                child: live ? _liveFooter() : _endedFooter(),
+              ),
+            ],
+          ),
+        ),
+        if (showSticker)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Transform.rotate(
+                angle: -0.05,
+                child: _Sticker(
+                  text: bangOn ? 'Bang on.' : 'Plot twist.',
+                  background: bangOn
+                      ? const Color(0xFFD7F5E3)
+                      : YakkuPalette.white,
+                  foreground: bangOn
+                      ? const Color(0xFF1E6B3E)
+                      : YakkuPalette.Raspberry,
+                  border: bangOn ? const Color(0xFF1E6B3E) : _night,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _liveFooter() {
+    final shareMore = canShareMore;
+    return Row(
+      children: [
+        Expanded(
+          child: shareMore
+              ? const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Not satisfied?',
+                      style: TextStyle(
+                        color: YakkuPalette.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Get more votes',
+                      style: TextStyle(
+                        color: YakkuPalette.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  voters == 1 ? '1 friend voted' : '$voters friends voted',
+                  style: const TextStyle(
+                    color: YakkuPalette.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+        ),
+        const SizedBox(width: 8),
+        _ShareButton(
+          label: shareMore ? 'Share more' : 'Share this',
+          onTap: shareMore ? onShareMore : onShareResult,
+        ),
+      ],
+    );
+  }
+
+  Widget _endedFooter() {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            voters == 1
+                ? '1 friend voted · ended'
+                : '$voters friends voted · ended',
+            style: const TextStyle(
+              color: YakkuPalette.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ShareButton(label: 'Share result', onTap: onShareResult),
+      ],
+    );
+  }
+}
+
+/// Yellow pill with a darker lower edge, like a pressable key.
+class _ShareButton extends StatelessWidget {
+  const _ShareButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: -0.05,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.only(bottom: 4),
+          decoration: BoxDecoration(
+            color: _VersusCard._yellowEdge,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+            decoration: BoxDecoration(
+              color: _VersusCard._yellow,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: _VersusCard._night, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.ios_share_rounded,
+                  size: 16,
+                  color: _VersusCard._night,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: _VersusCard._night,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The hand-written style tag stuck on the card's top edge.
+class _Sticker extends StatelessWidget {
+  const _Sticker({
+    required this.text,
+    required this.background,
+    required this.foreground,
+    required this.border,
+  });
+
+  final String text;
+  final Color background;
+  final Color foreground;
+  final Color border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border, width: 1.6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 22,
+          height: 1.1,
+          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w700,
+          fontFamilyFallback: const ['cursive'],
+        ),
+      ),
+    );
+  }
+}
+
+/// White right-hand panel while the card is live: LIVE chip, time left, bar.
+class _ClockPanel extends StatelessWidget {
+  const _ClockPanel({required this.label, required this.fraction});
+
+  final String label;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: YakkuPalette.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Your circle',
+              style: TextStyle(
+                color: YakkuPalette.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const _LiveChip(),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 22,
+                  color: YakkuPalette.Raspberry,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: YakkuPalette.Raspberry,
+                        fontSize: 34,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'left',
+                  style: TextStyle(
+                    color: _CardResultsColors.ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 7,
+                backgroundColor: YakkuPalette.pinkWash,
+                valueColor: const AlwaysStoppedAnimation(
+                  YakkuPalette.Raspberry,
+                ),
               ),
             ),
           ],
@@ -903,127 +1182,106 @@ class _VersusCard extends StatelessWidget {
   }
 }
 
+class _LiveChip extends StatelessWidget {
+  const _LiveChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F6EA),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.circle, size: 8, color: Color(0xFF2FB463)),
+            SizedBox(width: 6),
+            Text(
+              'LIVE',
+              style: TextStyle(
+                color: Color(0xFF1E6B3E),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One answer panel: a small tag (and optional percentage) on top, the answer
+/// big at the bottom.
 class _SidePanel extends StatelessWidget {
   const _SidePanel({
     required this.color,
     required this.tag,
     required this.label,
-    this.avatar = false,
-    this.trailing,
+    this.percent,
+    this.light = false,
   });
 
   final Color color;
   final String tag;
   final String label;
-  final bool avatar;
-  final String? trailing;
+  final String? percent;
+
+  /// A white panel: grey tag and a raspberry percentage.
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                if (avatar) ...[
-                  Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: YakkuPalette.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text(
-                      'Y',
-                      style: TextStyle(
-                        color: _PollResultsColors.pink,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 Expanded(
                   child: Text(
                     tag,
-                    style: const TextStyle(
-                      color: YakkuPalette.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      color: light
+                          ? YakkuPalette.textSecondary
+                          : _CardResultsColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                if (trailing != null)
+                if (percent != null)
                   Text(
-                    trailing!,
+                    percent!,
                     style: const TextStyle(
-                      color: YakkuPalette.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      color: YakkuPalette.Raspberry,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 22),
             Text(
               label,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: YakkuPalette.white,
-                fontSize: 20,
+                color: _CardResultsColors.ink,
+                fontSize: 21,
                 height: 1.1,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.live});
-
-  final String label;
-  final bool live;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = live ? YakkuPalette.liveGreen : YakkuPalette.white70;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
             ),
           ],
@@ -1058,7 +1316,7 @@ class _ResultBarRow extends StatelessWidget {
   final Color fill;
   final Color pillColor;
   final Color pillInk;
-  final FaIconData pillIcon;
+  final IconData pillIcon;
   final bool top;
 
   /// Makes the count pill tappable (expands the row's reasons).
@@ -1072,7 +1330,10 @@ class _ResultBarRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(_radius),
-        border: Border.all(color: YakkuPalette.roseBorder),
+        border: Border.all(
+          color: top ? YakkuPalette.Raspberry : YakkuPalette.roseBorder,
+          width: top ? 1.8 : 1,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -1095,14 +1356,6 @@ class _ResultBarRow extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (top) ...[
-                    const FaIcon(
-                      FontAwesomeIcons.crown,
-                      size: 14,
-                      color: YakkuPalette.primary,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
                   Expanded(
                     child: Text.rich(
                       TextSpan(
@@ -1139,7 +1392,7 @@ class _ResultBarRow extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _PollResultsColors.ink,
+                        color: _CardResultsColors.ink,
                         fontSize: 15,
                         height: 1.2,
                         fontWeight: FontWeight.w500,
@@ -1150,9 +1403,7 @@ class _ResultBarRow extends StatelessWidget {
                   Text(
                     '$percent%',
                     style: TextStyle(
-                      color: top
-                          ? YakkuPalette.primary
-                          : _PollResultsColors.ink,
+                      color: _CardResultsColors.ink,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1187,7 +1438,7 @@ class _CountPill extends StatelessWidget {
   });
 
   final int count;
-  final FaIconData icon;
+  final IconData icon;
   final Color background;
   final Color ink;
 
@@ -1204,7 +1455,7 @@ class _CountPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          FaIcon(icon, size: 13, color: ink),
+          Icon(icon, size: 16, color: ink),
           const SizedBox(width: 6),
           Text(
             '$count',
@@ -1232,7 +1483,7 @@ class _ResultRow extends StatefulWidget {
 
   final _Tally tally;
 
-  /// The leading answer gets a crown and a bolder bar.
+  /// The leading answer gets a raspberry border and a bolder bar.
   final bool top;
 
   /// Null when the viewer cannot read reasons (not the owner).
@@ -1311,7 +1562,7 @@ class _ResultRowState extends State<_ResultRow> {
       fill: widget.top ? YakkuPalette.pinkWash : YakkuPalette.blushFill,
       pillColor: YakkuPalette.pillPink,
       pillInk: YakkuPalette.primary,
-      pillIcon: FontAwesomeIcons.commentDots,
+      pillIcon: Icons.chat_bubble_outline_rounded,
       top: widget.top,
       onPillTap: _canExpand ? _toggle : null,
     );
@@ -1339,7 +1590,7 @@ class _ResultRowState extends State<_ResultRow> {
                   child: Text(
                     tally.label,
                     style: const TextStyle(
-                      color: _PollResultsColors.ink,
+                      color: _CardResultsColors.ink,
                       fontSize: 16,
                       height: 1.2,
                       fontWeight: FontWeight.w800,
@@ -1685,7 +1936,7 @@ class _OwnOptionsRowState extends State<_OwnOptionsRow> {
       fill: YakkuPalette.accentPurple,
       pillColor: YakkuPalette.accentPurple,
       pillInk: YakkuPalette.purpleInk,
-      pillIcon: FontAwesomeIcons.penToSquare,
+      pillIcon: Icons.edit_outlined,
       onPillTap: _canExpand ? _toggle : null,
     );
   }
@@ -1710,7 +1961,7 @@ class _OwnOptionsRowState extends State<_OwnOptionsRow> {
                   child: Text(
                     'Their own options',
                     style: TextStyle(
-                      color: _PollResultsColors.ink,
+                      color: _CardResultsColors.ink,
                       fontSize: 16,
                       height: 1.2,
                       fontWeight: FontWeight.w800,

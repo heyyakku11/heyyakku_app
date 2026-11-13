@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/poll_results_screen.dart';
+import 'package:yakku/presentation/screens/card_results_screen.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
 /// Opens the results screen of a card the user made. A check needs its full
@@ -17,7 +17,7 @@ Future<bool> openOwnCardResults(BuildContext context, PollModel poll) async {
       if (!context.mounted) return false;
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => PollResultsScreen.check(check: check),
+          builder: (_) => CardResultsScreen.check(check: check),
         ),
       );
     } catch (error) {
@@ -34,7 +34,7 @@ Future<bool> openOwnCardResults(BuildContext context, PollModel poll) async {
 
   final changed = await Navigator.of(context).push<bool>(
     MaterialPageRoute<bool>(
-      builder: (_) => PollResultsScreen.byPollId(pollId: poll.id),
+      builder: (_) => CardResultsScreen.byPollId(pollId: poll.id),
     ),
   );
   return changed == true;

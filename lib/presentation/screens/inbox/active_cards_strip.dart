@@ -289,7 +289,7 @@ class _VotedCount extends StatelessWidget {
         ),
         const SizedBox(width: 7),
         Text(
-          final_ ? 'friends voted · final' : 'friends voted',
+          'friends voted',
           style: TextStyle(
             color: accent,
             fontSize: 13,

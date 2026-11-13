@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
-import 'package:yakku/presentation/screens/poll_results_screen.dart';
+import 'package:yakku/presentation/screens/card_results_screen.dart';
 import 'package:yakku/presentation/screens/home/your_cards_screen.dart';
 import 'package:yakku/presentation/screens/home/widgets/feed_shared.dart';
 
@@ -145,7 +145,7 @@ class UserCheckCard extends StatelessWidget {
               filled: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (context) => PollResultsScreen.check(check: card),
+                  builder: (context) => CardResultsScreen.check(check: card),
                 ),
               ),
             ),

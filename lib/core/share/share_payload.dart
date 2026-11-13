@@ -40,7 +40,7 @@ class SharePayload {
 
   static const int maxOptions = 4;
 
-  /// Canonical `https://<website>/vote/{shareCode}` URL; the single link every
+  /// Canonical `https://<website>/vote/{shareCode}` URL (`/result/{shareCode}` for a result link); the single link every
   /// platform shares.
   final Uri url;
 
@@ -53,6 +53,8 @@ class SharePayload {
     String websiteBaseUrl = ApiConstants.webBaseUrl,
     bool isPublic = true,
     List<String> options = const [],
+    String path = 'vote',
+    Map<String, String>? query,
   }) {
     final code = shareCode.trim();
     final text = question.trim();
@@ -78,9 +80,10 @@ class SharePayload {
       port: base.hasPort ? base.port : null,
       pathSegments: [
         ...base.pathSegments.where((s) => s.isNotEmpty),
-        'vote',
+        path,
         code,
       ],
+      queryParameters: query == null || query.isEmpty ? null : query,
     );
     return SharePayload._(
       shareCode: code,

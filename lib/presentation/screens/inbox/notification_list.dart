@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:yakku/presentation/screens/inbox/activity_skeleton.dart';
 import 'package:yakku/presentation/screens/inbox/open_notification_target.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
@@ -152,7 +153,7 @@ class _NotificationListState extends State<NotificationList> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ActivitySkeleton();
     }
 
     if (_error != null && _items.isEmpty) {

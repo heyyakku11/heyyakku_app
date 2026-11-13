@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/data/models/notification/app_notification.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/poll_results_screen.dart';
+import 'package:yakku/presentation/screens/card_results_screen.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
 /// Opens the results screen of the card a notification is about. Shared by a
@@ -18,9 +18,9 @@ Future<void> openNotificationTarget(
           .where((candidate) => candidate.id == target.contentId)
           .firstOrNull;
       if (check == null) throw StateError('Check not found');
-      screen = PollResultsScreen.check(check: check);
+      screen = CardResultsScreen.check(check: check);
     } else {
-      screen = PollResultsScreen.byPollId(pollId: target.contentId);
+      screen = CardResultsScreen.byPollId(pollId: target.contentId);
     }
     if (!context.mounted) return;
     await Navigator.of(

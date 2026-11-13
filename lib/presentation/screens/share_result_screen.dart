@@ -1,78 +1,96 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yakku/core/share/share_payload.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/screens/share/card_share_screen.dart';
 
-/// Poster-style "You vs Crowd" page opened from the results card's
-/// "Share this" button.
+/// "Share your result": the poster of an ended card (the check, the question
+/// and You vs Your circle, no names, counts or reasons) with the usual share
+/// destinations underneath.
 class ShareResultScreen extends StatelessWidget {
   const ShareResultScreen({
     super.key,
+    required this.shareCode,
     required this.question,
     required this.myLabel,
     required this.crowdLabel,
     required this.crowdPercent,
-    required this.voters,
-    required this.headline,
+    this.verdict,
+    this.pickLabel,
     this.tag = 'Mirror Check',
+    this.options = const [],
+    this.minVotes = 3,
   });
 
+  /// The card's share code: the link that gets shared.
+  final String shareCode;
   final String question;
 
   /// The viewer's own answer.
   final String myLabel;
 
-  /// The crowd's top answer and the share of voters who picked it.
+  /// The circle's top answer and the share of voters who picked it.
   final String crowdLabel;
   final int crowdPercent;
-  final int voters;
 
-  /// Big closing line of the poster, e.g. "Plot twist.".
-  final String headline;
+  /// "Plot twist." or "Bang on."; null when there is no pick to compare.
+  final String? verdict;
 
-  /// First chip next to the "You vs Crowd" chip.
+  /// The sharer's own pick when it is one of the listed answers; the web result page shows it as "You".
+  final String? pickLabel;
+
+  /// The check's type name, shown above the question.
   final String tag;
+  final List<String> options;
+  final int minVotes;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: YakkuPalette.cream,
-      appBar: AppBar(
-        backgroundColor: YakkuPalette.cream,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          color: YakkuPalette.textPrimary,
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+    Widget poster() => ResultPoster(
+      tag: tag,
+      question: question,
+      myLabel: myLabel,
+      crowdLabel: crowdLabel,
+      crowdPercent: crowdPercent,
+      verdict: verdict,
+    );
+
+    return CardShareScreen(
+      title: 'Share your result',
+      minVotes: minVotes,
+      buildPayload: () => SharePayload.create(
+        shareCode: shareCode,
+        question: question,
+        options: options,
+        // The link opens the result on the website, not the voting form.
+        path: 'result',
+        query: pickLabel == null ? null : {'you': pickLabel!},
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: _Poster(
-            tag: tag,
-            question: question,
-            myLabel: myLabel,
-            crowdLabel: crowdLabel,
-            crowdPercent: crowdPercent,
-            voters: voters,
-            headline: headline,
-          ),
+      preview: poster(),
+      // The same poster on a 360x640 canvas for Instagram Stories.
+      story: SizedBox(
+        width: 360,
+        height: 640,
+        child: ColoredBox(
+          color: YakkuPalette.cream,
+          child: Center(child: Transform.scale(scale: 1.1, child: poster())),
         ),
       ),
     );
   }
 }
 
-class _Poster extends StatelessWidget {
-  const _Poster({
+/// The tilted pink result card.
+class ResultPoster extends StatelessWidget {
+  const ResultPoster({
+    super.key,
     required this.tag,
     required this.question,
     required this.myLabel,
     required this.crowdLabel,
     required this.crowdPercent,
-    required this.voters,
-    required this.headline,
+    this.verdict,
   });
 
   final String tag;
@@ -80,375 +98,250 @@ class _Poster extends StatelessWidget {
   final String myLabel;
   final String crowdLabel;
   final int crowdPercent;
-  final int voters;
-  final String headline;
+  final String? verdict;
+
+  static const _night = Color(0xFF1F191C);
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: YakkuPalette.cream,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const _Wordmark(),
-                const Spacer(),
-                _Chip(label: tag, filled: false),
-                const SizedBox(width: 8),
-                const _Chip(label: 'You vs Crowd', filled: true),
-              ],
-            ),
-            const SizedBox(height: 22),
-            Text(
-              question,
-              style: const TextStyle(
-                color: YakkuPalette.charcoal,
-                fontSize: 26,
-                height: 1.15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 26),
-            Transform.rotate(
-              angle: -3 * math.pi / 180,
-              child: _VersusBoard(
-                myLabel: myLabel,
-                crowdLabel: crowdLabel,
-                crowdPercent: crowdPercent,
-                voters: voters,
-              ),
-            ),
-            const SizedBox(height: 34),
-            Text(
-              headline,
-              style: const TextStyle(
-                color: YakkuPalette.primary,
-                fontSize: 54,
-                height: 1,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text.rich(
-      TextSpan(
-        text: 'Yakku',
-        children: [
-          TextSpan(
-            text: '.',
-            style: TextStyle(color: YakkuPalette.primary),
+    final bangOn = verdict == 'Bang on.';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Transform.rotate(
+        angle: -4 * math.pi / 180,
+        child: Container(
+          width: 310,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          decoration: BoxDecoration(
+            color: YakkuPalette.pinkTint,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _night, width: 1.5),
           ),
-        ],
-      ),
-      style: TextStyle(
-        color: YakkuPalette.charcoal,
-        fontSize: 28,
-        fontWeight: FontWeight.w900,
-        letterSpacing: -1,
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.filled});
-
-  final String label;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: filled ? YakkuPalette.charcoal : YakkuPalette.pinkTint,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: filled ? YakkuPalette.white : YakkuPalette.charcoal,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VersusBoard extends StatelessWidget {
-  const _VersusBoard({
-    required this.myLabel,
-    required this.crowdLabel,
-    required this.crowdPercent,
-    required this.voters,
-  });
-
-  final String myLabel;
-  final String crowdLabel;
-  final int crowdPercent;
-  final int voters;
-
-  static const _avatarColors = [
-    YakkuPalette.butter,
-    YakkuPalette.violetTint,
-    YakkuPalette.accentGreen,
-    YakkuPalette.skyTint,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final more = voters > _avatarColors.length ? voters - 4 : 0;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: YakkuPalette.charcoal,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
-          BoxShadow(
-            color: YakkuPalette.black25,
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  height: 230,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _Panel(
-                          color: YakkuPalette.cardPink,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const _Avatar(),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'You',
-                                    style: _title(YakkuPalette.charcoal, 24),
-                                  ),
-                                ],
-                              ),
-                              const Spacer(),
-                              Text(
-                                myLabel,
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                                style: _title(YakkuPalette.charcoal, 22),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _Panel(
-                          color: YakkuPalette.white,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    'Crowd',
-                                    style: _title(YakkuPalette.charcoal, 20),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      '$crowdPercent%',
-                                      style: _title(YakkuPalette.primary, 26),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                crowdLabel,
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                                style: _title(YakkuPalette.charcoal, 20),
-                              ),
-                              const Spacer(),
-                              Row(
-                                children: [
-                                  for (var i = 0; i < _avatarColors.length; i++)
-                                    Align(
-                                      widthFactor: 0.6,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: _avatarColors[i],
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: YakkuPalette.white,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: const SizedBox(
-                                          width: 26,
-                                          height: 26,
-                                        ),
-                                      ),
-                                    ),
-                                  if (more > 0) ...[
-                                    const SizedBox(width: 12),
-                                    DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: YakkuPalette.charcoal,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          '+$more',
-                                          style: const TextStyle(
-                                            color: YakkuPalette.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text.rich(
+                TextSpan(
+                  text: 'Yakku',
+                  children: [
+                    TextSpan(
+                      text: '.',
+                      style: TextStyle(color: YakkuPalette.Raspberry),
+                    ),
+                  ],
                 ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: YakkuPalette.charcoal,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: YakkuPalette.white, width: 3),
+                style: TextStyle(
+                  color: _night,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                tag.toUpperCase(),
+                style: const TextStyle(
+                  color: YakkuPalette.Raspberry,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                question,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _night,
+                  fontSize: 23,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              const SizedBox(height: 38),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(top: verdict == null ? 0 : 6),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _night,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          height: 140,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _Panel(
+                                  color: YakkuPalette.cardPink,
+                                  tag: 'You',
+                                  label: myLabel,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: _Panel(
+                                  color: YakkuPalette.white,
+                                  tag: 'Your circle',
+                                  percent: '$crowdPercent%',
+                                  label: crowdLabel,
+                                  light: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _night,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: YakkuPalette.white,
+                              width: 2,
+                            ),
+                          ),
+                          child: const Text(
+                            'vs',
+                            style: TextStyle(
+                              color: YakkuPalette.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const SizedBox(
-                    width: 52,
-                    height: 52,
-                    child: Center(
-                      child: Text(
-                        'vs',
-                        style: TextStyle(
-                          color: YakkuPalette.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                  if (verdict != null)
+                    Positioned(
+                      top: -10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Transform.rotate(
+                          angle: 0.06,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: bangOn
+                                  ? const Color(0xFFD7F5E3)
+                                  : YakkuPalette.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: bangOn
+                                    ? const Color(0xFF1E6B3E)
+                                    : _night,
+                                width: 2,
+                              ),
+                            ),
+                            child: Text(
+                              verdict!,
+                              style: TextStyle(
+                                color: bangOn
+                                    ? const Color(0xFF1E6B3E)
+                                    : YakkuPalette.Raspberry,
+                                fontSize: 20,
+                                height: 1.1,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Text(
-                  voters == 1
-                      ? '1 friend voted anonymously'
-                      : '$voters friends voted anonymously',
-                  style: const TextStyle(
-                    color: YakkuPalette.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-
-  static TextStyle _title(Color color, double size) => TextStyle(
-    color: color,
-    fontSize: size,
-    height: 1.1,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.5,
-  );
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({required this.color, required this.child});
+  const _Panel({
+    required this.color,
+    required this.tag,
+    required this.label,
+    this.percent,
+    this.light = false,
+  });
 
   final Color color;
-  final Widget child;
+  final String tag;
+  final String label;
+  final String? percent;
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Padding(padding: const EdgeInsets.all(16), child: child),
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        color: YakkuPalette.pinkTint,
-        shape: BoxShape.circle,
-        border: Border.fromBorderSide(
-          BorderSide(color: YakkuPalette.charcoal, width: 2),
-        ),
-      ),
-      child: SizedBox(
-        width: 36,
-        height: 36,
-        child: Center(
-          child: Text(
-            'Y',
-            style: TextStyle(
-              color: YakkuPalette.charcoal,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    tag,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: light
+                          ? YakkuPalette.textSecondary
+                          : ResultPoster._night,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (percent != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    percent!,
+                    style: const TextStyle(
+                      color: YakkuPalette.Raspberry,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ),
+            const Spacer(),
+            Text(
+              label,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: ResultPoster._night,
+                fontSize: 20,
+                height: 1.1,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ],
         ),
       ),
     );
