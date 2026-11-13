@@ -6,14 +6,32 @@ import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll_option.dart';
+import 'package:yakku/data/models/saved/saved_card.dart';
 import 'package:yakku/domain/enums/poll_answer_type.dart';
 import 'package:yakku/domain/enums/poll_options_type.dart';
 import 'package:yakku/domain/enums/poll_status.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/profile/widgets/saved_fun_cards_list.dart';
 import 'package:yakku/presentation/widgets/remote_poll_list.dart';
 
-class SavedPollsScreen extends StatelessWidget {
+enum _SavedTab { cards, polls }
+
+/// Everything the user saved: fun cards (the default) and polls from other people.
+class SavedPollsScreen extends StatefulWidget {
   const SavedPollsScreen({super.key});
+
+  @override
+  State<SavedPollsScreen> createState() => _SavedPollsScreenState();
+}
+
+class _SavedPollsScreenState extends State<SavedPollsScreen> {
+  _SavedTab _tab = _SavedTab.cards;
+
+  void _browse() {
+    // Back to the dashboard, on its Home tab.
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    DashboardTabs.showHome();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +65,7 @@ class SavedPollsScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'Questions you saved to ask later.',
+                'Cards and questions you saved to ask later.',
                 style: TextStyle(
                   color: YakkuPalette.textSecondary,
                   fontSize: 13,
@@ -55,22 +73,80 @@ class SavedPollsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(
-              child: RemotePollList(
-                emptyMessage: 'No saved polls yet',
-                errorFallback: 'Could not load saved polls',
-                loadPolls: () =>
-                    _loadAllSavedPolls(AppScope.of(context).userRemote),
-                emptyView: _SavedEmptyState(
-                  onBrowse: () {
-                    // Back to the dashboard, on its Home tab.
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                    DashboardTabs.showHome();
-                  },
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Row(
+                children: [
+                  _SavedTabPill(
+                    label: 'Cards',
+                    selected: _tab == _SavedTab.cards,
+                    onTap: () => setState(() => _tab = _SavedTab.cards),
+                  ),
+                  const SizedBox(width: 8),
+                  _SavedTabPill(
+                    label: 'Polls',
+                    selected: _tab == _SavedTab.polls,
+                    onTap: () => setState(() => _tab = _SavedTab.polls),
+                  ),
+                ],
               ),
             ),
+            Expanded(
+              child: _tab == _SavedTab.cards
+                  ? SavedFunCardsList(
+                      loadCards: () async => [
+                        for (final item in await _loadAllSavedCards(
+                          AppScope.of(context).userRemote,
+                        ))
+                          if (item.funCard != null) item.funCard!,
+                      ],
+                      onBrowse: _browse,
+                    )
+                  : RemotePollList(
+                      emptyMessage: 'No saved polls yet',
+                      errorFallback: 'Could not load saved polls',
+                      loadPolls: () =>
+                          _loadAllSavedPolls(AppScope.of(context).userRemote),
+                      emptyView: _SavedEmptyState(onBrowse: _browse),
+                    ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SavedTabPill extends StatelessWidget {
+  const _SavedTabPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? YakkuPalette.Ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: YakkuPalette.Ink, width: 1.2),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? YakkuPalette.white : YakkuPalette.Ink,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
@@ -147,14 +223,17 @@ class _SavedEmptyState extends StatelessWidget {
   }
 }
 
-Future<List<PollModel>> _loadAllSavedPolls(UserRemoteDataSource remote) async {
-  final items = <PollModel>[];
+/// Every saved card, all pages, polls and fun cards together (the API keeps one list for both).
+Future<List<SavedCardItem>> _loadAllSavedCards(
+  UserRemoteDataSource remote,
+) async {
+  final items = <SavedCardItem>[];
   String? cursor;
   final seenCursors = <String>{};
 
   while (true) {
-    final page = await remote.getSavedPolls(cursor: cursor);
-    items.addAll(page.items.map(_pollModelFromSavedResponse));
+    final page = await remote.getSavedCards(cursor: cursor);
+    items.addAll(page.items);
     final next = page.nextCursor;
     if (!page.hasMore ||
         next == null ||
@@ -165,7 +244,15 @@ Future<List<PollModel>> _loadAllSavedPolls(UserRemoteDataSource remote) async {
     cursor = next;
   }
 
-  return List<PollModel>.unmodifiable(items);
+  return items;
+}
+
+Future<List<PollModel>> _loadAllSavedPolls(UserRemoteDataSource remote) async {
+  final cards = await _loadAllSavedCards(remote);
+  return List<PollModel>.unmodifiable([
+    for (final card in cards)
+      if (card.poll != null) _pollModelFromSavedResponse(card.poll!),
+  ]);
 }
 
 PollModel _pollModelFromSavedResponse(PollResponse poll) {

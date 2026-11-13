@@ -11,6 +11,9 @@ class PollResponse {
   final String status;
   final String visibility;
   final DateTime? expiresAt;
+
+  /// When the owner closed the poll; null while it is open.
+  final DateTime? closedAt;
   final DateTime createdAt;
   final String mediaReadiness;
   final PollMediaResponse? media;
@@ -49,6 +52,7 @@ class PollResponse {
     required this.totalVoteCount,
     required this.options,
     this.expiresAt,
+    this.closedAt,
     this.shareCode = '',
     this.mediaReadiness = 'none',
     this.media,
@@ -74,6 +78,7 @@ class PollResponse {
       status: json['status'] as String? ?? '',
       visibility: json['visibility'] as String? ?? '',
       expiresAt: _parseDate(json['expiresAt']),
+      closedAt: _parseDate(json['closedAt']),
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now().toUtc(),
       mediaReadiness: json['mediaReadiness'] as String? ?? 'none',
       media: rawMedia is Map

@@ -17,15 +17,6 @@ class UserPreferences {
     await _storage.updateBool(StorageKeys.isUserLogged, value);
   }
 
-  /// Whether the first-launch onboarding was already shown on this device. Not cleared on logout.
-  Future<bool> getHasSeenOnboarding() async {
-    return await _storage.readBool(StorageKeys.hasSeenOnboarding) ?? false;
-  }
-
-  Future<void> setHasSeenOnboarding(bool value) async {
-    await _storage.updateBool(StorageKeys.hasSeenOnboarding, value);
-  }
-
   Future<String?> getPhoneNumber() async {
     final phone = await _storage.read(StorageKeys.phoneNumber);
     if (phone != null && phone.isNotEmpty) return phone;

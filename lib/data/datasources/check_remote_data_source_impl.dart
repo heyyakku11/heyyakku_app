@@ -3,6 +3,8 @@ import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
+import 'package:yakku/data/models/checks/fun_card_type.dart';
+import 'package:yakku/data/models/saved/saved_card.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
@@ -24,13 +26,42 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   }
 
   @override
-  Future<List<CheckResponse>> getFunCards() async {
-    final response = await dio.get<Map<String, dynamic>>(ApiRoutes.funCards);
+  Future<List<FunCardType>> getFunCardTypes() async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.funCardTypes,
+    );
+    return _unwrapList(
+      response.data,
+      emptyMessage: 'Empty card types response',
+      failureMessage: 'Failed to load cards',
+      itemFromJson: FunCardType.fromJson,
+    );
+  }
+
+  @override
+  Future<List<CheckResponse>> getFunCardsOfType(String typeId) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.funCardsOfType(typeId),
+    );
     return _unwrapList(
       response.data,
       emptyMessage: 'Empty cards response',
       failureMessage: 'Failed to load cards',
       itemFromJson: CheckResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<void> saveFunCard(String id) async {
+    await dio.put<Map<String, dynamic>>(
+      ApiRoutes.savedCard(SavedCardType.funCard.apiValue, id),
+    );
+  }
+
+  @override
+  Future<void> unsaveFunCard(String id) async {
+    await dio.delete<Map<String, dynamic>>(
+      ApiRoutes.savedCard(SavedCardType.funCard.apiValue, id),
     );
   }
 
@@ -63,6 +94,14 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
       failureMessage: 'Failed to load your checks',
       itemFromJson: UserCheckResponse.fromJson,
     );
+  }
+
+  @override
+  Future<void> reshareMyCheck(String id) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.reshareMyCheck(id),
+    );
+    _expectSuccess(response.data, 'Could not reshare this card');
   }
 
   @override

@@ -66,7 +66,11 @@ class MirrorCheck {
     this.optionTextColor,
     this.checkType,
     this.isFun = false,
+    this.isSaved = false,
   });
+
+  /// True when the caller saved this fun card.
+  final bool isSaved;
 
   /// True for a just-for-fun card: made through the fun-cards endpoint.
   final bool isFun;
@@ -102,6 +106,7 @@ class MirrorCheck {
       id: check.id,
       used: check.used,
       isFun: isFun,
+      isSaved: check.isSaved,
       checkType: check.checkType ?? theme.checkType,
       title: theme.heading.trim().isEmpty ? check.title : theme.heading,
       question: check.question,

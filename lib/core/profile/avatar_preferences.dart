@@ -42,6 +42,11 @@ class AvatarPreferences {
 
   final PreferenceStorageService _storage;
 
+  /// The colour most recently saved in this session, so every avatar on screen (profile, home header) follows a
+  /// change at once. Null until a colour is saved; screens then keep what they loaded.
+  static final ValueNotifier<AvatarColor?> changes =
+      ValueNotifier<AvatarColor?>(null);
+
   Future<AvatarColor> load() async {
     try {
       return AvatarColors.byId(await _storage.read(StorageKeys.avatarColor));
@@ -51,6 +56,7 @@ class AvatarPreferences {
   }
 
   Future<void> save(AvatarColor color) async {
+    changes.value = color;
     try {
       await _storage.update(StorageKeys.avatarColor, color.id);
     } catch (_) {

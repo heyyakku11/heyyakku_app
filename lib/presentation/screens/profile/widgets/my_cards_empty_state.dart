@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
 /// Which "My cards" tab is empty.
-enum MyCardsEmptyKind { all, live, closed, saved }
+enum MyCardsEmptyKind { all, live, closed }
 
 /// The empty state of the My cards screen: a little stack of tilted blank cards, a short headline and
 /// line of help, and (when there is something to do about it) one button.
@@ -34,12 +34,6 @@ class MyCardsEmptyState extends StatelessWidget {
       message:
           'When you close a card so it stops taking answers, you will find it here.',
       icon: Icons.lock_outline_rounded,
-      action: null,
-    ),
-    MyCardsEmptyKind.saved => (
-      title: 'No saved cards',
-      message: 'Save a question you like and it waits for you here, for later.',
-      icon: Icons.bookmark_border_rounded,
       action: null,
     ),
   };

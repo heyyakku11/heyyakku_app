@@ -31,10 +31,14 @@ class AskFriendsCheck {
     this.sticker,
     this.checkId,
     this.isFun = false,
+    this.isSaved = false,
   });
 
   /// True for a just-for-fun card: made through the fun-cards endpoint.
   final bool isFun;
+
+  /// True when the caller saved this fun card.
+  final bool isSaved;
 
   /// Backend check id; set only for checks that come from the API.
   final String? checkId;
@@ -52,6 +56,7 @@ class AskFriendsCheck {
     return AskFriendsCheck(
       checkId: check.id,
       isFun: check.isFun,
+      isSaved: check.isSaved,
       title: check.title,
       question: check.question,
       backgroundColor: check.backgroundColor,

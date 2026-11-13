@@ -87,7 +87,6 @@ Future<void> main() async {
   runApp(
     MyApp(
       isUserLogged: session.isUserLogged,
-      hasSeenOnboarding: session.hasSeenOnboarding,
       phoneNumber: session.phoneNumber,
       displayName: session.displayName,
       userPreferences: userPreferences,
@@ -103,7 +102,6 @@ class MyApp extends StatefulWidget {
   const MyApp({
     super.key,
     this.isUserLogged = false,
-    this.hasSeenOnboarding = false,
     this.phoneNumber,
     this.displayName,
     this.authRemoteDataSource,
@@ -120,7 +118,6 @@ class MyApp extends StatefulWidget {
   });
 
   final bool isUserLogged;
-  final bool hasSeenOnboarding;
   final String? phoneNumber;
   final String? displayName;
   final AuthRemoteDataSource? authRemoteDataSource;
@@ -194,7 +191,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       authRemote: authRemote,
       draftPolls: widget.draftPolls,
       isUserLogged: widget.isUserLogged,
-      hasSeenOnboarding: widget.hasSeenOnboarding,
       phoneNumber: widget.phoneNumber,
       displayName: widget.displayName,
     );

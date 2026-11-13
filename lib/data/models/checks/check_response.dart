@@ -26,6 +26,7 @@ class CheckResponse {
     required this.used,
     required this.theme,
     this.checkType,
+    this.isSaved = false,
   });
 
   final String id;
@@ -35,6 +36,9 @@ class CheckResponse {
   final String backgroundColor;
   final List<CheckOptionResponse> options;
   final bool used;
+
+  /// True when the caller saved this fun card. Only fun cards carry it.
+  final bool isSaved;
 
   /// Stable type code such as VIBE_CHECK; null for legacy checks.
   final String? checkType;
@@ -61,6 +65,7 @@ class CheckResponse {
           CheckOptionResponse.fromJson(Map<String, dynamic>.from(option)),
       ],
       used: json['used'] as bool? ?? false,
+      isSaved: json['isSaved'] as bool? ?? false,
     );
   }
 }

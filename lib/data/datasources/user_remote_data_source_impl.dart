@@ -6,6 +6,7 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
+import 'package:yakku/data/models/saved/saved_card.dart';
 import 'package:yakku/data/models/user/user_poll_detail_response.dart';
 import 'package:yakku/data/models/user/user_profile_response.dart';
 
@@ -203,9 +204,9 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
-  Future<PollsPage> getSavedPolls({String? cursor}) async {
+  Future<SavedCardsPage> getSavedCards({String? cursor}) async {
     final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.savedPolls,
+      ApiRoutes.savedCards,
       queryParameters: cursor == null || cursor.isEmpty
           ? null
           : <String, dynamic>{'cursor': cursor},
@@ -213,23 +214,25 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
 
     final body = response.data;
     if (body == null) {
-      throw StateError('Empty saved polls response');
+      throw StateError('Empty saved cards response');
     }
 
-    final apiResponse = ApiResponse<List<PollResponse>>.fromJson(body, (json) {
-      if (json is! List) return <PollResponse>[];
-      return json
-          .whereType<Map>()
-          .map((item) => PollResponse.fromJson(Map<String, dynamic>.from(item)))
-          .toList(growable: false);
+    final apiResponse = ApiResponse<List<SavedCardItem>>.fromJson(body, (json) {
+      if (json is! List) return <SavedCardItem>[];
+      return [
+        for (final item in json.whereType<Map>())
+          if (SavedCardItem.tryParse(Map<String, dynamic>.from(item))
+              case final card?)
+            card,
+      ];
     });
 
     if (!apiResponse.success || apiResponse.data == null) {
-      throw StateError(apiResponse.message ?? 'Failed to load saved polls');
+      throw StateError(apiResponse.message ?? 'Failed to load saved cards');
     }
 
     final cursorMeta = cursorFromMeta(apiResponse.meta);
-    return PollsPage(
+    return SavedCardsPage(
       items: apiResponse.data!,
       nextCursor: cursorMeta.nextCursor,
       hasMore: cursorMeta.hasMore,
@@ -250,10 +253,10 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     String pollId, {
     required bool delete,
   }) async {
-    final path = ApiRoutes.savePoll(pollId);
+    final path = ApiRoutes.savedCard(SavedCardType.poll.apiValue, pollId);
     final response = delete
         ? await dio.delete<Map<String, dynamic>>(path)
-        : await dio.post<Map<String, dynamic>>(path);
+        : await dio.put<Map<String, dynamic>>(path);
 
     final body = response.data;
     if (body == null) {
@@ -297,6 +300,28 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       throw StateError(apiResponse.message ?? 'Failed to load poll details');
     }
 
+    return apiResponse.data!;
+  }
+
+  @override
+  Future<PollResponse> resharePoll(String pollId) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.resharePoll(pollId),
+    );
+
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty reshare poll response');
+    }
+
+    final apiResponse = ApiResponse<PollResponse>.fromJson(
+      body,
+      (json) => PollResponse.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(apiResponse.message ?? 'Failed to reshare poll');
+    }
     return apiResponse.data!;
   }
 

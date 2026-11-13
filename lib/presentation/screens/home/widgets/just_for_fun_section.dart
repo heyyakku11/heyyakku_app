@@ -4,26 +4,41 @@ import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/presentation/screens/home/fun_cards_screen.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
 
-/// The "Just for fun" row on the home feed: a few cards and a "See all" tile
-/// that opens the full list. Hidden when there are no cards left to make.
+/// One row of fun cards on the home feed: the cards of a single type under that type's name, and a
+/// "See all" tile that opens that type's full list. Hidden when there are no cards left to make.
 class JustForFunSection extends StatelessWidget {
-  const JustForFunSection({super.key, required this.cards});
+  const JustForFunSection({
+    super.key,
+    required this.cards,
+    this.title = defaultTitle,
+    this.typeId,
+    int? totalCount,
+  }) : totalCount = totalCount ?? cards.length;
 
-  /// Active cards the caller has not made yet.
+  static const defaultTitle = 'Just for fun';
+
+  /// The card type shown as the section heading.
+  final String title;
+
+  /// The type's id, which the "See all" list is loaded by; null means no such list.
+  final String? typeId;
+
+  /// Cards of this type shown in the row (a preview of at most 4).
   final List<MirrorCheck> cards;
 
-  /// Most cards shown on the home feed; the rest are behind "See all".
-  static const maxVisible = 5;
+  /// All cards of this type the caller can still make; "See all" appears when it is more than the row shows.
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
     if (cards.isEmpty) return const SizedBox.shrink();
-    final visible = cards.take(maxVisible).toList();
+    final visible = cards;
+    final hasMore = typeId != null && totalCount > visible.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionTag('Just for fun'),
+        SectionTag(title),
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -34,14 +49,19 @@ class JustForFunSection extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
-                itemCount: visible.length + 1,
+                itemCount: visible.length + (hasMore ? 1 : 0),
                 separatorBuilder: (context, index) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   if (index == visible.length) {
                     return SizedBox(
                       width: 110,
                       child: _SeeAllTile(
-                        onTap: () => openFunCards(context, cards),
+                        onTap: () => openFunCards(
+                          context,
+                          cards,
+                          title: title,
+                          typeId: typeId!,
+                        ),
                       ),
                     );
                   }

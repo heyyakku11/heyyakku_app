@@ -2,6 +2,7 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
+import 'package:yakku/data/models/saved/saved_card.dart';
 import 'package:yakku/data/models/user/user_poll_detail_response.dart';
 import 'package:yakku/data/models/user/user_profile_response.dart';
 
@@ -37,7 +38,8 @@ abstract interface class UserRemoteDataSource {
   /// `GET /api/v1/personality/traits`: the predefined traits friends pick from.
   Future<List<PersonalityTrait>> getPersonalityTraits();
 
-  Future<PollsPage> getSavedPolls({String? cursor});
+  /// One page of the saved cards, polls and fun cards together, newest saved first.
+  Future<SavedCardsPage> getSavedCards({String? cursor});
 
   Future<SavedPollStateResponse> savePoll(String pollId);
 
@@ -46,6 +48,9 @@ abstract interface class UserRemoteDataSource {
   Future<UserPollDetailResponse> getOwnedPollDetails(String pollId);
 
   Future<PollResponse> closePoll(String pollId);
+
+  /// Opens one of the caller's closed polls again for another 24 hours (same share link).
+  Future<PollResponse> resharePoll(String pollId);
 
   Future<void> deletePoll(String pollId);
 

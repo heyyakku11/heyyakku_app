@@ -18,13 +18,11 @@ class AuthController extends ChangeNotifier {
     required AuthRemoteDataSource authRemote,
     this._draftPolls,
     bool isUserLogged = false,
-    bool hasSeenOnboarding = false,
     String? this._phoneNumber,
     String? this._displayName,
   }) : _tokenStore = tokenStore,
        _authRemote = authRemote,
-       _isLoggedIn = isUserLogged,
-       _hasSeenOnboarding = hasSeenOnboarding;
+       _isLoggedIn = isUserLogged;
 
   final UserPreferences userPreferences;
   final AuthTokenStore _tokenStore;
@@ -32,22 +30,11 @@ class AuthController extends ChangeNotifier {
   final DraftPollStore? _draftPolls;
 
   bool _isLoggedIn;
-  bool _hasSeenOnboarding;
   String? _phoneNumber;
   String? _displayName;
 
   bool get isLoggedIn => _isLoggedIn;
 
-  /// True once onboarding has been shown on this device; the router then skips it.
-  bool get hasSeenOnboarding => _hasSeenOnboarding;
-
-  /// Records that onboarding was shown. Does not notify, so leaving the screen is not interrupted
-  /// by a router refresh.
-  Future<void> markOnboardingSeen() async {
-    if (_hasSeenOnboarding) return;
-    _hasSeenOnboarding = true;
-    await userPreferences.setHasSeenOnboarding(true);
-  }
   bool get canEnterApp => _isLoggedIn;
   String? get phoneNumber => _phoneNumber;
   String? get displayName => _displayName;
@@ -79,10 +66,6 @@ class AuthController extends ChangeNotifier {
     await userPreferences.setCommunityNotifyRequested(
       data.user.communityNotifyRequested,
     );
-
-    // Signing in implies onboarding is done (covers installs that predate the flag).
-    _hasSeenOnboarding = true;
-    await userPreferences.setHasSeenOnboarding(true);
 
     _isLoggedIn = true;
     _phoneNumber = phone;
@@ -162,14 +145,10 @@ class AuthController extends ChangeNotifier {
 
     final isUserLogged = await userPreferences.getIsUserLogged();
     final hasTokens = tokenStore.hasSessionTokens;
-    // A signed-in user has necessarily been through onboarding.
-    final hasSeenOnboarding =
-        isUserLogged || await userPreferences.getHasSeenOnboarding();
 
     if (isUserLogged && hasTokens) {
       return AuthSessionBootstrap(
         isUserLogged: true,
-        hasSeenOnboarding: true,
         phoneNumber: await userPreferences.getPhoneNumber(),
         displayName: await userPreferences.getDisplayName(),
       );
@@ -180,29 +159,21 @@ class AuthController extends ChangeNotifier {
         tokenStore.hasRefreshToken) {
       await tokenStore.clear();
       await userPreferences.clearAuth();
-      return AuthSessionBootstrap(
-        isUserLogged: false,
-        hasSeenOnboarding: hasSeenOnboarding,
-      );
+      return const AuthSessionBootstrap(isUserLogged: false);
     }
 
-    return AuthSessionBootstrap(
-      isUserLogged: false,
-      hasSeenOnboarding: hasSeenOnboarding,
-    );
+    return const AuthSessionBootstrap(isUserLogged: false);
   }
 }
 
 class AuthSessionBootstrap {
   const AuthSessionBootstrap({
     required this.isUserLogged,
-    this.hasSeenOnboarding = false,
     this.phoneNumber,
     this.displayName,
   });
 
   final bool isUserLogged;
-  final bool hasSeenOnboarding;
   final String? phoneNumber;
   final String? displayName;
 }

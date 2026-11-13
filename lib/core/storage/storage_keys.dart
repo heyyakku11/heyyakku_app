@@ -15,8 +15,6 @@ abstract final class StorageKeys {
   static const displayName = 'displayName';
   static const installationId = 'installationId';
 
-  /// Set once the first-launch onboarding has been shown. Device level: kept across logout.
-  static const hasSeenOnboarding = 'hasSeenOnboarding';
   static const isNotificationAllowed = 'isNotificationAllowed';
   static const notificationPermissionAsked = 'notificationPermissionAsked';
 

@@ -2,6 +2,7 @@ import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/models/checks/check_response.dart';
+import 'package:yakku/data/models/checks/fun_card_type.dart';
 import 'package:yakku/data/models/checks/make_check_request.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
 
@@ -10,13 +11,13 @@ class HomeChecks {
   const HomeChecks({
     required this.checks,
     required this.myChecks,
-    this.funCards = const [],
+    this.funTypes = const [],
   });
 
   final List<CheckResponse> checks;
 
-  /// Active just-for-fun cards (no live date).
-  final List<CheckResponse> funCards;
+  /// Fun card types, each with a preview of its cards (no live date).
+  final List<FunCardType> funTypes;
   final List<UserCheckResponse> myChecks;
 }
 
@@ -28,7 +29,30 @@ class CheckApiRepository extends ChangeNotifier {
 
   Future<List<CheckResponse>> getChecks() => _remote.getChecks();
 
-  Future<List<CheckResponse>> getFunCards() => _remote.getFunCards();
+  Future<List<CheckResponse>> getFunCardsOfType(String typeId) =>
+      _remote.getFunCardsOfType(typeId);
+
+  // Saved state changed in this session. A fun card shown again (a re-opened preview, a refreshed list) reads
+  // this first, so it never shows a stale server value. Saving does not notify: nothing else needs to reload.
+  final Map<String, bool> _savedOverrides = {};
+
+  /// Bumps whenever a fun card is saved or unsaved, so the saved-cards list can refresh itself.
+  final ValueNotifier<int> savedChanges = ValueNotifier<int>(0);
+
+  /// Whether the caller has saved the fun card [id]; [fromServer] is what the list said when it was loaded.
+  bool isFunCardSaved(String id, {required bool fromServer}) =>
+      _savedOverrides[id] ?? fromServer;
+
+  /// Saves ([saved] true) or unsaves a fun card. Throws when the request fails, and then the state is unchanged.
+  Future<void> setFunCardSaved(String id, {required bool saved}) async {
+    if (saved) {
+      await _remote.saveFunCard(id);
+    } else {
+      await _remote.unsaveFunCard(id);
+    }
+    _savedOverrides[id] = saved;
+    savedChanges.value++;
+  }
 
   Future<UserCheckResponse> makeCheck(MakeCheckRequest request) async {
     final made = await _remote.makeCheck(request);
@@ -53,6 +77,12 @@ class CheckApiRepository extends ChangeNotifier {
 
   Future<void> closeMyCheck(String id) async {
     await _remote.closeMyCheck(id);
+    notifyListeners();
+  }
+
+  /// Opens a closed made card again (a fun card gets 24 more hours); listeners reload.
+  Future<void> reshareMyCheck(String id) async {
+    await _remote.reshareMyCheck(id);
     notifyListeners();
   }
 
@@ -105,13 +135,13 @@ class CheckApiRepository extends ChangeNotifier {
         ? _remote.getMyChecks().catchError((_) => <UserCheckResponse>[])
         : Future.value(const <UserCheckResponse>[]);
     // The fun cards are extra: the feed still loads without them.
-    final funFuture = _remote.getFunCards().catchError(
-      (_) => <CheckResponse>[],
+    final funFuture = _remote.getFunCardTypes().catchError(
+      (_) => <FunCardType>[],
     );
     return HomeChecks(
       checks: await checksFuture,
       myChecks: await mineFuture,
-      funCards: await funFuture,
+      funTypes: await funFuture,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/ask_friends_check.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
+import 'package:yakku/data/models/poll/original_question.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
 import 'package:yakku/presentation/screens/home/check_detail_screen.dart';
 
@@ -186,5 +187,13 @@ void openAskFriendsInCreateForm(BuildContext context, AskFriendsCheck check) {
     ..options = check.answerableLabels
     ..allowComments = true
     ..expiryDays = 0;
-  showCreatePollSheet(context, draft: draft);
+  // The original is kept so the sheet can offer Reset once the copy is edited.
+  showCreatePollSheet(
+    context,
+    draft: draft,
+    original: OriginalQuestion(
+      question: question,
+      options: check.answerableLabels,
+    ),
+  );
 }

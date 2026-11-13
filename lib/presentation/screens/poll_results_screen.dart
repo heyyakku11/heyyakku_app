@@ -14,7 +14,7 @@ import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
-import 'package:yakku/presentation/screens/created_poll_screen.dart';
+import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/screens/share_result_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
@@ -244,11 +244,7 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
 
     switch (action) {
       case CardAction.shareAgain:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => CreatedPollScreen(poll: poll),
-          ),
-        );
+        await Navigator.of(context).push(pollShareRoute(poll));
       case CardAction.closeNow:
         await _confirmAndRun(
           poll,
@@ -391,6 +387,8 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
               _TopBar(
                 onBack: _onBack,
                 onMenu: _loadedPoll == null ? null : _openMenu,
+                // Under the vote limit a made check is titled by its type (for example Trust Check).
+                title: _lockedCheckTitle ?? 'Results',
               ),
               Expanded(child: _body(data)),
             ],
@@ -398,6 +396,13 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
         ),
       ),
     );
+  }
+
+  /// The check's type name while its results are still locked; null otherwise.
+  String? get _lockedCheckTitle {
+    final check = widget.check;
+    if (check == null || check.resultsUnlocked) return null;
+    return check.title.trim().isEmpty ? null : check.title;
   }
 
   /// Under the vote limit the server sends no results, only progress.
@@ -414,8 +419,9 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
         minVotes: check.minVotes,
         tag: check.title,
         backgroundColor: check.backgroundColor,
-        onShareAgain: () =>
-            _shareAgain((_) => CreatedPollScreen.check(check: check)),
+        closesAt: check.expiresAt,
+        closedAt: check.closedAt,
+        onShareAgain: () => _shareAgain(checkShareRoute(check)),
       );
     }
 
@@ -426,8 +432,9 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
       options: poll.options.map((o) => o.text ?? '').toList(growable: false),
       progress: poll.voteProgress,
       minVotes: poll.minVotes,
-      label: widget._justVoted ? 'LIVE' : 'YOUR CARD · LIVE',
-      onShareAgain: () => _shareAgain((_) => CreatedPollScreen(poll: poll)),
+      closesAt: poll.expiresAt,
+      closedAt: poll.closedAt,
+      onShareAgain: () => _shareAgain(pollShareRoute(poll)),
     );
   }
 
@@ -458,10 +465,8 @@ class _PollResultsScreenState extends State<PollResultsScreen> {
     );
   }
 
-  Future<void> _shareAgain(WidgetBuilder builder) {
-    return Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: builder));
+  Future<void> _shareAgain(Route<void> route) {
+    return Navigator.of(context).push(route);
   }
 
   Widget _body(_ResultsData? data) {
@@ -671,9 +676,10 @@ class _Tally {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack, this.onMenu});
+  const _TopBar({required this.onBack, this.onMenu, this.title = 'Results'});
 
   final VoidCallback onBack;
+  final String title;
   final VoidCallback? onMenu;
 
   @override
@@ -694,9 +700,9 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-          const Text(
-            'Results',
-            style: TextStyle(
+          Text(
+            title,
+            style: const TextStyle(
               color: _PollResultsColors.ink,
               fontSize: 16,
               fontWeight: FontWeight.w700,

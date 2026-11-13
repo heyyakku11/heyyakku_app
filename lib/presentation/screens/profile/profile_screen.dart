@@ -136,6 +136,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (context) => screen));
+    // Cards may have been deleted, closed or reshared on the screen just left: the count badges follow the server.
+    if (mounted) await _loadProfile();
   }
 
   @override

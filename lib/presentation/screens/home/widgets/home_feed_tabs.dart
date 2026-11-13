@@ -1,36 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:yakku/core/profile/avatar_preferences.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/screens/profile/widgets/profile_avatar.dart';
 
 enum HomeFeedTab { friends, community }
 
-/// The Yakku wordmark that stays above the Friends / Community switch.
-class HomeBrandHeader extends StatelessWidget {
-  const HomeBrandHeader({super.key});
+/// The Yakku wordmark that stays above the Friends / Community switch, with the user's avatar at the right.
+/// The avatar is the same coloured circle as on the profile screen; tapping it opens that screen.
+class HomeBrandHeader extends StatefulWidget {
+  const HomeBrandHeader({super.key, required this.onProfileTap});
+
+  final VoidCallback onProfileTap;
+
+  @override
+  State<HomeBrandHeader> createState() => _HomeBrandHeaderState();
+}
+
+class _HomeBrandHeaderState extends State<HomeBrandHeader> {
+  static const _avatarSize = 40.0;
+
+  final _prefs = AvatarPreferences();
+  AvatarColor _color = AvatarColors.defaultColor;
+
+  @override
+  void initState() {
+    super.initState();
+    AvatarPreferences.changes.addListener(_onColorChanged);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    AvatarPreferences.changes.removeListener(_onColorChanged);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final color = await _prefs.load();
+    if (!mounted) return;
+    setState(() => _color = AvatarPreferences.changes.value ?? color);
+  }
+
+  // The colour was changed on the edit-profile screen.
+  void _onColorChanged() {
+    final color = AvatarPreferences.changes.value;
+    if (color == null || !mounted) return;
+    setState(() => _color = color);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text.rich(
-          TextSpan(
-            text: 'Yakku',
-            style: TextStyle(
-              fontSize: 28,
-              height: 1,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1,
-              color: YakkuPalette.Ink,
-            ),
-            children: [
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text.rich(
               TextSpan(
-                text: '.',
-                style: TextStyle(color: YakkuPalette.Raspberry),
+                text: 'Yakku',
+                style: TextStyle(
+                  fontSize: 28,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                  color: YakkuPalette.Ink,
+                ),
+                children: [
+                  TextSpan(
+                    text: '.',
+                    style: TextStyle(color: YakkuPalette.Raspberry),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          Semantics(
+            button: true,
+            label: 'Open your profile',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onProfileTap,
+              child: ProfileAvatar(color: _color.color, size: _avatarSize),
+            ),
+          ),
+        ],
       ),
     );
   }

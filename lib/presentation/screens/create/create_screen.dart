@@ -12,12 +12,13 @@ import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
+import 'package:yakku/data/models/poll/original_question.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/create/create_poll_claim_screen.dart';
-import 'package:yakku/presentation/screens/created_poll_screen.dart';
+import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 
 String _capitalizeOption(String value) {
@@ -33,7 +34,11 @@ bool _shouldRevealOptions(String text) {
   return text.trim().isNotEmpty;
 }
 
-Future<void> showCreatePollSheet(BuildContext context, {DraftPoll? draft}) {
+Future<void> showCreatePollSheet(
+  BuildContext context, {
+  DraftPoll? draft,
+  OriginalQuestion? original,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -41,15 +46,19 @@ Future<void> showCreatePollSheet(BuildContext context, {DraftPoll? draft}) {
     enableDrag: false,
     backgroundColor: YakkuPalette.transparent,
     builder: (sheetContext) {
-      return CreatePollSheet(draft: draft);
+      return CreatePollSheet(draft: draft, original: original);
     },
   );
 }
 
 class CreatePollSheet extends StatefulWidget {
-  const CreatePollSheet({super.key, this.draft});
+  const CreatePollSheet({super.key, this.draft, this.original});
 
   final DraftPoll? draft;
+
+  /// Set when the question was copied from an existing card: the header then reads "Edit question" and offers
+  /// Reset once the copy differs from this original.
+  final OriginalQuestion? original;
 
   @override
   State<CreatePollSheet> createState() => _CreatePollSheetState();
@@ -94,6 +103,67 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   late final AnimationController _screenShakeController;
 
   bool get _hasQuestion => _questionController.text.trim().isNotEmpty;
+
+  /// True when the question or its options no longer match the card this was copied from.
+  bool get _isEdited {
+    final original = widget.original;
+    if (original == null) return false;
+    if (_questionController.text.trim() != original.question.trim()) {
+      return true;
+    }
+    final current = [
+      for (final controller in _optionControllers)
+        if (controller.text.trim().isNotEmpty) controller.text.trim(),
+    ];
+    final first = [
+      for (final option in original.options)
+        if (_capitalizeOption(option).isNotEmpty) _capitalizeOption(option),
+    ];
+    if (current.length != first.length) return true;
+    for (var i = 0; i < current.length; i++) {
+      if (current[i] != first[i]) return true;
+    }
+    return false;
+  }
+
+  /// Puts the question and options back to the original card, with as many option fields as it had.
+  void _resetToOriginal() {
+    final original = widget.original;
+    if (original == null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final target = _seededOptionCount(original.options.length);
+    final removedControllers = <TextEditingController>[];
+    final removedNodes = <FocusNode>[];
+    setState(() {
+      while (_optionControllers.length > target) {
+        final controller = _optionControllers.removeLast();
+        controller.removeListener(_onOptionListen);
+        removedControllers.add(controller);
+        removedNodes.add(_optionFocusNodes.removeLast());
+      }
+      while (_optionControllers.length < target) {
+        final controller = TextEditingController()
+          ..addListener(_onOptionListen);
+        _optionControllers.add(controller);
+        _optionFocusNodes.add(FocusNode());
+      }
+      for (var i = 0; i < _optionControllers.length; i++) {
+        final raw = i < original.options.length ? original.options[i] : '';
+        _optionControllers[i].text = _capitalizeOption(raw);
+      }
+      _questionController.text = original.question;
+      _showErrors = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final controller in removedControllers) {
+        controller.dispose();
+      }
+      for (final node in removedNodes) {
+        node.dispose();
+      }
+    });
+  }
 
   List<({int index, String text})> get _filledOptions {
     final options = <({int index, String text})>[];
@@ -542,9 +612,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   /// Closes this sheet and opens the share screen for the new poll.
   void _finishWithPoll(PollResponse poll) {
     setState(() => _allowPop = true);
-    final route = MaterialPageRoute<void>(
-      builder: (context) => CreatedPollScreen(poll: poll),
-    );
+    final route = pollShareRoute(poll);
     final sheetNavigator = Navigator.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     if (identical(sheetNavigator, rootNavigator)) {
@@ -620,10 +688,16 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                           AppSpacing.screen,
                           AppSpacing.sm,
                         ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _CloseButton(onPressed: _onClose),
-                        ),
+                        child: widget.original == null
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: _CloseButton(onPressed: _onClose),
+                              )
+                            : _EditQuestionHeader(
+                                onClose: _onClose,
+                                // Reset shows only once the copy has been changed.
+                                onReset: _isEdited ? _resetToOriginal : null,
+                              ),
                       ),
                       Expanded(
                         child: SingleChildScrollView(
@@ -790,6 +864,67 @@ class _CreatePollSheetState extends State<CreatePollSheet>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Header of the create sheet when a card is being edited: close at the left, the title in the middle and a
+/// Reset text button at the right (hidden until the copy differs from the original).
+class _EditQuestionHeader extends StatelessWidget {
+  const _EditQuestionHeader({required this.onClose, required this.onReset});
+
+  final VoidCallback onClose;
+  final VoidCallback? onReset;
+
+  static const _side = 72.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: _side,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _CloseButton(onPressed: onClose),
+          ),
+        ),
+        const Expanded(
+          child: Text(
+            'Edit question',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: YakkuPalette.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: _side,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: onReset == null
+                ? const SizedBox(height: 40)
+                : TextButton(
+                    onPressed: onReset,
+                    style: TextButton.styleFrom(
+                      foregroundColor: YakkuPalette.Raspberry,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      minimumSize: const Size(0, 40),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Reset',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }

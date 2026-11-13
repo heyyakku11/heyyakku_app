@@ -2,15 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
-import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
-import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/Poll.dart';
 import 'package:yakku/data/models/personality/personality_card.dart';
-import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
@@ -22,9 +18,9 @@ import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
-enum _Tab { all, live, closed, saved }
+enum _Tab { all, live, closed }
 
-enum _Kind { ownCard, personality, saved }
+enum _Kind { ownCard, personality }
 
 /// One row of the list, whatever it came from.
 class _Item {
@@ -41,7 +37,6 @@ class _Item {
     this.urgent = false,
     this.done = false,
     this.poll,
-    this.saved,
     this.personality,
   });
 
@@ -64,7 +59,6 @@ class _Item {
   final String statusLine;
 
   final PollModel? poll;
-  final PollResponse? saved;
   final PersonalityCard? personality;
 
   bool get canShare =>
@@ -72,8 +66,8 @@ class _Item {
   bool get hasMenu => kind != _Kind.personality;
 }
 
-/// The user's cards: the ones they made (live and closed) and the ones they
-/// saved, with a "..." menu on each to close, delete or unsave.
+/// The user's cards: the ones they made (live and closed), with a "..." menu on
+/// each to close or delete.
 class MyCardsScreen extends StatefulWidget {
   const MyCardsScreen({super.key});
 
@@ -89,7 +83,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   bool _loading = true;
   String? _error;
   List<PollModel> _polls = const [];
-  List<PollResponse> _savedPolls = const [];
   PersonalityCardStore? _store;
 
   @override
@@ -112,7 +105,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   /// rebuild its row here too.
   void _onCardChanged() {
     if (!mounted || _loading) return;
-    setState(() => _items = _buildItems(_polls, _savedPolls, _store?.card));
+    setState(() => _items = _buildItems(_polls, _store?.card));
   }
 
   @override
@@ -123,15 +116,11 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
 
   List<_Item> get _live => [
     for (final i in _items)
-      if (i.kind != _Kind.saved && i.live) i,
+      if (i.live) i,
   ];
   List<_Item> get _closed => [
     for (final i in _items)
-      if (i.kind != _Kind.saved && !i.live) i,
-  ];
-  List<_Item> get _saved => [
-    for (final i in _items)
-      if (i.kind == _Kind.saved) i,
+      if (!i.live) i,
   ];
 
   Future<void> _load() async {
@@ -143,16 +132,12 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     final scope = AppScope.of(context);
     try {
       final polls = await scope.activityPolls.getCreatedPolls();
-      // Saved cards and the personality card are extras: a failure there
-      // must not hide the user's own cards.
-      final saved = await _loadSaved(scope.userRemote);
       // The personality card comes from the shared store, which keeps it fresh.
       unawaited(scope.personalityCards.refresh());
       if (!mounted) return;
       setState(() {
         _polls = polls;
-        _savedPolls = saved;
-        _items = _buildItems(polls, saved, scope.personalityCards.card);
+        _items = _buildItems(polls, scope.personalityCards.card);
         _loading = false;
       });
     } catch (error) {
@@ -167,29 +152,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     }
   }
 
-  Future<List<PollResponse>> _loadSaved(UserRemoteDataSource remote) async {
-    final items = <PollResponse>[];
-    try {
-      String? cursor;
-      final seen = <String>{};
-      while (true) {
-        final page = await remote.getSavedPolls(cursor: cursor);
-        items.addAll(page.items);
-        final next = page.nextCursor;
-        if (!page.hasMore || next == null || next.isEmpty || !seen.add(next)) {
-          break;
-        }
-        cursor = next;
-      }
-    } catch (_) {}
-    return items;
-  }
-
-  List<_Item> _buildItems(
-    List<PollModel> polls,
-    List<PollResponse> saved,
-    PersonalityCard? personality,
-  ) {
+  List<_Item> _buildItems(List<PollModel> polls, PersonalityCard? personality) {
     final now = DateTime.now();
     final items = <_Item>[];
 
@@ -251,30 +214,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
       );
     }
 
-    for (final poll in saved) {
-      final live =
-          poll.status.toLowerCase() == 'active' &&
-          (poll.expiresAt == null || poll.expiresAt!.isAfter(now));
-      final left = poll.expiresAt?.difference(now);
-      items.add(
-        _Item(
-          kind: _Kind.saved,
-          id: poll.id,
-          question: poll.question,
-          label: 'SAVED',
-          color: YakkuPalette.white,
-          live: live,
-          chip: live
-              ? (left == null ? 'Live' : 'Live · ${_short(left)} left')
-              : 'Closed',
-          meta: poll.totalVoteCount == 1
-              ? '1 vote'
-              : '${poll.totalVoteCount} votes',
-          statusLine: 'Saved card',
-          saved: poll,
-        ),
-      );
-    }
     return items;
   }
 
@@ -315,9 +254,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     switch (item.kind) {
       case _Kind.ownCard:
         await _openResults(item.poll!);
-      case _Kind.saved:
-        await context.push(AppRoutes.pollVoteLocation(item.saved!.shareCode));
-        if (mounted) await _load();
       case _Kind.personality:
         final changed = await openPersonalityAsk(
           context,
@@ -356,8 +292,9 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
       question: item.question,
       status: item.statusLine,
       canClose: own && item.live,
+      // A closed card can be opened again: a poll or a card made from a fun card gets 24 more hours.
+      canReshare: own && !item.live && item.poll != null,
       canDelete: own,
-      canUnsave: item.kind == _Kind.saved,
     );
     if (action == null || !mounted) return;
 
@@ -377,6 +314,16 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
               ? scope.checkApi.closeMyCheck(item.id)
               : scope.userRemote.closePoll(item.id),
         );
+      case MyCardAction.reshare:
+        final reshared = await _run(
+          'Could not reshare the card',
+          (scope) => item.poll!.isCheck
+              ? scope.checkApi.reshareMyCheck(item.id)
+              : scope.userRemote.resharePoll(item.id),
+        );
+        if (reshared && mounted) {
+          AppToast.show('Card reshared for 24 hours');
+        }
       case MyCardAction.delete:
         if (!await showDeleteCardDialog(context, item.question) || !mounted) {
           return;
@@ -387,24 +334,22 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
               ? scope.checkApi.deleteMyCheck(item.id)
               : scope.userRemote.deletePoll(item.id),
         );
-      case MyCardAction.unsave:
-        await _run(
-          'Could not unsave the card',
-          (scope) => scope.userRemote.unsavePoll(item.id),
-        );
     }
   }
 
-  Future<void> _run(
+  /// Runs [run], then reloads the list. True when it succeeded; on failure a toast says why and this is false.
+  Future<bool> _run(
     String failure,
     Future<Object?> Function(AppScope scope) run,
   ) async {
     try {
       await run(AppScope.of(context));
       if (mounted) await _load();
+      return true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return false;
       AppToast.show(DioErrorMapper.map(error, fallback: failure).message);
+      return false;
     }
   }
 
@@ -414,7 +359,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   Widget build(BuildContext context) {
     final live = _live;
     final closed = _closed;
-    final saved = _saved;
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
       body: SafeArea(
@@ -453,13 +397,11 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                         _Tab.all => 'All',
                         _Tab.live => 'Live',
                         _Tab.closed => 'Closed',
-                        _Tab.saved => 'Saved',
                       },
                       count: switch (t) {
-                        _Tab.all => live.length + closed.length + saved.length,
+                        _Tab.all => live.length + closed.length,
                         _Tab.live => live.length,
                         _Tab.closed => closed.length,
-                        _Tab.saved => saved.length,
                       },
                       selected: _tab == t,
                       onTap: () => setState(() => _tab = t),
@@ -470,14 +412,14 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Expanded(child: _body(live, closed, saved)),
+            Expanded(child: _body(live, closed)),
           ],
         ),
       ),
     );
   }
 
-  Widget _body(List<_Item> live, List<_Item> closed, List<_Item> saved) {
+  Widget _body(List<_Item> live, List<_Item> closed) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
@@ -494,7 +436,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     final sections = <(String, List<_Item>)>[
       if (_tab == _Tab.all || _tab == _Tab.live) ('LIVE', live),
       if (_tab == _Tab.all || _tab == _Tab.closed) ('CLOSED', closed),
-      if (_tab == _Tab.all || _tab == _Tab.saved) ('SAVED', saved),
     ].where((s) => s.$2.isNotEmpty).toList();
 
     return RefreshIndicator(
@@ -508,7 +449,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                     _Tab.all => MyCardsEmptyKind.all,
                     _Tab.live => MyCardsEmptyKind.live,
                     _Tab.closed => MyCardsEmptyKind.closed,
-                    _Tab.saved => MyCardsEmptyKind.saved,
                   },
                   onAction: () => showCreatePollSheet(context),
                 ),

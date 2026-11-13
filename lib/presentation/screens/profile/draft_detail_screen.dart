@@ -7,7 +7,7 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/create/create_poll_claim_screen.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
-import 'package:yakku/presentation/screens/created_poll_screen.dart';
+import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/screens/profile/draft_progress.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
 import 'package:yakku/presentation/screens/profile/widgets/my_card_menu.dart';
@@ -76,9 +76,7 @@ class _DraftDetailState extends State<_DraftDetail> {
     // Sharing it moves it from Drafts to My cards.
     await scope.draftPolls.delete(widget.draft.id);
     if (!mounted) return;
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => CreatedPollScreen(poll: poll)),
-    );
+    await Navigator.of(context).pushReplacement(pollShareRoute(poll));
   }
 
   /// Reopens the write screen with this draft. The draft is saved again when

@@ -3,22 +3,40 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/home/widgets/just_for_fun_section.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/write_own_question_cta.dart';
 
-/// Opens the full list of active just-for-fun cards.
-void openFunCards(BuildContext context, List<MirrorCheck> initial) {
+/// Opens the full list of active just-for-fun cards of one type ([title] is the type name).
+void openFunCards(
+  BuildContext context,
+  List<MirrorCheck> initial, {
+  String title = JustForFunSection.defaultTitle,
+  required String typeId,
+}) {
   Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => FunCardsScreen(initial: initial)),
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          FunCardsScreen(initial: initial, title: title, typeId: typeId),
+    ),
   );
 }
 
-/// Every active just-for-fun card the caller has not made yet, in a grid. Shows what the home feed
+/// Every active just-for-fun card of one type the caller has not made yet, in a grid. Shows what the home feed
 /// already had straight away, then refreshes (and again when a card is made).
 class FunCardsScreen extends StatefulWidget {
-  const FunCardsScreen({super.key, required this.initial});
+  const FunCardsScreen({
+    super.key,
+    required this.initial,
+    this.title = JustForFunSection.defaultTitle,
+    required this.typeId,
+  });
 
   final List<MirrorCheck> initial;
+
+  /// The card type: its name is the screen heading, and its id loads the full list.
+  final String title;
+  final String typeId;
 
   @override
   State<FunCardsScreen> createState() => _FunCardsScreenState();
@@ -50,7 +68,7 @@ class _FunCardsScreenState extends State<FunCardsScreen> {
     final api = _api;
     if (api == null) return;
     try {
-      final cards = await api.getFunCards();
+      final cards = await api.getFunCardsOfType(widget.typeId);
       if (!mounted) return;
       setState(() {
         _cards = [
@@ -78,16 +96,27 @@ class _FunCardsScreenState extends State<FunCardsScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 20, 8),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 20, 12),
+                  // A small back arrow on its own line, then the card type's name as the page heading.
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       IconButton(
                         tooltip: 'Back',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                         onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 16,
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      const Expanded(child: SectionTag('Just for fun')),
+                      const SizedBox(height: 8),
+                      SectionTag(widget.title),
                     ],
                   ),
                 ),

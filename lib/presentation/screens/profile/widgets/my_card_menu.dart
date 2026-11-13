@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
-enum MyCardAction { close, delete, unsave }
+enum MyCardAction { close, reshare, delete }
 
 /// The "..." menu of a card on My cards: its question, a one-line status, and
 /// the actions that apply to it. Returns the chosen action, or null.
@@ -10,8 +10,8 @@ Future<MyCardAction?> showMyCardMenu(
   required String question,
   required String status,
   bool canClose = false,
+  bool canReshare = false,
   bool canDelete = false,
-  bool canUnsave = false,
 }) {
   return showModalBottomSheet<MyCardAction>(
     context: context,
@@ -25,8 +25,8 @@ Future<MyCardAction?> showMyCardMenu(
       question: question,
       status: status,
       canClose: canClose,
+      canReshare: canReshare,
       canDelete: canDelete,
-      canUnsave: canUnsave,
     ),
   );
 }
@@ -36,15 +36,15 @@ class _MyCardMenu extends StatelessWidget {
     required this.question,
     required this.status,
     required this.canClose,
+    required this.canReshare,
     required this.canDelete,
-    required this.canUnsave,
   });
 
   final String question;
   final String status;
   final bool canClose;
+  final bool canReshare;
   final bool canDelete;
-  final bool canUnsave;
 
   @override
   Widget build(BuildContext context) {
@@ -56,12 +56,12 @@ class _MyCardMenu extends StatelessWidget {
           subtitle: 'Stop votes. Results stay.',
           onTap: () => Navigator.of(context).pop(MyCardAction.close),
         ),
-      if (canUnsave)
+      if (canReshare)
         _MenuRow(
-          icon: Icons.bookmark_remove_outlined,
-          title: 'Unsave',
-          subtitle: 'Removes it from your saved cards.',
-          onTap: () => Navigator.of(context).pop(MyCardAction.unsave),
+          icon: Icons.replay_rounded,
+          title: 'Reshare card',
+          subtitle: 'Open it again for 24 hours.',
+          onTap: () => Navigator.of(context).pop(MyCardAction.reshare),
         ),
       if (canDelete)
         _MenuRow(

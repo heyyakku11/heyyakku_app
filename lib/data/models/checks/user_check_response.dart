@@ -52,6 +52,9 @@ class UserCheckResponse {
     this.voteProgress = 0,
     this.resultsUnlocked = false,
     this.createdAt,
+    this.expiresAt,
+    this.isClosed = false,
+    this.closedAt,
   });
 
   final String id;
@@ -74,6 +77,16 @@ class UserCheckResponse {
   final bool resultsUnlocked;
   final List<UserCheckOptionResponse> options;
   final DateTime? createdAt;
+
+  /// When the card stops taking answers on its own: 24 hours after a fun card was made, and after each reshare.
+  /// Null for a made weekly check, which has none.
+  final DateTime? expiresAt;
+
+  /// True when the owner closed the card or its time ran out.
+  final bool isClosed;
+
+  /// When the owner closed the card; null while it is open.
+  final DateTime? closedAt;
 
   /// True when the server has actually sent the results.
   bool get resultsVisible => resultsUnlocked && totalVotes != null;
@@ -100,6 +113,9 @@ class UserCheckResponse {
           UserCheckOptionResponse.fromJson(Map<String, dynamic>.from(option)),
       ],
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
+      isClosed: json['isClosed'] as bool? ?? false,
+      closedAt: DateTime.tryParse(json['closedAt']?.toString() ?? ''),
     );
   }
 }

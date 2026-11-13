@@ -14,9 +14,15 @@ abstract final class ApiRoutes {
   static const String myChecks = '/api/v1/checks/mine';
 
   // Just-for-fun cards (no live or expiry date; made the same way as checks)
-  static const String funCards = '/api/v1/fun-cards';
+  static const String funCardTypes = '/api/v1/fun-cards/types';
+  static const String savedCards = '/api/v1/saved-cards';
+  static String savedCard(String cardType, String id) =>
+      '/api/v1/saved-cards/$cardType/$id';
+  static String funCardsOfType(String typeId) =>
+      '/api/v1/fun-cards/types/$typeId/cards';
   static const String makeFunCard = '/api/v1/fun-cards/make';
   static String closeMyCheck(String id) => '/api/v1/checks/mine/$id/close';
+  static String reshareMyCheck(String id) => '/api/v1/checks/mine/$id/reshare';
   static String deleteMyCheck(String id) => '/api/v1/checks/mine/$id';
   static String checkOptionReasons(String checkId, String optionId) =>
       '/api/v1/checks/mine/$checkId/options/$optionId/reasons';
@@ -31,19 +37,17 @@ abstract final class ApiRoutes {
   static const String createPoll = '/api/v1/polls';
   static const String askedPolls = '/api/v1/polls/asked';
   static const String answeredPolls = '/api/v1/polls/answered';
-  static const String savedPolls = '/api/v1/polls/saved';
 
   static String pollById(String pollId) => '/api/v1/polls/$pollId';
 
   static String closePoll(String pollId) => '/api/v1/polls/$pollId/close';
+  static String resharePoll(String pollId) => '/api/v1/polls/$pollId/reshare';
 
   static String pollOptionReasons(String pollId, String optionId) =>
       '/api/v1/polls/$pollId/options/$optionId/reasons';
   static String reportPollReason(String pollId, String reasonId) =>
       '/api/v1/polls/$pollId/reasons/$reasonId/report';
   static String deletePoll(String pollId) => '/api/v1/polls/$pollId';
-
-  static String savePoll(String pollId) => '/api/v1/polls/$pollId/save';
 
   // Shared content (polls and checks, resolved by share code)
   static String sharedContent(String shareCode) => '/api/v1/shares/$shareCode';

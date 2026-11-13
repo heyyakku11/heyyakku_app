@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
+import 'package:yakku/data/models/home/fun_card_group.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
@@ -7,6 +8,7 @@ import 'package:yakku/presentation/dashboard.dart';
 import 'package:yakku/presentation/screens/home/home_feed_dummy.dart';
 import 'package:yakku/presentation/screens/community/community_placeholder.dart';
 import 'package:yakku/presentation/screens/home/widgets/home_feed_body.dart';
+import 'package:yakku/presentation/screens/home/widgets/home_feed_skeleton.dart';
 import 'package:yakku/presentation/screens/home/widgets/home_feed_tabs.dart';
 import 'package:yakku/presentation/screens/home/widgets/personality_card_tile.dart';
 import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
@@ -23,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool? _wasLoggedIn;
 
   List<MirrorCheck> _checks = const [];
-  List<MirrorCheck> _funCards = const [];
+  List<FunCardGroup> _funGroups = const [];
   bool _loading = true;
   String? _error;
   HomeFeedTab _tab = HomeFeedTab.friends;
@@ -89,9 +91,17 @@ class _HomeScreenState extends State<HomeScreen> {
         _checks = [
           for (final check in data.checks) MirrorCheck.fromCheck(check),
         ];
-        _funCards = [
-          for (final card in data.funCards)
-            MirrorCheck.fromCheck(card, isFun: true),
+        _funGroups = [
+          for (final type in data.funTypes)
+            FunCardGroup(
+              typeId: type.typeId,
+              name: type.name,
+              totalCount: type.totalCount,
+              cards: [
+                for (final card in type.cards)
+                  MirrorCheck.fromCheck(card, isFun: true),
+              ],
+            ),
         ];
         _error = null;
         _loading = false;
@@ -114,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const HomeBrandHeader(),
+            HomeBrandHeader(onProfileTap: DashboardTabs.showProfile),
             HomeFeedTabs(value: _tab, onChanged: _selectTab),
             Expanded(
               child: PageView(
@@ -131,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: RefreshIndicator(
                       onRefresh: _refresh,
                       child: _loading
-                          ? const Center(child: CircularProgressIndicator())
+                          ? const HomeFeedSkeleton()
                           : ListenableBuilder(
                               listenable: AppScope.of(context).personalityCards,
                               builder: (context, _) {
@@ -141,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final card = store.card;
                                 return HomeFeedBody(
                                   mirrorChecks: _checks,
-                                  funCards: _funCards,
+                                  funGroups: _funGroups,
                                   questionsWorthAsking: questionsWorthAsking,
                                   errorMessage: _checks.isEmpty ? _error : null,
                                   leading: card == null

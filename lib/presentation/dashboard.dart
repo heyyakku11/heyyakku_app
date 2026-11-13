@@ -24,6 +24,9 @@ abstract final class DashboardTabs {
   /// Brings the Home tab to the front (call after popping back to the dashboard).
   static void showHome() => _request.value = 0;
 
+  /// Brings the Profile tab to the front (the avatar in the Home header uses this).
+  static void showProfile() => _request.value = 3;
+
   /// Whether Home is showing its Friends part (not Community). The Home
   /// screen keeps this up to date; the create button is only offered on Friends.
   static final ValueNotifier<bool> friendsTabActive = ValueNotifier<bool>(true);
