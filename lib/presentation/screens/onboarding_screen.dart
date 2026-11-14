@@ -3,8 +3,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/presentation/app_scope.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -89,12 +91,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         // The sub tabs are changed by tapping them; Next leaves the slide.
         _goToPage(2);
       default:
-        _openSignUp();
+        _finishOnboarding();
     }
   }
 
-  // Replaces the route (not a push) so sign-up has nothing to go back to.
-  void _openSignUp() => context.go(AppRoutes.signUp);
+  /// Marks onboarding done, then replaces this route with sign-up.
+  /// The flag stays true after logout, so this screen is not shown again.
+  Future<void> _finishOnboarding() async {
+    final from = GoRouterState.of(
+      context,
+    ).uri.queryParameters[PollDeepLink.returnToParam];
+    await AppScope.of(context).authController.completeOnboarding();
+    if (!mounted) return;
+    if (from == null || from.isEmpty) {
+      context.go(AppRoutes.signUp);
+      return;
+    }
+    context.go(
+      Uri(
+        path: AppRoutes.signUp,
+        queryParameters: {PollDeepLink.returnToParam: from},
+      ).toString(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +134,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             children: [
               const _Wordmark(),
               TextButton(
-                onPressed: _openSignUp,
+                onPressed: _finishOnboarding,
                 style: TextButton.styleFrom(
                   foregroundColor: YakkuPalette.textSecondary,
                   padding: const EdgeInsets.symmetric(horizontal: 4),

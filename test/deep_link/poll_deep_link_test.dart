@@ -107,14 +107,29 @@ class _FakePrefs extends Fake implements UserPreferences {
 
   @override
   Future<void> setCommunityNotifyRequested(bool value) async {}
+
+  @override
+  Future<void> setHasCompletedOnboarding(bool value) async {}
+
+  @override
+  Future<void> clearAuth() async {}
 }
 
 class _FakeTokens extends Fake implements AuthTokenStore {
+  @override
+  String? get accessToken => null;
+
+  @override
+  String? get refreshToken => null;
+
   @override
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {}
+
+  @override
+  Future<void> clear() async {}
 }
 
 class _FakeAuthRemote extends Fake implements AuthRemoteDataSource {
@@ -143,12 +158,17 @@ DioException _http(int status) => DioException(
 );
 
 class _Harness {
-  _Harness({bool loggedIn = false, required this.remote}) {
+  _Harness({
+    bool loggedIn = false,
+    bool completedOnboarding = false,
+    required this.remote,
+  }) {
     auth = AuthController(
       userPreferences: _FakePrefs(),
       tokenStore: _FakeTokens(),
       authRemote: _FakeAuthRemote(),
       isUserLogged: loggedIn,
+      hasCompletedOnboarding: completedOnboarding,
     );
     router = AppRouter.create(auth, navigatorKey: GlobalKey<NavigatorState>());
   }
@@ -340,6 +360,68 @@ void main() {
       await tester.pumpAndSettle();
       expect(h.location, '/vote/$_id');
       expect(find.text('Pizza'), findsOneWidget);
+      await _drain(tester);
+    });
+
+    testWidgets(
+      'finished onboarding sends a signed-out user to sign-up, then the poll',
+      (tester) async {
+        final remote = _FakePollRemote((_) async => _poll());
+        final h = _Harness(completedOnboarding: true, remote: remote);
+        tester.view.physicalSize = const Size(1200, 3000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        h.router.go('/vote/$_id');
+        await tester.pumpWidget(h.build());
+        await tester.pumpAndSettle();
+        expect(h.location, startsWith('/sign-up'));
+        expect(remote.requested, isEmpty);
+
+        await h.signIn();
+        await tester.pumpAndSettle();
+        expect(h.location, '/vote/$_id');
+        expect(find.text('Pizza'), findsOneWidget);
+        await _drain(tester);
+      },
+    );
+
+    testWidgets('onboarding is not shown again once the flag is true', (
+      tester,
+    ) async {
+      final h = _Harness(
+        completedOnboarding: true,
+        remote: _FakePollRemote((_) async => _poll()),
+      );
+      tester.view.physicalSize = const Size(1200, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      h.router.go('/onboarding');
+      await tester.pumpWidget(h.build());
+      await tester.pumpAndSettle();
+      expect(h.location, '/sign-up');
+    });
+
+    testWidgets('logout keeps onboarding finished and opens sign-up', (
+      tester,
+    ) async {
+      final remote = _FakePollRemote((_) async => _poll());
+      final h = _Harness(
+        loggedIn: true,
+        completedOnboarding: true,
+        remote: remote,
+      );
+      tester.view.physicalSize = const Size(1200, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      h.router.go('/vote/$_id');
+      await tester.pumpWidget(h.build());
+      await tester.pumpAndSettle();
+      expect(h.location, '/vote/$_id');
+
+      await h.auth.logout();
+      await tester.pumpAndSettle();
+      expect(h.auth.hasCompletedOnboarding, isTrue);
+      expect(h.location, startsWith('/sign-up'));
       await _drain(tester);
     });
 

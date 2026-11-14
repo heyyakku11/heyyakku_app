@@ -47,7 +47,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
     try {
       await auth.deleteAccount();
-      // Session is cleared; return to the root so the router shows onboarding.
+      // Session is cleared; return to the root so the router shows sign-up.
+      // Onboarding stays finished because that flag is not part of the session.
       navigator.popUntil((route) => route.isFirst);
     } catch (error) {
       final message = DioErrorMapper.map(

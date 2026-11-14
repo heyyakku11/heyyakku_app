@@ -18,11 +18,13 @@ class AuthController extends ChangeNotifier {
     required AuthRemoteDataSource authRemote,
     this._draftPolls,
     bool isUserLogged = false,
+    bool hasCompletedOnboarding = false,
     String? this._phoneNumber,
     String? this._displayName,
   }) : _tokenStore = tokenStore,
        _authRemote = authRemote,
-       _isLoggedIn = isUserLogged;
+       _isLoggedIn = isUserLogged,
+       _hasCompletedOnboarding = hasCompletedOnboarding;
 
   final UserPreferences userPreferences;
   final AuthTokenStore _tokenStore;
@@ -30,10 +32,14 @@ class AuthController extends ChangeNotifier {
   final DraftPollStore? _draftPolls;
 
   bool _isLoggedIn;
+  bool _hasCompletedOnboarding;
   String? _phoneNumber;
   String? _displayName;
 
   bool get isLoggedIn => _isLoggedIn;
+
+  /// True after the user finishes or skips onboarding. Survives logout.
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
 
   bool get canEnterApp => _isLoggedIn;
   String? get phoneNumber => _phoneNumber;
@@ -95,9 +101,18 @@ class AuthController extends ChangeNotifier {
     );
   }
 
+  /// Marks onboarding done and keeps that choice on device across logout.
+  Future<void> completeOnboarding() async {
+    if (_hasCompletedOnboarding) return;
+    _hasCompletedOnboarding = true;
+    await userPreferences.setHasCompletedOnboarding(true);
+    notifyListeners();
+  }
+
   /// Deletes the account on the server, then clears the local session so the
-  /// router returns the user to onboarding. Throws if the API call fails, in
-  /// which case the user stays signed in.
+  /// router returns the user to the signed-out entry (sign-up once onboarding
+  /// has been seen). Throws if the API call fails, in which case the user
+  /// stays signed in.
   Future<void> deleteAccount() async {
     await _authRemote.deleteAccount(accessToken: _tokenStore.accessToken);
     await clearLocalSession();

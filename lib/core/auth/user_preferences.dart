@@ -17,6 +17,16 @@ class UserPreferences {
     await _storage.updateBool(StorageKeys.isUserLogged, value);
   }
 
+  /// False until the user finishes or skips onboarding. Missing key means false.
+  /// Not cleared by [clearAuth], so logout still opens sign-up.
+  Future<bool> getHasCompletedOnboarding() async {
+    return await _storage.readBool(StorageKeys.hasCompletedOnboarding) ?? false;
+  }
+
+  Future<void> setHasCompletedOnboarding(bool value) async {
+    await _storage.updateBool(StorageKeys.hasCompletedOnboarding, value);
+  }
+
   Future<String?> getPhoneNumber() async {
     final phone = await _storage.read(StorageKeys.phoneNumber);
     if (phone != null && phone.isNotEmpty) return phone;
@@ -57,5 +67,7 @@ class UserPreferences {
     await _storage.delete(StorageKeys.displayName);
     await _storage.delete(StorageKeys.communityNotifyMe);
     await _storage.updateBool(StorageKeys.isUserLogged, false);
+    // hasCompletedOnboarding is intentionally left set. Onboarding is once
+    // per install, not once per account.
   }
 }

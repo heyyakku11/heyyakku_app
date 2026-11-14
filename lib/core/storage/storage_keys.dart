@@ -7,6 +7,9 @@ abstract final class StorageKeys {
   static const isUserLogged = 'isUserLogged';
   static const phoneNumber = 'phoneNumber';
 
+  /// Set once the user finishes or skips onboarding. Stays true across logout.
+  static const hasCompletedOnboarding = 'hasCompletedOnboarding';
+
   /// The avatar background colour chosen on the edit-profile screen.
   static const avatarColor = 'avatarColor';
 

@@ -15,8 +15,21 @@ import 'package:yakku/presentation/screens/sign_up_screen.dart';
 import 'package:yakku/presentation/screens/shared_poll_screen.dart';
 
 abstract final class AppRouter {
-  /// Where a signed-out user starts: onboarding, every time the app opens.
-  static const String _entryRoute = AppRoutes.onboarding;
+  /// Signed-out start: onboarding the first time, sign-up after that.
+  static String _signedOutEntry(AuthController authController) =>
+      authController.hasCompletedOnboarding
+      ? AppRoutes.signUp
+      : AppRoutes.onboarding;
+
+  /// Keeps a shared-poll return path when sending the user to [path].
+  static String _withReturn(String path, GoRouterState state) {
+    final from = state.uri.queryParameters[PollDeepLink.returnToParam];
+    if (from == null || from.isEmpty) return path;
+    return Uri(
+      path: path,
+      queryParameters: {PollDeepLink.returnToParam: from},
+    ).toString();
+  }
 
   static GoRouter create(
     AuthController authController, {
@@ -26,30 +39,45 @@ abstract final class AppRouter {
       navigatorKey: navigatorKey,
       initialLocation: authController.canEnterApp
           ? AppRoutes.main
-          : _entryRoute,
+          : _signedOutEntry(authController),
       refreshListenable: authController,
       redirect: (context, state) {
         final canEnter = authController.canEnterApp;
+        final seenOnboarding = authController.hasCompletedOnboarding;
+        final entry = _signedOutEntry(authController);
         final onOnboarding = state.matchedLocation == AppRoutes.onboarding;
         final onOtp = state.matchedLocation == AppRoutes.otp;
         final onSignUp = state.matchedLocation == AppRoutes.signUp || onOtp;
-        if (!canEnter && !onOnboarding && !onSignUp) {
-          // Keep a shared-poll destination through onboarding / login.
-          final shareCode = PollDeepLink.shareCodeFromPath(state.uri);
-          if (shareCode == null) return _entryRoute;
-          return Uri(
-            path: _entryRoute,
-            queryParameters: {
-              PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(shareCode),
-            },
-          ).toString();
-        }
-        if ((canEnter && onOnboarding) ||
-            (authController.isLoggedIn && onSignUp)) {
+        if (canEnter && (onOnboarding || onSignUp)) {
           return PollDeepLink.safeReturnPath(
                 state.uri.queryParameters[PollDeepLink.returnToParam],
               ) ??
               AppRoutes.main;
+        }
+        if (!canEnter) {
+          // Onboarding is once per install. After the flag is true, sign-up
+          // is the signed-out screen, including after logout.
+          if (seenOnboarding && onOnboarding) {
+            return _withReturn(AppRoutes.signUp, state);
+          }
+          // First launch stays on onboarding until the user finishes it.
+          // OTP stays open so a code already in progress is not dropped.
+          if (!seenOnboarding && state.matchedLocation == AppRoutes.signUp) {
+            return _withReturn(AppRoutes.onboarding, state);
+          }
+          if (!onOnboarding && !onSignUp) {
+            // Keep a shared-poll destination through onboarding / login.
+            final shareCode = PollDeepLink.shareCodeFromPath(state.uri);
+            if (shareCode == null) return entry;
+            return Uri(
+              path: entry,
+              queryParameters: {
+                PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(
+                  shareCode,
+                ),
+              },
+            ).toString();
+          }
         }
         return null;
       },

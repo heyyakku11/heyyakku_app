@@ -9,8 +9,9 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
 
-/// Phone sign-up. Reached from onboarding by replacing the route, and it can't
-/// be popped: there is nothing behind it to go back to.
+/// Phone sign-up. Reached after onboarding (or on later launches and after
+/// logout) by replacing the route, and it can't be popped: there is nothing
+/// behind it to go back to.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
