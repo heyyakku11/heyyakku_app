@@ -1,15 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
 import 'package:yakku/data/models/Poll.dart';
-import 'package:yakku/data/models/personality/personality_card.dart';
-import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
-import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
 import 'package:yakku/presentation/screens/profile/open_own_card.dart';
 import 'package:yakku/presentation/screens/create/create_screen.dart';
 import 'package:yakku/presentation/screens/profile/widgets/my_card_menu.dart';
@@ -20,12 +15,9 @@ import 'package:yakku/presentation/widgets/app_toast.dart';
 
 enum _Tab { all, live, closed }
 
-enum _Kind { ownCard, personality }
-
-/// One row of the list, whatever it came from.
+/// One card the user made: a question poll or a card made from a fun card.
 class _Item {
   const _Item({
-    required this.kind,
     required this.id,
     required this.question,
     required this.label,
@@ -34,23 +26,19 @@ class _Item {
     required this.chip,
     required this.meta,
     required this.statusLine,
+    required this.poll,
     this.urgent = false,
-    this.done = false,
-    this.poll,
-    this.personality,
   });
 
-  final _Kind kind;
   final String id;
   final String question;
   final String label;
   final Color color;
   final bool live;
 
-  /// "Live · 18h left", "Closes in 2h", "Closed 3d ago", "Done".
+  /// "Live · 18h left", "Closes in 2h", "Closed 3d ago".
   final String chip;
   final bool urgent;
-  final bool done;
 
   /// "7 votes · result ready".
   final String meta;
@@ -58,12 +46,7 @@ class _Item {
   /// The one-line summary under the question in the "..." menu.
   final String statusLine;
 
-  final PollModel? poll;
-  final PersonalityCard? personality;
-
-  bool get canShare =>
-      live && (kind == _Kind.ownCard || kind == _Kind.personality);
-  bool get hasMenu => kind != _Kind.personality;
+  final PollModel poll;
 }
 
 /// The user's cards: the ones they made (live and closed), with a "..." menu on
@@ -82,32 +65,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   List<_Item> _items = const [];
   bool _loading = true;
   String? _error;
-  List<PollModel> _polls = const [];
-  PersonalityCardStore? _store;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final store = AppScope.of(context).personalityCards;
-    if (!identical(_store, store)) {
-      _store?.removeListener(_onCardChanged);
-      _store = store..addListener(_onCardChanged);
-    }
-  }
-
-  @override
-  void dispose() {
-    _store?.removeListener(_onCardChanged);
-    super.dispose();
-  }
-
-  /// The personality card changed somewhere (draft to collecting, a vote, done):
-  /// rebuild its row here too.
-  void _onCardChanged() {
-    if (!mounted || _loading) return;
-    setState(() => _items = _buildItems(_polls, _store?.card));
-  }
-
   @override
   void initState() {
     super.initState();
@@ -132,12 +89,9 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     final scope = AppScope.of(context);
     try {
       final polls = await scope.activityPolls.getCreatedPolls();
-      // The personality card comes from the shared store, which keeps it fresh.
-      unawaited(scope.personalityCards.refresh());
       if (!mounted) return;
       setState(() {
-        _polls = polls;
-        _items = _buildItems(polls, scope.personalityCards.card);
+        _items = _buildItems(polls);
         _loading = false;
       });
     } catch (error) {
@@ -152,31 +106,9 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     }
   }
 
-  List<_Item> _buildItems(List<PollModel> polls, PersonalityCard? personality) {
+  List<_Item> _buildItems(List<PollModel> polls) {
     final now = DateTime.now();
     final items = <_Item>[];
-
-    if (personality != null &&
-        personality.status != PersonalityCardStatus.draft) {
-      final done = personality.isCompleted;
-      items.add(
-        _Item(
-          kind: _Kind.personality,
-          id: 'personality',
-          question: 'Describe me in 3 words',
-          label: 'WHO YOU ARE',
-          color: YakkuPalette.Raspberry,
-          live: !done,
-          chip: done ? 'Done' : 'Live',
-          done: done,
-          meta: done
-              ? '${personality.totalVotes} friends · top 3 ready'
-              : '${personality.totalVotes} of ${personality.requiredVotes} friends',
-          statusLine: '',
-          personality: personality,
-        ),
-      );
-    }
 
     for (final poll in polls) {
       final live = _isLive(poll, now);
@@ -184,7 +116,6 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
       final urgent = live && left != null && left.inMinutes < 180;
       items.add(
         _Item(
-          kind: _Kind.ownCard,
           id: poll.id,
           question: poll.question,
           label: poll.isCheck
@@ -251,17 +182,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   // ---- actions ----------------------------------------------------------
 
   Future<void> _open(_Item item) async {
-    switch (item.kind) {
-      case _Kind.ownCard:
-        await _openResults(item.poll!);
-      case _Kind.personality:
-        final changed = await openPersonalityAsk(
-          context,
-          item.personality!,
-          AppScope.of(context).personalityCards.traits,
-        );
-        if (changed && mounted) await _load();
-    }
+    await _openResults(item.poll);
   }
 
   Future<void> _openResults(PollModel poll) async {
@@ -270,11 +191,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   }
 
   Future<void> _share(_Item item) async {
-    if (item.kind == _Kind.personality) {
-      await _open(item);
-      return;
-    }
-    final poll = item.poll!;
+    final poll = item.poll;
     await openCardShare(
       context,
       shareCode: poll.shareCode,
@@ -286,15 +203,14 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   }
 
   Future<void> _menu(_Item item) async {
-    final own = item.kind == _Kind.ownCard;
     final action = await showMyCardMenu(
       context,
       question: item.question,
       status: item.statusLine,
-      canClose: own && item.live,
+      canClose: item.live,
       // A closed card can be opened again: a poll or a card made from a fun card gets 24 more hours.
-      canReshare: own && !item.live && item.poll != null,
-      canDelete: own,
+      canReshare: !item.live,
+      canDelete: true,
     );
     if (action == null || !mounted) return;
 
@@ -310,14 +226,14 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
         if (ok != true || !mounted) return;
         await _run(
           'Could not close the card',
-          (scope) => item.poll!.isCheck
+          (scope) => item.poll.isCheck
               ? scope.checkApi.closeMyCheck(item.id)
               : scope.userRemote.closePoll(item.id),
         );
       case MyCardAction.reshare:
         final reshared = await _run(
           'Could not reshare the card',
-          (scope) => item.poll!.isCheck
+          (scope) => item.poll.isCheck
               ? scope.checkApi.reshareMyCheck(item.id)
               : scope.userRemote.resharePoll(item.id),
         );
@@ -330,7 +246,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
         }
         await _run(
           'Could not delete the card',
-          (scope) => item.poll!.isCheck
+          (scope) => item.poll.isCheck
               ? scope.checkApi.deleteMyCheck(item.id)
               : scope.userRemote.deletePoll(item.id),
         );
@@ -475,8 +391,8 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                     _CardTile(
                       item: item,
                       onTap: () => _open(item),
-                      onMenu: item.hasMenu ? () => _menu(item) : null,
-                      onShare: item.canShare ? () => _share(item) : null,
+                      onMenu: () => _menu(item),
+                      onShare: item.live ? () => _share(item) : null,
                     ),
                     const SizedBox(height: 14),
                   ],

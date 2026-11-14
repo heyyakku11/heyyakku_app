@@ -27,10 +27,12 @@ abstract class CheckRemoteDataSource {
   Future<List<UserCheckResponse>> getMyChecks();
 
   /// Closes one of the caller's made checks so it stops taking answers.
-  Future<void> closeMyCheck(String id);
+  /// Returns the card with `closedAt` set.
+  Future<UserCheckResponse> closeMyCheck(String id);
 
-  /// Opens one of the caller's closed made cards again. A card made from a fun card gets 24 more hours.
-  Future<void> reshareMyCheck(String id);
+  /// Opens one of the caller's closed made cards again. A card made from a fun card gets 24 more hours,
+  /// and `closedAt` is cleared so it can be shared.
+  Future<UserCheckResponse> reshareMyCheck(String id);
 
   /// Permanently deletes one of the caller's made checks.
   Future<void> deleteMyCheck(String id);

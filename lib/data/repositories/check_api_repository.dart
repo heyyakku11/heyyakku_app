@@ -75,15 +75,17 @@ class CheckApiRepository extends ChangeNotifier {
     return result;
   }
 
-  Future<void> closeMyCheck(String id) async {
-    await _remote.closeMyCheck(id);
+  Future<UserCheckResponse> closeMyCheck(String id) async {
+    final updated = await _remote.closeMyCheck(id);
     notifyListeners();
+    return updated;
   }
 
-  /// Opens a closed made card again (a fun card gets 24 more hours); listeners reload.
-  Future<void> reshareMyCheck(String id) async {
-    await _remote.reshareMyCheck(id);
+  /// Opens a closed made card again (a fun card gets 24 more hours) and clears `closedAt`.
+  Future<UserCheckResponse> reshareMyCheck(String id) async {
+    final updated = await _remote.reshareMyCheck(id);
     notifyListeners();
+    return updated;
   }
 
   /// Deleting frees the underlying check, so it can be made again.

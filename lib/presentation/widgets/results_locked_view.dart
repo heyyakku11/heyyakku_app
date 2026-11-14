@@ -4,7 +4,8 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/utils/hex_color.dart';
 
 /// Shown instead of results while a card is under its vote limit: the card with its answers hidden, how many
-/// votes it has out of how many it needs, when it closes, and a Share again button pinned to the bottom.
+/// votes it has out of how many it needs, and when it closes. A live card can be shared again from the button
+/// pinned to the bottom. A closed card shows when it closed and has no share button: it has to be reshared first.
 /// Picks are never shown under the limit, so the options are blank bars.
 class ResultsLockedView extends StatelessWidget {
   const ResultsLockedView({
@@ -13,11 +14,12 @@ class ResultsLockedView extends StatelessWidget {
     required this.options,
     required this.progress,
     required this.minVotes,
-    required this.onShareAgain,
+    this.onShareAgain,
     this.tag,
     this.backgroundColor,
     this.closesAt,
     this.closedAt,
+    this.closed = false,
   });
 
   final String question;
@@ -28,7 +30,9 @@ class ResultsLockedView extends StatelessWidget {
   /// Votes received so far, not counting the owner's own answer.
   final int progress;
   final int minVotes;
-  final VoidCallback onShareAgain;
+
+  /// Opens the share screen. Null when the card is closed: sharing waits until it is reshared.
+  final VoidCallback? onShareAgain;
 
   /// Small caption at the top right of the card, e.g. "TRUST CHECK".
   final String? tag;
@@ -41,6 +45,9 @@ class ResultsLockedView extends StatelessWidget {
 
   /// When the owner closed the card by hand. A closed card shows "Closed 3h ago", never "Closes in".
   final DateTime? closedAt;
+
+  /// True when the card is closed even if [closedAt] was not sent. Never shows the upcoming expiry then.
+  final bool closed;
 
   static const _ink = YakkuPalette.textPrimary;
   static const _muted = YakkuPalette.textSecondary;
@@ -56,12 +63,16 @@ class ResultsLockedView extends StatelessWidget {
   /// "Closes in 2h" while it is still open with an end time, and nothing for a card without an end.
   ({String text, bool closed})? _statusLabel() {
     final now = DateTime.now();
-    final closed = closedAt;
-    if (closed != null) {
-      return (
-        text: 'Closed ${_span(now.difference(closed))} ago',
-        closed: true,
-      );
+    if (closed || closedAt != null) {
+      final when =
+          closedAt ??
+          (closesAt != null && !closesAt!.isAfter(now) ? closesAt : null);
+      if (when == null) return (text: 'Closed', closed: true);
+      final age = now.difference(when);
+      if (age.isNegative || age.inMinutes < 1) {
+        return (text: 'Closed just now', closed: true);
+      }
+      return (text: 'Closed ${_span(age)} ago', closed: true);
     }
     final end = closesAt;
     if (end == null) return null;
@@ -180,26 +191,29 @@ class ResultsLockedView extends StatelessWidget {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 22),
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: FilledButton.icon(
-              onPressed: onShareAgain,
-              style: FilledButton.styleFrom(
-                backgroundColor: YakkuPalette.primary,
-                foregroundColor: YakkuPalette.white,
-                shape: const StadiumBorder(),
-              ),
-              icon: const Icon(Icons.ios_share_rounded, size: 18),
-              label: const Text(
-                'Share again',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        if (onShareAgain != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 22),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton.icon(
+                onPressed: onShareAgain,
+                style: FilledButton.styleFrom(
+                  backgroundColor: YakkuPalette.primary,
+                  foregroundColor: YakkuPalette.white,
+                  shape: const StadiumBorder(),
+                ),
+                icon: const Icon(Icons.ios_share_rounded, size: 18),
+                label: const Text(
+                  'Share again',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
-          ),
-        ),
+          )
+        else
+          const SizedBox(height: 12),
       ],
     );
   }

@@ -97,19 +97,19 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   }
 
   @override
-  Future<void> reshareMyCheck(String id) async {
+  Future<UserCheckResponse> reshareMyCheck(String id) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.reshareMyCheck(id),
     );
-    _expectSuccess(response.data, 'Could not reshare this card');
+    return _unwrapCheck(response.data, 'Could not reshare this card');
   }
 
   @override
-  Future<void> closeMyCheck(String id) async {
+  Future<UserCheckResponse> closeMyCheck(String id) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.closeMyCheck(id),
     );
-    _expectSuccess(response.data, 'Could not close this check');
+    return _unwrapCheck(response.data, 'Could not close this check');
   }
 
   @override
@@ -149,6 +149,19 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
     );
     _expectSuccess(response.data, 'Could not delete this check');
   }
+}
+
+UserCheckResponse _unwrapCheck(Map<String, dynamic>? body, String failure) {
+  if (body == null) throw StateError(failure);
+  final apiResponse = ApiResponse<UserCheckResponse>.fromJson(
+    body,
+    (json) => UserCheckResponse.fromJson(json as Map<String, dynamic>),
+  );
+  final data = apiResponse.data;
+  if (!apiResponse.success || data == null) {
+    throw StateError(apiResponse.message ?? failure);
+  }
+  return data;
 }
 
 void _expectSuccess(Map<String, dynamic>? body, String failureMessage) {

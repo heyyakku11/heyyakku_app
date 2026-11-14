@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yakku/data/models/notification/app_notification.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/screens/card_results_screen.dart';
+import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
 /// Opens the results screen of the card a notification is about. Shared by a
@@ -11,6 +12,16 @@ Future<void> openNotificationTarget(
   NotificationTarget target,
 ) async {
   try {
+    if (target.isPersonality) {
+      final store = AppScope.of(context).personalityCards;
+      await store.refresh();
+      final card = store.card;
+      if (card == null) throw StateError('Card not found');
+      if (!context.mounted) return;
+      await openPersonalityAsk(context, card, store.traits);
+      return;
+    }
+
     final Widget screen;
     if (target.isCheck) {
       final checks = await AppScope.of(context).checkApi.getMyChecks();

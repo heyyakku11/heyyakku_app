@@ -51,13 +51,18 @@ class AppNotification {
   }
 }
 
-/// The poll or check a notification belongs to, read from its `data` JSON
-/// (`{ contentId, contentType: "poll" | "check", shareCode }`).
+/// The card a notification belongs to, read from its `data` JSON
+/// (`{ contentId, contentType: "poll" | "check" | "personality", shareCode }`).
 class NotificationTarget {
-  const NotificationTarget({required this.contentId, required this.isCheck});
+  const NotificationTarget({
+    required this.contentId,
+    required this.isCheck,
+    this.isPersonality = false,
+  });
 
   final String contentId;
   final bool isCheck;
+  final bool isPersonality;
 
   static NotificationTarget? tryParse(Object? raw) {
     try {
@@ -66,6 +71,13 @@ class NotificationTarget {
       final id = decoded['contentId']?.toString();
       final type = decoded['contentType']?.toString().toLowerCase();
       if (id == null || id.isEmpty) return null;
+      if (type == 'personality') {
+        return NotificationTarget(
+          contentId: id,
+          isCheck: false,
+          isPersonality: true,
+        );
+      }
       if (type != 'poll' && type != 'check') return null;
       return NotificationTarget(contentId: id, isCheck: type == 'check');
     } catch (_) {

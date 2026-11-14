@@ -67,8 +67,13 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
   bool _loading = false;
   String? _error;
 
-  /// Set once the owner closes a made check from the menu.
-  bool _checkClosed = false;
+  /// The made check after a close or reshare, so expiry and `closedAt` follow the server.
+  UserCheckResponse? _latestCheck;
+
+  /// True while a close, reshare or delete request is in flight.
+  bool _acting = false;
+
+  UserCheckResponse? get _currentCheck => _latestCheck ?? widget.check;
 
   @override
   void initState() {
@@ -194,10 +199,11 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
     }
   }
 
-  /// The owner's "..." menu: close the card now, or delete it. Once a card has ended it cannot be
-  /// reshared for more votes, so only Delete is left.
+  /// The owner's "..." menu: close a live card, reshare a closed one, or delete it.
+  ///
+  /// Reshare is what makes a closed card shareable again: the server moves the expiry forward and clears `closedAt`.
   Future<void> _openMenu() async {
-    final check = widget.check;
+    final check = _currentCheck;
     final poll = _loadedPoll;
     if (check == null && poll == null) return;
 
@@ -205,9 +211,10 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
     final live = data?.isLive ?? false;
     final votes = data?.voters ?? 0;
     final left = data?.timeLeftLabel();
+    final ended = data?.closedAgoLabel();
     final subtitle = live
         ? '$votes vote${votes == 1 ? '' : 's'}${left == null ? '' : ' · closes in $left'}'
-        : '$votes vote${votes == 1 ? '' : 's'} · ended';
+        : '$votes vote${votes == 1 ? '' : 's'} · ${ended ?? 'closed'}';
 
     final action = await showCardActionsSheet(
       context,
@@ -228,9 +235,11 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
           failure: 'Could not close the card',
           run: (users) async {
             if (check != null) {
-              await AppScope.of(context).checkApi.closeMyCheck(check.id);
+              final updated = await AppScope.of(
+                context,
+              ).checkApi.closeMyCheck(check.id);
               if (!mounted) return;
-              setState(() => _checkClosed = true);
+              setState(() => _latestCheck = updated);
             } else {
               final closed = await users.closePoll(poll!.id);
               if (!mounted) return;
@@ -239,6 +248,8 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             _changed = true;
           },
         );
+      case CardAction.reshare:
+        await _reshare(check: check, poll: poll);
       case CardAction.delete:
         await _confirmAndRun(
           title: 'Delete this card?',
@@ -256,8 +267,47 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             Navigator.of(context).pop(true);
           },
         );
-      case CardAction.shareAgain:
-        break;
+    }
+  }
+
+  /// Opens a closed card again. Sharing stays blocked until this succeeds and `closedAt` is cleared.
+  Future<void> _reshare({
+    required UserCheckResponse? check,
+    required PollResponse? poll,
+  }) async {
+    if (_acting) return;
+    _acting = true;
+    try {
+      if (check != null) {
+        final updated = await AppScope.of(
+          context,
+        ).checkApi.reshareMyCheck(check.id);
+        if (!mounted) return;
+        setState(() => _latestCheck = updated);
+      } else {
+        final updated = await AppScope.of(
+          context,
+        ).userRemote.resharePoll(poll!.id);
+        if (!mounted) return;
+        setState(() => _loadedPoll = updated);
+      }
+      _changed = true;
+      if (!mounted) return;
+      AppToast.show(
+        _data()?.expiresAt == null
+            ? 'Card is open again'
+            : 'Card reshared for 24 hours',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        DioErrorMapper.map(
+          error,
+          fallback: 'Could not reshare the card',
+        ).message,
+      );
+    } finally {
+      _acting = false;
     }
   }
 
@@ -275,18 +325,21 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
       confirmLabel: confirmLabel,
       cancelLabel: 'Cancel',
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted || _acting) return;
+    _acting = true;
     try {
       await run(AppScope.of(context).userRemote);
     } catch (error) {
       if (!mounted) return;
       AppToast.show(DioErrorMapper.map(error, fallback: failure).message);
+    } finally {
+      _acting = false;
     }
   }
 
   /// Normalises whichever source this screen was opened with.
   _ResultsData? _data() {
-    final check = widget.check;
+    final check = _currentCheck;
     if (check != null) return _fromCheck(check);
     final poll = widget.poll ?? _loadedPoll;
     if (poll == null) return null;
@@ -316,14 +369,25 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
       voters: total,
       customCount: poll.customAnswerCount,
       expiresAt: poll.expiresAt,
-      closed: const {
-        'closed',
-        'expired',
-        '2',
-        '3',
-      }.contains(poll.status.toLowerCase()),
+      closedAt: poll.closedAt,
+      closed: _pollClosed(poll),
       showStatus: true,
     );
+  }
+
+  /// Closed by the owner (`closedAt` or a closed status) or because [PollResponse.expiresAt] has passed.
+  /// A future expiry does not keep a closed card looking live.
+  bool _pollClosed(PollResponse poll) {
+    if (poll.closedAt != null) return true;
+    switch (poll.status.toLowerCase()) {
+      case 'closed':
+      case 'expired':
+      case '2':
+      case '3':
+        return true;
+    }
+    final end = poll.expiresAt;
+    return end != null && !end.isAfter(DateTime.now().toUtc());
   }
 
   _ResultsData _fromCheck(UserCheckResponse check) {
@@ -345,7 +409,12 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
       voters: total,
       customCount: check.customAnswerVotes ?? 0,
       expiresAt: check.expiresAt,
-      closed: check.isClosed || _checkClosed,
+      closedAt: check.closedAt,
+      closed:
+          check.isClosed ||
+          check.closedAt != null ||
+          (check.expiresAt != null &&
+              !check.expiresAt!.isAfter(DateTime.now().toUtc())),
       tag: check.title.trim().isEmpty ? null : check.title,
       showStatus: true,
     );
@@ -397,9 +466,10 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
 
   /// Under the vote limit the server sends no results, only progress.
   Widget? _lockedBody() {
-    final check = widget.check;
+    final check = _currentCheck;
     if (check != null) {
       if (check.resultsUnlocked) return null;
+      final live = _data()?.isLive ?? false;
       return ResultsLockedView(
         question: check.question.trim().isNotEmpty
             ? check.question
@@ -409,23 +479,36 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
         minVotes: check.minVotes,
         tag: check.title,
         backgroundColor: check.backgroundColor,
-        closesAt: check.expiresAt,
-        closedAt: check.closedAt,
-        onShareAgain: () => _shareAgain(checkShareRoute(check)),
+        closesAt: live ? check.expiresAt : null,
+        closedAt: live ? null : _closedStamp(check.closedAt, check.expiresAt),
+        closed: !live,
+        onShareAgain: live
+            ? () => _openCardShare(checkShareRoute(check))
+            : null,
       );
     }
 
     final poll = widget.poll ?? _loadedPoll;
     if (poll == null || poll.resultsUnlocked) return null;
+    final live = _data()?.isLive ?? false;
     return ResultsLockedView(
       question: poll.question,
       options: poll.options.map((o) => o.text ?? '').toList(growable: false),
       progress: poll.voteProgress,
       minVotes: poll.minVotes,
-      closesAt: poll.expiresAt,
-      closedAt: poll.closedAt,
-      onShareAgain: () => _shareAgain(pollShareRoute(poll)),
+      closesAt: live ? poll.expiresAt : null,
+      closedAt: live ? null : _closedStamp(poll.closedAt, poll.expiresAt),
+      closed: !live,
+      onShareAgain: live ? () => _openCardShare(pollShareRoute(poll)) : null,
     );
+  }
+
+  /// When the card stopped taking answers: the owner's close time, or the expiry if that is what ended it.
+  DateTime? _closedStamp(DateTime? closedAt, DateTime? expiresAt) {
+    if (closedAt != null) return closedAt;
+    final end = expiresAt;
+    if (end != null && !end.isAfter(DateTime.now().toUtc())) return end;
+    return null;
   }
 
   Future<void> _openSharePoster(
@@ -440,7 +523,7 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
         : mine.id == leader.id
         ? 'Bang on.'
         : 'Plot twist.';
-    final check = widget.check;
+    final check = _currentCheck;
     final poll = widget.poll ?? _loadedPoll;
     final shareCode = check?.shareCode ?? poll?.shareCode ?? '';
     return Navigator.of(context).push(
@@ -464,12 +547,14 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
   }
 
   Route<void> _shareRoute() {
-    final check = widget.check;
+    final check = _currentCheck;
     if (check != null) return checkShareRoute(check);
     return pollShareRoute((widget.poll ?? _loadedPoll)!);
   }
 
-  Future<void> _shareAgain(Route<void> route) {
+  /// The card share screen. A closed card is not shareable; reshare has to clear `closedAt` first.
+  Future<void> _openCardShare(Route<void> route) {
+    if (_data()?.isLive != true) return Future.value();
     return Navigator.of(context).push(route);
   }
 
@@ -573,8 +658,9 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             live: data.isLive,
             timeLeft: data.timeLeft,
             timeLeftLabel: data.timeLeftLabel(),
-            canShareMore: _canSeeReasons,
-            onShareMore: () => _shareAgain(_shareRoute()),
+            closedLabel: data.closedAgoLabel(),
+            canShareMore: _canSeeReasons && data.isLive,
+            onShareMore: () => _openCardShare(_shareRoute()),
             onShareResult: () => _openSharePoster(data, standings, mine),
           ),
           const SizedBox(height: 24),
@@ -647,6 +733,7 @@ class _ResultsData {
     required this.customCount,
     required this.showStatus,
     this.expiresAt,
+    this.closedAt,
     this.customPick,
     this.tag,
     this.closed = false,
@@ -662,6 +749,9 @@ class _ResultsData {
   final bool showStatus;
   final DateTime? expiresAt;
 
+  /// When the owner closed the card. Null while it is open, and null when it only expired.
+  final DateTime? closedAt;
+
   /// The check's type name (Mirror Check...), shown above the question.
   final String? tag;
 
@@ -669,9 +759,29 @@ class _ResultsData {
   final bool closed;
 
   bool get isLive {
-    if (closed) return false;
+    if (closed || closedAt != null) return false;
     final at = expiresAt;
     return at == null || at.isAfter(DateTime.now().toUtc());
+  }
+
+  /// "closed 3h ago" or "closed just now". Null while the card is still live.
+  /// Uses [closedAt], never a still-future expiry.
+  String? closedAgoLabel() {
+    if (isLive) return null;
+    final at = closedAt;
+    final end = expiresAt;
+    final when =
+        at ??
+        (end != null && !end.isAfter(DateTime.now().toUtc()) ? end : null);
+    if (when == null) return 'closed';
+    final age = DateTime.now().difference(when);
+    if (age.isNegative || age.inMinutes < 1) return 'closed just now';
+    if (age.inHours < 1) return 'closed ${age.inMinutes}m ago';
+    if (age.inHours < 24) return 'closed ${age.inHours}h ago';
+    final hours = age.inHours % 24;
+    return hours == 0
+        ? 'closed ${age.inDays}d ago'
+        : 'closed ${age.inDays}d ${hours}h ago';
   }
 
   /// Time until the card closes; null when it is closed or has no end time.
@@ -800,6 +910,7 @@ class _VersusCard extends StatelessWidget {
     required this.live,
     required this.timeLeft,
     required this.timeLeftLabel,
+    required this.closedLabel,
     required this.canShareMore,
     required this.onShareMore,
     required this.onShareResult,
@@ -814,6 +925,9 @@ class _VersusCard extends StatelessWidget {
   final bool live;
   final Duration? timeLeft;
   final String? timeLeftLabel;
+
+  /// "closed 3h ago" once the card has ended. The clock's countdown is only for a live card.
+  final String? closedLabel;
 
   /// Only the owner can ask for more votes.
   final bool canShareMore;
@@ -986,13 +1100,14 @@ class _VersusCard extends StatelessWidget {
   }
 
   Widget _endedFooter() {
+    final ended = closedLabel ?? 'ended';
     return Row(
       children: [
         Expanded(
           child: Text(
             voters == 1
-                ? '1 friend voted · ended'
-                : '$voters friends voted · ended',
+                ? '1 friend voted · $ended'
+                : '$voters friends voted · $ended',
             style: const TextStyle(
               color: YakkuPalette.white70,
               fontSize: 13,

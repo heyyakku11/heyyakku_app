@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 
-enum CardAction { shareAgain, closeNow, delete }
+enum CardAction { reshare, closeNow, delete }
 
-/// Owner menu for a card: close it now, or delete it.
+/// Owner menu for a card: close it while it is live, reshare it once it has
+/// ended, or delete it.
 ///
-/// Closing only makes sense while the card is live, so it is hidden once the
-/// card has ended. Returns the chosen action, or null.
+/// A closed card cannot be shared until it is reshared (expiry moves forward
+/// and `closedAt` is cleared). Returns the chosen action, or null.
 Future<CardAction?> showCardActionsSheet(
   BuildContext context, {
   required String question,
@@ -98,15 +99,21 @@ class _CardActionsSheet extends StatelessWidget {
             const SizedBox(height: 16),
             if (canManage) ...[
               const Divider(height: 1, color: _divider),
-              if (isLive) ...[
+              if (isLive)
                 _ActionRow(
                   icon: Icons.access_time_rounded,
                   title: 'Close card now',
                   subtitle: 'Stop votes. Results stay.',
                   onTap: () => Navigator.of(context).pop(CardAction.closeNow),
+                )
+              else
+                _ActionRow(
+                  icon: Icons.replay_rounded,
+                  title: 'Reshare card',
+                  subtitle: 'Open it again for 24 hours.',
+                  onTap: () => Navigator.of(context).pop(CardAction.reshare),
                 ),
-                const Divider(height: 1, color: _divider),
-              ],
+              const Divider(height: 1, color: _divider),
               _ActionRow(
                 icon: Icons.delete_outline_rounded,
                 title: 'Delete card',
