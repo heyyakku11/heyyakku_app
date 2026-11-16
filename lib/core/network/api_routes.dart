@@ -63,6 +63,8 @@ abstract final class ApiRoutes {
       '/api/v1/personality-cards/$shareCode/results';
   static const String personalitySelfAssessment =
       '/api/v1/personality-cards/me/self-assessment';
+  static const String personalityCommunitySharing =
+      '/api/v1/personality-cards/me/community-sharing';
   static const String mySettings = '/api/v1/users/me/settings';
 
   /// Asks to be notified when the community goes live.

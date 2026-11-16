@@ -55,6 +55,7 @@ class PersonalityCard {
     required this.selfTraits,
     required this.totalVotes,
     required this.requiredVotes,
+    this.shareToCommunity = true,
   });
 
   final String shareCode;
@@ -62,6 +63,11 @@ class PersonalityCard {
   final List<PersonalityTrait> selfTraits;
   final int totalVotes;
   final int requiredVotes;
+
+  /// Whether the final result (what friends picked) is shared in the
+  /// community. On by default; the owner can change it once the card is
+  /// completed.
+  final bool shareToCommunity;
 
   bool get isCompleted => status == PersonalityCardStatus.completed;
 
@@ -71,6 +77,7 @@ class PersonalityCard {
     List<PersonalityTrait>? selfTraits,
     int? totalVotes,
     int? requiredVotes,
+    bool? shareToCommunity,
   }) {
     return PersonalityCard(
       shareCode: shareCode ?? this.shareCode,
@@ -78,6 +85,7 @@ class PersonalityCard {
       selfTraits: selfTraits ?? this.selfTraits,
       totalVotes: totalVotes ?? this.totalVotes,
       requiredVotes: requiredVotes ?? this.requiredVotes,
+      shareToCommunity: shareToCommunity ?? this.shareToCommunity,
     );
   }
 
@@ -93,6 +101,7 @@ class PersonalityCard {
       ],
       totalVotes: json['totalVotes'] as int? ?? 0,
       requiredVotes: json['requiredVotes'] as int? ?? 0,
+      shareToCommunity: json['shareToCommunity'] as bool? ?? true,
     );
   }
 }
@@ -124,6 +133,9 @@ class PersonalityResults {
   const PersonalityResults({
     required this.totalVotes,
     required this.crowdTopTraits,
+    this.selfTraits = const [],
+    this.commonTraits = const [],
+    this.shareToCommunity = true,
   });
 
   final int totalVotes;
@@ -131,16 +143,31 @@ class PersonalityResults {
   /// What friends picked most, most-picked first.
   final List<PersonalityTraitCount> crowdTopTraits;
 
+  /// The owner's own three guesses.
+  final List<PersonalityTrait> selfTraits;
+
+  /// Own guesses that friends also picked most.
+  final List<PersonalityTrait> commonTraits;
+
+  /// Whether the final result is shared in the community.
+  final bool shareToCommunity;
+
   factory PersonalityResults.fromJson(Map<String, dynamic> json) {
-    final top = json['crowdTopTraits'];
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) {
+      final raw = json[key];
+      return [
+        if (raw is List)
+          for (final item in raw)
+            if (item is Map<String, dynamic>) parse(item),
+      ];
+    }
+
     return PersonalityResults(
       totalVotes: json['totalVotes'] as int? ?? 0,
-      crowdTopTraits: [
-        if (top is List)
-          for (final item in top)
-            if (item is Map<String, dynamic>)
-              PersonalityTraitCount.fromJson(item),
-      ],
+      crowdTopTraits: list('crowdTopTraits', PersonalityTraitCount.fromJson),
+      selfTraits: list('selfSelectedTraits', PersonalityTrait.fromJson),
+      commonTraits: list('commonTraits', PersonalityTrait.fromJson),
+      shareToCommunity: json['shareToCommunity'] as bool? ?? true,
     );
   }
 }

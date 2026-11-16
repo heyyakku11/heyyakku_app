@@ -35,6 +35,11 @@ abstract interface class UserRemoteDataSource {
   /// once the card is completed.
   Future<PersonalityResults> getPersonalityResults(String shareCode);
 
+  /// `PUT /api/v1/personality-cards/me/community-sharing`: turns sharing the
+  /// completed card's final result in the community on or off. Returns the
+  /// saved choice.
+  Future<bool> setPersonalityCommunitySharing(bool share);
+
   /// `GET /api/v1/personality/traits`: the predefined traits friends pick from.
   Future<List<PersonalityTrait>> getPersonalityTraits();
 

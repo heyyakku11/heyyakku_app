@@ -81,6 +81,31 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
+  Future<bool> setPersonalityCommunitySharing(bool share) async {
+    final response = await dio.put<Map<String, dynamic>>(
+      ApiRoutes.personalityCommunitySharing,
+      data: <String, dynamic>{'shareToCommunity': share},
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty community sharing response');
+    }
+
+    final apiResponse = ApiResponse<bool>.fromJson(
+      body,
+      (json) => json is Map<String, dynamic>
+          ? json['shareToCommunity'] as bool? ?? share
+          : share,
+    );
+    if (!apiResponse.success) {
+      throw StateError(
+        apiResponse.message ?? 'Could not update community sharing',
+      );
+    }
+    return apiResponse.data ?? share;
+  }
+
+  @override
   Future<PersonalitySelfAssessment> submitSelfAssessment(
     List<String> traitIds,
   ) async {

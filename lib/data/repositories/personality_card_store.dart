@@ -118,6 +118,34 @@ class PersonalityCardStore extends ChangeNotifier {
     refresh();
   }
 
+  /// Turns sharing the final result in the community on or off. The switch
+  /// moves straight away; if the server refuses it goes back. Returns whether
+  /// the choice was saved.
+  Future<bool> setCommunitySharing(bool share) async {
+    final current = _card;
+    if (current == null || !current.isCompleted) return false;
+    if (current.shareToCommunity == share) return true;
+
+    _card = current.copyWith(shareToCommunity: share);
+    _notify();
+    try {
+      final saved = await _remote.setPersonalityCommunitySharing(share);
+      final latest = _card;
+      if (latest != null && latest.shareToCommunity != saved) {
+        _card = latest.copyWith(shareToCommunity: saved);
+        _notify();
+      }
+      return true;
+    } catch (_) {
+      final latest = _card;
+      if (latest != null) {
+        _card = latest.copyWith(shareToCommunity: current.shareToCommunity);
+        _notify();
+      }
+      return false;
+    }
+  }
+
   void _notify() {
     if (!_disposed) notifyListeners();
   }

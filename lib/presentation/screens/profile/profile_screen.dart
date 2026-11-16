@@ -37,10 +37,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _avatarPrefs = AvatarPreferences();
   AvatarColor _avatarColor = AvatarColors.defaultColor;
   int _cards = 0;
-
-  /// Visual only for now: Community is not built yet, so nothing is saved.
-  bool _showInCommunity = true;
-
   /// False until the profile has loaded once (it then stays true): the You tab shows a skeleton until then.
   bool _profileLoaded = false;
   AuthController? _authController;
@@ -132,6 +128,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final card = store.card;
     if (card == null) return;
     await openPersonalityAsk(context, card, store.traits);
+  }
+
+  /// Saves the "Show in Community" switch. The store moves it straight away and
+  /// puts it back if the server says no.
+  Future<void> _onShowInCommunityChanged(bool value) async {
+    final saved = await AppScope.of(
+      context,
+    ).personalityCards.setCommunitySharing(value);
+    if (!saved && mounted) {
+      AppToast.show('Could not update community sharing. Try again.');
+    }
   }
 
   Future<void> _openWhenLoggedIn(Widget screen) async {
@@ -233,12 +240,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         card: cards.card!,
                         traitCount: cards.traits.length,
                         topTraits: cards.topTraits,
-                        showInCommunity: _showInCommunity,
+                        showInCommunity: cards.card!.shareToCommunity,
                         onAskNow: _onPersonalityAsk,
                         onFullResult: () =>
-                            AppToast.show('Full results are coming soon'),
-                        onShowInCommunityChanged: (value) =>
-                            setState(() => _showInCommunity = value),
+                            openPersonalityResult(context, cards.card!),
+                        onShowInCommunityChanged: _onShowInCommunityChanged,
                       ),
                     ],
                   ],
