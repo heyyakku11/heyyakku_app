@@ -349,7 +349,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
-  Future<List<PollReason>> getPollOptionReasons(
+  Future<PollReasonList> getPollOptionReasons(
     String pollId,
     String optionId,
   ) async {
@@ -360,7 +360,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
-  Future<List<PollCustomAnswer>> getPollCustomAnswers(String pollId) async {
+  Future<PollCustomAnswerList> getPollCustomAnswers(String pollId) async {
     final response = await dio.get<Map<String, dynamic>>(
       ApiRoutes.pollCustomAnswers(pollId),
     );
@@ -370,10 +370,12 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   @override
   Future<ReasonReportResult> reportPollReason(
     String pollId,
-    String reasonId,
-  ) async {
+    String reasonId, {
+    required String reason,
+  }) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.reportPollReason(pollId, reasonId),
+      data: {'reason': reason.trim()},
     );
     return parseReportResult(response.data);
   }

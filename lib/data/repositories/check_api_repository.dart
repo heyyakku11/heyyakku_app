@@ -62,18 +62,22 @@ class CheckApiRepository extends ChangeNotifier {
 
   Future<List<UserCheckResponse>> getMyChecks() => _remote.getMyChecks();
 
-  Future<List<PollReason>> getOptionReasons(String id, String optionId) =>
+  Future<PollReasonList> getOptionReasons(String id, String optionId) =>
       _remote.getCheckOptionReasons(id, optionId);
 
-  Future<List<PollCustomAnswer>> getCustomAnswers(String id) =>
+  Future<PollCustomAnswerList> getCustomAnswers(String id) =>
       _remote.getCheckCustomAnswers(id);
 
-  /// Reporting changes the check's reason counts, so listeners reload.
-  Future<ReasonReportResult> reportReason(String id, String reasonId) async {
-    final result = await _remote.reportCheckReason(id, reasonId);
-    notifyListeners();
-    return result;
-  }
+  /// A report only flags the reason until an admin decides, so no counts change.
+  Future<ReasonReportResult> reportReason(
+    String id,
+    String reasonId, {
+    required String reason,
+  }) => _remote.reportCheckReason(
+    id,
+    reasonId,
+    reason: reason,
+  );
 
   Future<UserCheckResponse> closeMyCheck(String id) async {
     final updated = await _remote.closeMyCheck(id);

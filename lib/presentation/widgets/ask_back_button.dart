@@ -14,9 +14,22 @@ import 'package:yakku/presentation/widgets/app_toast.dart';
 /// [voteId] is the reason's id. Show it only for a reason with `canAskBack`;
 /// the server decides again who may ask whom.
 class AskBackButton extends StatefulWidget {
-  const AskBackButton({super.key, required this.voteId});
+  const AskBackButton({
+    super.key,
+    required this.voteId,
+    this.background = YakkuPalette.pillPink,
+    this.foreground = YakkuPalette.primary,
+    this.compact = false,
+  });
 
   final String voteId;
+
+  /// Pill fill and the colour of its icon and label.
+  final Color background;
+  final Color foreground;
+
+  /// A smaller pill without the lock icon, for use inside a list card.
+  final bool compact;
 
   @override
   State<AskBackButton> createState() => _AskBackButtonState();
@@ -49,46 +62,50 @@ class _AskBackButtonState extends State<AskBackButton> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: YakkuPalette.pillPink,
+      color: widget.background,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: _busy ? null : _start,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: widget.compact
+              ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+              : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_busy)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
+                SizedBox(
+                  width: 14,
+                  height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: YakkuPalette.primary,
+                    color: widget.foreground,
                   ),
                 )
               else
-                const Icon(
+                Icon(
                   Icons.reply_rounded,
-                  size: 16,
-                  color: YakkuPalette.primary,
+                  size: widget.compact ? 14 : 16,
+                  color: widget.foreground,
                 ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: widget.compact ? 6 : 8),
+              Text(
                 'Ask back',
                 style: TextStyle(
-                  color: YakkuPalette.primary,
-                  fontSize: 14,
+                  color: widget.foreground,
+                  fontSize: widget.compact ? 12 : 14,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.lock_outline_rounded,
-                size: 14,
-                color: YakkuPalette.primary,
-              ),
+              if (!widget.compact) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 14,
+                  color: widget.foreground,
+                ),
+              ],
             ],
           ),
         ),

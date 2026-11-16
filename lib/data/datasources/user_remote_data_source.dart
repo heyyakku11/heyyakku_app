@@ -55,11 +55,15 @@ abstract interface class UserRemoteDataSource {
   Future<void> deletePoll(String pollId);
 
   /// The reasons voters gave for one option of a poll the caller owns.
-  Future<List<PollReason>> getPollOptionReasons(String pollId, String optionId);
+  Future<PollReasonList> getPollOptionReasons(String pollId, String optionId);
 
   /// The custom answers voters wrote in on a poll the caller owns, with reasons.
-  Future<List<PollCustomAnswer>> getPollCustomAnswers(String pollId);
+  Future<PollCustomAnswerList> getPollCustomAnswers(String pollId);
 
-  /// Reports a reason as abuse: it is removed and logged.
-  Future<ReasonReportResult> reportPollReason(String pollId, String reasonId);
+  /// Reports a reason as abuse. It stays visible, flagged, until an admin decides.
+  Future<ReasonReportResult> reportPollReason(
+    String pollId,
+    String reasonId, {
+    required String reason,
+  });
 }

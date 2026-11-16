@@ -113,7 +113,7 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   }
 
   @override
-  Future<List<PollReason>> getCheckOptionReasons(
+  Future<PollReasonList> getCheckOptionReasons(
     String id,
     String optionId,
   ) async {
@@ -124,7 +124,7 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   }
 
   @override
-  Future<List<PollCustomAnswer>> getCheckCustomAnswers(String id) async {
+  Future<PollCustomAnswerList> getCheckCustomAnswers(String id) async {
     final response = await dio.get<Map<String, dynamic>>(
       ApiRoutes.checkCustomAnswers(id),
     );
@@ -134,10 +134,12 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
   @override
   Future<ReasonReportResult> reportCheckReason(
     String id,
-    String reasonId,
-  ) async {
+    String reasonId, {
+    required String reason,
+  }) async {
     final response = await dio.post<Map<String, dynamic>>(
       ApiRoutes.reportCheckReason(id, reasonId),
+      data: {'reason': reason.trim()},
     );
     return parseReportResult(response.data);
   }

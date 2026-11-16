@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:yakku/presentation/widgets/ask_back_button.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
@@ -11,10 +9,12 @@ import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
+import 'package:yakku/presentation/screens/option_results_detail_screen.dart';
 import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/screens/share_result_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
+import 'package:yakku/presentation/widgets/report_reason_sheet.dart';
 import 'package:yakku/presentation/widgets/results_locked_view.dart';
 
 /// Results screen: a pick versus the crowd, then every option ranked by votes.
@@ -112,14 +112,14 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
     }
   }
 
-  Future<List<PollCustomAnswer>> _loadCustomAnswers() {
+  Future<PollCustomAnswerList> _loadCustomAnswers() {
     final scope = AppScope.of(context);
     final check = widget.check;
     if (check != null) return scope.checkApi.getCustomAnswers(check.id);
     return scope.userRemote.getPollCustomAnswers(widget.pollId!);
   }
 
-  Future<List<PollReason>> _loadReasons(String optionId) {
+  Future<PollReasonList> _loadReasons(String optionId) {
     final scope = AppScope.of(context);
     final check = widget.check;
     if (check != null) {
@@ -128,43 +128,23 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
     return scope.userRemote.getPollOptionReasons(widget.pollId!, optionId);
   }
 
-  /// Confirms, then reports the reason: it is removed and logged server-side.
-  /// True when it was reported.
+  /// Asks why, then reports the reason. It stays visible, marked as reported,
+  /// until an admin decides. Null when the owner backed out or it failed.
   Future<ReasonReportResult?> _reportReason(String reasonId) async {
-    final confirmed = await showAppConfirmDialog(
+    final scope = AppScope.of(context);
+    final check = widget.check;
+    // The sheets send the report themselves: they stay open with the error if
+    // it fails, and on success close and show "Thanks for telling us".
+    return showReportFlow<ReasonReportResult>(
       context,
-      title: 'Report this reason?',
-      message:
-          'It will be removed from your results and sent to us for review.',
-      confirmLabel: 'Report',
-      cancelLabel: 'Cancel',
+      submit: (reason) => check != null
+          ? scope.checkApi.reportReason(check.id, reasonId, reason: reason)
+          : scope.userRemote.reportPollReason(
+              widget.pollId!,
+              reasonId,
+              reason: reason,
+            ),
     );
-    if (confirmed != true || !mounted) return null;
-    try {
-      final scope = AppScope.of(context);
-      final check = widget.check;
-      final ReasonReportResult result;
-      if (check != null) {
-        result = await scope.checkApi.reportReason(check.id, reasonId);
-      } else {
-        result = await scope.userRemote.reportPollReason(
-          widget.pollId!,
-          reasonId,
-        );
-      }
-      if (!mounted) return null;
-      AppToast.show('Reason reported');
-      return result;
-    } catch (error) {
-      if (!mounted) return null;
-      AppToast.show(
-        DioErrorMapper.map(
-          error,
-          fallback: 'Could not report this reason',
-        ).message,
-      );
-      return null;
-    }
   }
 
   Future<void> _loadPoll() async {
@@ -1420,7 +1400,7 @@ class _ResultBarRow extends StatelessWidget {
     required this.pillIcon,
     this.mine = false,
     this.top = false,
-    this.onPillTap,
+    this.onTap,
   });
 
   final String label;
@@ -1434,14 +1414,15 @@ class _ResultBarRow extends StatelessWidget {
   final IconData pillIcon;
   final bool top;
 
-  /// Makes the count pill tappable (expands the row's reasons).
-  final VoidCallback? onPillTap;
+  /// Makes the whole row tappable (opens the option's reasons screen).
+  /// Null leaves the row inert.
+  final VoidCallback? onTap;
 
   static const _radius = 18.0;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final row = Container(
       decoration: BoxDecoration(
         color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(_radius),
@@ -1524,15 +1505,11 @@ class _ResultBarRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onPillTap,
-                    child: _CountPill(
-                      count: count,
-                      icon: pillIcon,
-                      background: pillColor,
-                      ink: pillInk,
-                    ),
+                  _CountPill(
+                    count: count,
+                    icon: pillIcon,
+                    background: pillColor,
+                    ink: pillInk,
                   ),
                 ],
               ),
@@ -1540,6 +1517,12 @@ class _ResultBarRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (onTap == null) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: row,
     );
   }
 }
@@ -1587,7 +1570,7 @@ class _CountPill extends StatelessWidget {
 }
 
 /// Standard option row (pink bar, vote-count pill). For the owner, tapping the
-/// pill expands the reasons voters gave for this option.
+/// row opens a screen with every reason voters gave for this option.
 class _ResultRow extends StatefulWidget {
   const _ResultRow({
     required this.tally,
@@ -1602,7 +1585,7 @@ class _ResultRow extends StatefulWidget {
   final bool top;
 
   /// Null when the viewer cannot read reasons (not the owner).
-  final Future<List<PollReason>> Function(String optionId)? loadReasons;
+  final Future<PollReasonList> Function(String optionId)? loadReasons;
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
 
   @override
@@ -1610,63 +1593,32 @@ class _ResultRow extends StatefulWidget {
 }
 
 class _ResultRowState extends State<_ResultRow> {
-  bool _expanded = false;
-  bool _loading = false;
-  bool _failed = false;
-  List<PollReason>? _reasons;
-  int? _serverCount;
+  /// A report only flags a reason until an admin decides, so the count the
+  /// screen loaded with stays right while this screen is open.
+  int get _count => widget.tally.whyCount;
 
-  /// The server's count after a report, otherwise what the screen loaded with.
-  int get _count => _serverCount ?? widget.tally.whyCount;
+  /// Only the owner can read reasons, and only when there are some.
+  bool get _canOpen => widget.loadReasons != null && _count > 0;
 
-  bool get _canExpand => widget.loadReasons != null && _count > 0;
-
-  Future<void> _toggle() async {
-    if (!_canExpand) return;
-    setState(() => _expanded = !_expanded);
-    if (_expanded && _reasons == null && !_loading) await _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _failed = false;
-    });
-    try {
-      final reasons = await widget.loadReasons!(widget.tally.id);
-      if (!mounted) return;
-      setState(() {
-        _reasons = reasons;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _failed = true;
-      });
-    }
-  }
-
-  Future<void> _report(PollReason reason) async {
-    final result = await widget.onReport(reason.id);
-    if (result == null || !mounted) return;
-    setState(() {
-      _reasons = _reasons?.where((item) => item.id != reason.id).toList();
-      _serverCount = result.optionWhyCount;
-    });
+  void _open() {
+    final tally = widget.tally;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => OptionReasonsScreen(
+          label: tally.label,
+          percent: tally.percent,
+          fraction: tally.fraction,
+          votes: tally.votes,
+          count: _count,
+          loadReasons: () => widget.loadReasons!(tally.id),
+          onReport: widget.onReport,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      alignment: Alignment.topCenter,
-      child: _expanded ? _expandedCard() : _collapsedRow(),
-    );
-  }
-
-  Widget _collapsedRow() {
     final tally = widget.tally;
     return _ResultBarRow(
       label: tally.label,
@@ -1679,293 +1631,14 @@ class _ResultRowState extends State<_ResultRow> {
       pillInk: YakkuPalette.primary,
       pillIcon: Icons.chat_bubble_outline_rounded,
       top: widget.top,
-      onPillTap: _canExpand ? _toggle : null,
-    );
-  }
-
-  /// The option and its reasons wrapped in one pink card.
-  Widget _expandedCard() {
-    final tally = widget.tally;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: BoxDecoration(
-        color: YakkuPalette.pillPink,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    tally.label,
-                    style: const TextStyle(
-                      color: _CardResultsColors.ink,
-                      fontSize: 16,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Material(
-                color: YakkuPalette.white,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _toggle,
-                  child: const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: YakkuPalette.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                '${tally.percent}%',
-                style: const TextStyle(
-                  color: YakkuPalette.primary,
-                  fontSize: 44,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: YakkuPalette.white,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const FaIcon(
-                      FontAwesomeIcons.commentDots,
-                      size: 13,
-                      color: YakkuPalette.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _count == 1 ? '1 reply' : '$_count replies',
-                      style: const TextStyle(
-                        color: YakkuPalette.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: tally.fraction.clamp(0.0, 1.0),
-              minHeight: 9,
-              backgroundColor: YakkuPalette.white,
-              color: YakkuPalette.primary,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _reasonsList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _reasonsList() {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 18),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
-        ),
-      );
-    }
-    if (_failed) {
-      return Center(
-        child: TextButton(
-          onPressed: _load,
-          child: const Text("Couldn't load the reasons. Try again"),
-        ),
-      );
-    }
-    final reasons = _reasons ?? const <PollReason>[];
-    if (reasons.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 14),
-        child: Center(
-          child: Text(
-            'No reasons to show.',
-            style: TextStyle(color: YakkuPalette.textSecondary, fontSize: 13),
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: [
-        for (final reason in reasons) ...[
-          _ReasonCard(reason: reason, onReport: () => _report(reason)),
-          const SizedBox(height: 10),
-        ],
-      ],
-    );
-  }
-}
-
-/// One anonymous reason: the quote, when it was given, an action menu and Ask back.
-class _ReasonCard extends StatelessWidget {
-  const _ReasonCard({required this.reason, required this.onReport});
-
-  final PollReason reason;
-  final VoidCallback onReport;
-
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  /// e.g. "28 Oct 2026 \u00B7 3:42 PM", in the viewer's local time.
-  static String? _when(DateTime? value) {
-    if (value == null) return null;
-    final local = value.toLocal();
-    final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final minute = local.minute.toString().padLeft(2, '0');
-    final period = local.hour >= 12 ? 'PM' : 'AM';
-    return '${local.day} ${_months[local.month - 1]} ${local.year} '
-        '\u00B7 $hour12:$minute $period';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final when = _when(reason.createdAt);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 4, 14),
-      decoration: BoxDecoration(
-        color: YakkuPalette.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '\u201C${reason.text}\u201D',
-                    style: const TextStyle(
-                      color: YakkuPalette.textPrimary,
-                      fontSize: 16,
-                      height: 1.3,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Reason actions',
-                icon: const Icon(
-                  Icons.more_horiz,
-                  size: 20,
-                  color: YakkuPalette.textSecondary,
-                ),
-                onSelected: (_) => onReport(),
-                itemBuilder: (context) => const [
-                  PopupMenuItem<String>(
-                    value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.flag_outlined,
-                          size: 18,
-                          color: YakkuPalette.primary,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Report',
-                          style: TextStyle(
-                            color: YakkuPalette.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (when != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              when,
-              style: const TextStyle(
-                color: YakkuPalette.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          if (reason.canAskBack) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                // The reason's id is the vote's id.
-                child: AskBackButton(voteId: reason.id),
-              ),
-            ),
-          ],
-        ],
-      ),
+      onTap: _canOpen ? _open : null,
     );
   }
 }
 
 /// Friends' write-in answers, shown with the lavender bar and pencil pill. For
-/// the owner, tapping the pill expands each answer with the reason given.
-class _OwnOptionsRow extends StatefulWidget {
+/// the owner, tapping the row opens a screen with each answer and its reason.
+class _OwnOptionsRow extends StatelessWidget {
   const _OwnOptionsRow({
     required this.count,
     required this.total,
@@ -1977,350 +1650,40 @@ class _OwnOptionsRow extends StatefulWidget {
   final int total;
 
   /// Null when the viewer cannot read the answers (not the owner).
-  final Future<List<PollCustomAnswer>> Function()? loadAnswers;
+  final Future<PollCustomAnswerList> Function()? loadAnswers;
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
 
-  @override
-  State<_OwnOptionsRow> createState() => _OwnOptionsRowState();
-}
-
-class _OwnOptionsRowState extends State<_OwnOptionsRow> {
-  bool _expanded = false;
-  bool _loading = false;
-  bool _failed = false;
-  List<PollCustomAnswer>? _answers;
-
-  bool get _canExpand => widget.loadAnswers != null && widget.count > 0;
+  bool get _canOpen => loadAnswers != null && count > 0;
 
   double get _fraction =>
-      widget.total <= 0 ? 0.0 : (widget.count / widget.total).clamp(0.0, 1.0);
+      total <= 0 ? 0.0 : (count / total).clamp(0.0, 1.0);
 
-  Future<void> _toggle() async {
-    if (!_canExpand) return;
-    setState(() => _expanded = !_expanded);
-    if (_expanded && _answers == null && !_loading) await _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _failed = false;
-    });
-    try {
-      final answers = await widget.loadAnswers!();
-      if (!mounted) return;
-      setState(() {
-        _answers = answers;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _failed = true;
-      });
-    }
-  }
-
-  Future<void> _report(PollCustomAnswer answer) async {
-    final result = await widget.onReport(answer.id);
-    if (result == null || !mounted) return;
-    setState(() {
-      _answers = [
-        for (final item in _answers ?? const <PollCustomAnswer>[])
-          item.id == answer.id ? item.withoutReason() : item,
-      ];
-    });
+  void _open(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomAnswersScreen(
+          percent: (_fraction * 100).round(),
+          fraction: _fraction,
+          count: count,
+          loadAnswers: loadAnswers!,
+          onReport: onReport,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      alignment: Alignment.topCenter,
-      child: _expanded ? _expandedCard() : _collapsedRow(),
-    );
-  }
-
-  Widget _collapsedRow() {
     return _ResultBarRow(
       label: 'Their own options',
       fraction: _fraction,
       percent: (_fraction * 100).round(),
-      count: widget.count,
+      count: count,
       fill: YakkuPalette.accentPurple,
       pillColor: YakkuPalette.accentPurple,
       pillInk: YakkuPalette.purpleInk,
       pillIcon: Icons.edit_outlined,
-      onPillTap: _canExpand ? _toggle : null,
-    );
-  }
-
-  Widget _expandedCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: BoxDecoration(
-        color: YakkuPalette.accentPurple,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    'Their own options',
-                    style: TextStyle(
-                      color: _CardResultsColors.ink,
-                      fontSize: 16,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Material(
-                color: YakkuPalette.white,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _toggle,
-                  child: const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: YakkuPalette.purpleInk,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                '${(_fraction * 100).round()}%',
-                style: const TextStyle(
-                  color: YakkuPalette.purpleInk,
-                  fontSize: 44,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: YakkuPalette.white,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const FaIcon(
-                      FontAwesomeIcons.penToSquare,
-                      size: 13,
-                      color: YakkuPalette.purpleInk,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.count == 1
-                          ? '1 answer'
-                          : '${widget.count} answers',
-                      style: const TextStyle(
-                        color: YakkuPalette.purpleInk,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: _fraction,
-              minHeight: 9,
-              backgroundColor: YakkuPalette.white,
-              color: YakkuPalette.purpleInk,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _answersList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _answersList() {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 18),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
-        ),
-      );
-    }
-    if (_failed) {
-      return Center(
-        child: TextButton(
-          onPressed: _load,
-          child: const Text("Couldn't load the answers. Try again"),
-        ),
-      );
-    }
-    final answers = _answers ?? const <PollCustomAnswer>[];
-    if (answers.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 14),
-        child: Center(
-          child: Text(
-            'No answers to show.',
-            style: TextStyle(color: YakkuPalette.textSecondary, fontSize: 13),
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: [
-        for (final answer in answers) ...[
-          _CustomAnswerCard(answer: answer, onReport: () => _report(answer)),
-          const SizedBox(height: 10),
-        ],
-      ],
-    );
-  }
-}
-
-/// One written-in answer with the reason given, when it was submitted, and actions.
-class _CustomAnswerCard extends StatelessWidget {
-  const _CustomAnswerCard({required this.answer, required this.onReport});
-
-  final PollCustomAnswer answer;
-  final VoidCallback onReport;
-
-  @override
-  Widget build(BuildContext context) {
-    final when = _ReasonCard._when(answer.createdAt);
-    final reason = answer.reason;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 4, 14),
-      decoration: BoxDecoration(
-        color: YakkuPalette.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '\u201C${answer.answer}\u201D',
-                    style: const TextStyle(
-                      color: YakkuPalette.textPrimary,
-                      fontSize: 16,
-                      height: 1.3,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              if (reason != null)
-                PopupMenuButton<String>(
-                  tooltip: 'Reason actions',
-                  icon: const Icon(
-                    Icons.more_horiz,
-                    size: 20,
-                    color: YakkuPalette.textSecondary,
-                  ),
-                  onSelected: (_) => onReport(),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem<String>(
-                      value: 'report',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.flag_outlined,
-                            size: 18,
-                            color: YakkuPalette.primary,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            'Report reason',
-                            style: TextStyle(
-                              color: YakkuPalette.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              else
-                const SizedBox(width: 12),
-            ],
-          ),
-          if (reason != null) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Text(
-                'Why: $reason',
-                style: const TextStyle(
-                  color: YakkuPalette.textPrimary,
-                  fontSize: 14,
-                  height: 1.3,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-          if (when != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              when,
-              style: const TextStyle(
-                color: YakkuPalette.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          if (answer.canAskBack) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: AskBackButton(voteId: answer.id),
-            ),
-          ],
-        ],
-      ),
+      onTap: _canOpen ? () => _open(context) : null,
     );
   }
 }

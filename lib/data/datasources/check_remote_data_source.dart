@@ -38,11 +38,15 @@ abstract class CheckRemoteDataSource {
   Future<void> deleteMyCheck(String id);
 
   /// The reasons voters gave for one option of the caller's made check.
-  Future<List<PollReason>> getCheckOptionReasons(String id, String optionId);
+  Future<PollReasonList> getCheckOptionReasons(String id, String optionId);
 
   /// The custom answers voters wrote in on the caller's made check, with reasons.
-  Future<List<PollCustomAnswer>> getCheckCustomAnswers(String id);
+  Future<PollCustomAnswerList> getCheckCustomAnswers(String id);
 
-  /// Reports a reason as abuse: it is removed and logged.
-  Future<ReasonReportResult> reportCheckReason(String id, String reasonId);
+  /// Reports a reason as abuse. It stays visible, flagged, until an admin decides.
+  Future<ReasonReportResult> reportCheckReason(
+    String id,
+    String reasonId, {
+    required String reason,
+  });
 }
