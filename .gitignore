@@ -69,3 +69,11 @@ app.*.map.json
 key.properties
 **/*.keystore
 **/*.jks
+
+# Firebase config (source of truth: /firebase/<env>/; keep secrets out of git)
+firebase/**/google-services.json
+!firebase/**/google-services.json.example
+firebase/**/GoogleService-Info.plist
+!firebase/**/GoogleService-Info.plist.example
+android/app/src/*/google-services.json
+ios/Runner/GoogleService-Info.plist
