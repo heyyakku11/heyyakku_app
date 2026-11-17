@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:792841260501:android:65d72476e10138f34b415c",
+        "mobilesdk_app_id": "1:792841260501:android:2c52b0a3977da8744b415c",
         "android_client_info": {
-          "package_name": "com.example.yakku"
+          "package_name": "com.example.yakku_dev"
         }
       },
       "oauth_client": [],

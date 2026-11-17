@@ -1,21 +1,52 @@
 abstract final class ApiConstants {
-  static const bool isAppLive = false;
+  //development, staging, production
+  static const String environment = "development";
 
-  static const String webBaseUrl = 'https://heyyakku-web.vercel.app';
-  static const String stagingBaseUrl = 'https://heyyakku-backend.onrender.com';
-  static const String liveBasebaseUrl = 'https://heyyakku-backend.onrender.com';
+  static String get backendBaseUrl {
+    switch (environment) {
+      case 'development':
+        return 'https://heyyakku-backend.onrender.com';
 
-  static const String baseUrl = isAppLive ? liveBasebaseUrl : stagingBaseUrl;
+      case 'staging':
+        return 'https://backend-stage-l0yc.onrender.com';
+
+      case 'production':
+        return '';
+
+      default:
+        throw UnsupportedError(
+          'Unknown environment: $environment',
+        );
+    }
+  }
+
+  static String get webBaseUrl {
+    switch (environment) {
+      case 'development':
+        return 'https://heyyakku-web-git-develop-heyyakku33-9072.vercel.app/';
+
+      case 'staging':
+        return 'https://heyyakku-web-git-staging-heyyakku33-9072.vercel.app/';
+
+      case 'production':
+        return '';
+
+      default:
+        throw UnsupportedError(
+          'Unknown environment: $environment',
+        );
+    }
+  }
 
   /// Where "Email to" and "Report a problem" in settings send mail. Empty until
   /// the real support address is set; the rows then explain that.
   static const String supportEmail = 'contact@heyyakku.com';
 
   /// Public privacy policy and terms page on the website.
-  static const String policyUrl = '$webBaseUrl/policy';
+  static  String policyUrl = '$webBaseUrl/policy';
 
   /// Public terms of service page on the website.
-  static const String termsUrl = '$webBaseUrl/terms';
+  static  String termsUrl = '$webBaseUrl/terms';
 
   /// The link friends open to vote on someone's personality card.
   static String personalityCardUrl(String shareCode) =>
