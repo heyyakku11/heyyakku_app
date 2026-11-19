@@ -106,6 +106,92 @@ class PersonalityCard {
   }
 }
 
+/// A friend's card as a voter sees it:
+/// `GET /api/v1/personality-cards/{shareCode}`. It never carries the owner's
+/// own picks or any voter details.
+class SharedPersonalityCard {
+  const SharedPersonalityCard({
+    required this.shareCode,
+    required this.ownerAnonymousName,
+    required this.status,
+    required this.isOwner,
+    required this.hasVoted,
+    required this.canVote,
+    required this.totalVotes,
+    required this.requiredVotes,
+  });
+
+  final String shareCode;
+  final String ownerAnonymousName;
+  final PersonalityCardStatus status;
+
+  /// The signed-in caller owns this card.
+  final bool isOwner;
+
+  /// The caller has already voted on it.
+  final bool hasVoted;
+
+  /// The caller could vote right now.
+  final bool canVote;
+  final int totalVotes;
+  final int requiredVotes;
+
+  SharedPersonalityCard copyWith({
+    PersonalityCardStatus? status,
+    bool? isOwner,
+    bool? hasVoted,
+    bool? canVote,
+  }) {
+    return SharedPersonalityCard(
+      shareCode: shareCode,
+      ownerAnonymousName: ownerAnonymousName,
+      status: status ?? this.status,
+      isOwner: isOwner ?? this.isOwner,
+      hasVoted: hasVoted ?? this.hasVoted,
+      canVote: canVote ?? this.canVote,
+      totalVotes: totalVotes,
+      requiredVotes: requiredVotes,
+    );
+  }
+
+  factory SharedPersonalityCard.fromJson(Map<String, dynamic> json) {
+    return SharedPersonalityCard(
+      shareCode: json['shareCode'] as String? ?? '',
+      ownerAnonymousName: json['ownerAnonymousName'] as String? ?? '',
+      status: PersonalityCardStatus.parse(json['status'] as String?),
+      isOwner: json['isOwner'] as bool? ?? false,
+      hasVoted: json['hasVoted'] as bool? ?? false,
+      canVote: json['canVote'] as bool? ?? false,
+      totalVotes: json['totalVotes'] as int? ?? 0,
+      requiredVotes: json['requiredVotes'] as int? ?? 0,
+    );
+  }
+}
+
+/// What `POST /api/v1/personality-cards/{shareCode}/votes` returns.
+class PersonalityVoteResult {
+  const PersonalityVoteResult({
+    required this.shareCode,
+    required this.cardStatus,
+    required this.totalVotes,
+    required this.requiredVotes,
+  });
+
+  final String shareCode;
+  final PersonalityCardStatus cardStatus;
+  final int totalVotes;
+  final int requiredVotes;
+
+  factory PersonalityVoteResult.fromJson(Map<String, dynamic> json) {
+    return PersonalityVoteResult(
+      shareCode: json['shareCode'] as String? ?? '',
+      cardStatus: PersonalityCardStatus.parse(json['cardStatus'] as String?),
+      totalVotes: json['totalVotes'] as int? ?? 0,
+      requiredVotes: json['requiredVotes'] as int? ?? 0,
+    );
+  }
+}
+
 /// One trait with how many friends picked it.
 class PersonalityTraitCount {
   const PersonalityTraitCount({

@@ -1,3 +1,4 @@
+import 'package:yakku/data/models/checks/check_theme.dart';
 import 'package:yakku/data/models/poll/poll_media_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
@@ -21,6 +22,9 @@ class SharedContentResponse {
   final String? pollType;
   final PollMediaResponse? media;
 
+  /// The look of a made check (`check.theme`); null for a poll.
+  final CheckTheme? checkTheme;
+
   const SharedContentResponse({
     required this.contentType,
     required this.contentId,
@@ -35,6 +39,7 @@ class SharedContentResponse {
     this.isOwner = false,
     this.pollType,
     this.media,
+    this.checkTheme,
   });
 
   bool get isCheck => contentType.toUpperCase() == 'CHECK';
@@ -45,7 +50,16 @@ class SharedContentResponse {
     final rawStats = json['stats'];
     final rawPoll = json['poll'];
     final rawMedia = rawPoll is Map ? rawPoll['media'] : null;
+    final rawCheck = json['check'];
     return SharedContentResponse(
+      checkTheme: rawCheck is Map
+          ? CheckTheme.tryParse(rawCheck['theme']) ??
+                CheckTheme.legacy(
+                  title: rawCheck['title']?.toString() ?? '',
+                  backgroundColor:
+                      rawCheck['backgroundColor']?.toString() ?? '',
+                )
+          : null,
       contentType: json['contentType'] as String? ?? '',
       contentId: json['contentId']?.toString() ?? '',
       shareCode: json['shareCode'] as String? ?? '',
@@ -89,12 +103,14 @@ class SharedContentResponse {
       mediaReadiness: media == null ? 'none' : 'ready',
       totalVoteCount: stats.totalVotes ?? 0,
       customAnswerCount: stats.customAnswerCount ?? 0,
+      customAnswerPercentage: stats.customAnswerPercentage,
       totalWhyCount: stats.whyCount ?? 0,
       minVotes: stats.minVotesToReveal,
       voteProgress: stats.voteProgress,
       resultsUnlocked: stats.resultsVisible,
       voting: voting,
       isOwner: isOwner,
+      checkTheme: checkTheme,
       options: [
         for (final option in options)
           PollOptionResponse(

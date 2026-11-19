@@ -27,10 +27,18 @@ const int reasonReportMaxLength = 300;
 
 /// The reasons for one option, plus how many an admin blocked after a report.
 class PollReasonList {
-  const PollReasonList({required this.items, this.blockedCount = 0});
+  const PollReasonList({
+    required this.items,
+    this.blockedCount = 0,
+    this.hiddenCount = 0,
+  });
 
   /// Reasons still visible. A reported one waiting for an admin is included, flagged.
   final List<PollReason> items;
+
+  /// How many of [items] are hidden ([PollReason.isHidden]): on the free plan
+  /// only the option's top reason can be read.
+  final int hiddenCount;
 
   /// Reasons an admin approved a report on. Their text is never sent.
   final int blockedCount;
@@ -38,9 +46,17 @@ class PollReasonList {
 
 /// The custom answers, plus how many reasons on them an admin blocked.
 class PollCustomAnswerList {
-  const PollCustomAnswerList({required this.items, this.blockedCount = 0});
+  const PollCustomAnswerList({
+    required this.items,
+    this.blockedCount = 0,
+    this.hiddenCount = 0,
+  });
 
   final List<PollCustomAnswer> items;
+
+  /// How many of [items] are hidden ([PollCustomAnswer.isHidden]): on the free
+  /// plan only one answer can be read.
+  final int hiddenCount;
   final int blockedCount;
 }
 
@@ -59,6 +75,7 @@ PollReasonList parseReasons(Map<String, dynamic>? body) {
             PollReason.fromJson(Map<String, dynamic>.from(item)),
       ],
       blockedCount: _asInt(map['blockedCount']),
+      hiddenCount: _asInt(map['hiddenCount']),
     );
   });
   if (!apiResponse.success) {
@@ -75,17 +92,29 @@ class PollCustomAnswer {
     this.reason,
     this.createdAt,
     this.canAskBack = false,
+    this.askBackLocked = false,
+    this.isHidden = false,
     this.reportState = ReasonReportState.none,
   });
 
   /// The vote id; also the id to report when [reason] is set.
   final String id;
+
+  /// Empty when [isHidden]: the server never sends it.
   final String answer;
   final String? reason;
   final DateTime? createdAt;
 
   /// Only a registered user can be chatted back to.
   final bool canAskBack;
+
+  /// Asking back is possible, but the owner has to unlock it first (the plan
+  /// or card unlock does not cover this answer yet).
+  final bool askBackLocked;
+
+  /// The owner cannot read this answer or its reason yet (free plan, not the
+  /// one answer left open). Shown blurred, with a way to unlock.
+  final bool isHidden;
 
   /// How the answer's [reason] stands with moderation.
   final ReasonReportState reportState;
@@ -97,6 +126,8 @@ class PollCustomAnswer {
         reason: reason,
         createdAt: createdAt,
         canAskBack: canAskBack,
+        askBackLocked: askBackLocked,
+        isHidden: isHidden,
         reportState: reportState ?? this.reportState,
       );
 
@@ -109,6 +140,8 @@ class PollCustomAnswer {
       reason: reason == null || reason.trim().isEmpty ? null : reason,
       createdAt: created is String ? DateTime.tryParse(created) : null,
       canAskBack: json['canAskBack'] as bool? ?? false,
+      askBackLocked: json['askBackLocked'] as bool? ?? false,
+      isHidden: json['isHidden'] as bool? ?? false,
       reportState: ReasonReportState.parse(json['reasonReportStatus']),
     );
   }
@@ -127,6 +160,7 @@ PollCustomAnswerList parseCustomAnswers(Map<String, dynamic>? body) {
             PollCustomAnswer.fromJson(Map<String, dynamic>.from(item)),
       ],
       blockedCount: _asInt(map['blockedCount']),
+      hiddenCount: _asInt(map['hiddenCount']),
     );
   });
   if (!apiResponse.success) {
@@ -178,15 +212,27 @@ class PollReason {
     required this.text,
     this.createdAt,
     this.canAskBack = false,
+    this.askBackLocked = false,
+    this.isHidden = false,
     this.reportState = ReasonReportState.none,
   });
 
   final String id;
+
+  /// Empty when [isHidden]: the server never sends it.
   final String text;
   final DateTime? createdAt;
 
+  /// The owner cannot read this reason yet (free plan, not the option's top
+  /// reason). Shown blurred, with a way to unlock.
+  final bool isHidden;
+
   /// Only a registered user can be chatted back to.
   final bool canAskBack;
+
+  /// Asking back is possible, but the owner has to unlock it first (the plan
+  /// or card unlock does not cover this reason yet).
+  final bool askBackLocked;
 
   /// Pending while an admin has not decided on a report of this reason.
   final ReasonReportState reportState;
@@ -196,6 +242,8 @@ class PollReason {
     text: text,
     createdAt: createdAt,
     canAskBack: canAskBack,
+    askBackLocked: askBackLocked,
+    isHidden: isHidden,
     reportState: reportState ?? this.reportState,
   );
 
@@ -206,6 +254,8 @@ class PollReason {
       text: json['text']?.toString() ?? '',
       createdAt: created is String ? DateTime.tryParse(created) : null,
       canAskBack: json['canAskBack'] as bool? ?? false,
+      askBackLocked: json['askBackLocked'] as bool? ?? false,
+      isHidden: json['isHidden'] as bool? ?? false,
       reportState: ReasonReportState.parse(json['reportStatus']),
     );
   }

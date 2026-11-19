@@ -1,4 +1,5 @@
 import 'package:yakku/core/constants/app_limits.dart';
+import 'package:yakku/data/models/checks/check_theme.dart';
 import 'package:yakku/data/models/poll/poll_media_response.dart';
 import 'package:yakku/data/models/poll/poll_option_response.dart';
 import 'package:yakku/data/models/poll/shared_content_response.dart';
@@ -19,6 +20,10 @@ class PollResponse {
   final PollMediaResponse? media;
   final int totalVoteCount;
   final int customAnswerCount;
+
+  /// Share of voters who wrote their own answer ("Something else"), 0-100.
+  /// Null when results are hidden or the API did not send it.
+  final double? customAnswerPercentage;
   final int totalWhyCount;
 
   /// Votes from others needed before results are revealed.
@@ -42,6 +47,10 @@ class PollResponse {
   /// The caller created this card (shared-link view only).
   final bool isOwner;
 
+  /// The look of the check this card was made from (shared-link view only);
+  /// null for a plain poll.
+  final CheckTheme? checkTheme;
+
   const PollResponse({
     required this.id,
     required this.question,
@@ -57,6 +66,7 @@ class PollResponse {
     this.mediaReadiness = 'none',
     this.media,
     this.customAnswerCount = 0,
+    this.customAnswerPercentage,
     this.totalWhyCount = 0,
     this.minVotes = AppLimits.minVotesToReveal,
     this.voteProgress = 0,
@@ -65,6 +75,7 @@ class PollResponse {
     this.yourOptionText,
     this.voting,
     this.isOwner = false,
+    this.checkTheme,
   });
 
   factory PollResponse.fromJson(Map<String, dynamic> json) {

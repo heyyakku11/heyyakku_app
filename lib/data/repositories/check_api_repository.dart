@@ -73,11 +73,7 @@ class CheckApiRepository extends ChangeNotifier {
     String id,
     String reasonId, {
     required String reason,
-  }) => _remote.reportCheckReason(
-    id,
-    reasonId,
-    reason: reason,
-  );
+  }) => _remote.reportCheckReason(id, reasonId, reason: reason);
 
   Future<UserCheckResponse> closeMyCheck(String id) async {
     final updated = await _remote.closeMyCheck(id);

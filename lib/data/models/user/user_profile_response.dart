@@ -2,15 +2,17 @@ class UserPlanResponse {
   final String id;
   final String code;
   final String name;
-  final num price;
-  final String currency;
+  final DateTime? activatedAt;
+  final DateTime? expiresAt;
+  final bool isExpired;
 
   const UserPlanResponse({
     required this.id,
     required this.code,
     required this.name,
-    required this.price,
-    required this.currency,
+    this.activatedAt,
+    this.expiresAt,
+    this.isExpired = false,
   });
 
   factory UserPlanResponse.fromJson(Map<String, dynamic> json) {
@@ -18,8 +20,9 @@ class UserPlanResponse {
       id: json['id']?.toString() ?? '',
       code: json['code'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      price: json['price'] as num? ?? 0,
-      currency: json['currency'] as String? ?? '',
+      activatedAt: _parseDate(json['activatedAt']),
+      expiresAt: _parseDate(json['expiresAt']),
+      isExpired: json['isExpired'] as bool? ?? false,
     );
   }
 }
