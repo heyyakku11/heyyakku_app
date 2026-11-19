@@ -19,7 +19,7 @@ import UIKit
 
   private func registerInstagramStoryChannel(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
-      name: "com.example.yakku_dev/instagram_story",
+      name: "com.yakku.app/instagram_story",
       binaryMessenger: messenger
     )
     channel.setMethodCallHandler { call, result in

@@ -112,25 +112,6 @@ class AskBackRemoteDataSourceImpl implements AskBackRemoteDataSource {
   }
 
   @override
-  Future<AskBackConversation> setMuted(String conversationId, bool muted) {
-    final path = ApiRoutes.askBackMute(conversationId);
-    return _conversation(
-      muted
-          ? dio.put<Map<String, dynamic>>(path)
-          : dio.delete<Map<String, dynamic>>(path),
-      'Could not change mute',
-    );
-  }
-
-  @override
-  Future<AskBackConversation> close(String conversationId) {
-    return _conversation(
-      dio.post<Map<String, dynamic>>(ApiRoutes.askBackClose(conversationId)),
-      'Could not close the conversation',
-    );
-  }
-
-  @override
   Future<AskBackConversation> reopen(String conversationId) {
     return _conversation(
       dio.post<Map<String, dynamic>>(ApiRoutes.askBackReopen(conversationId)),
@@ -153,11 +134,47 @@ class AskBackRemoteDataSourceImpl implements AskBackRemoteDataSource {
   }
 
   @override
-  Future<AskBackConversation> unblock(String conversationId) {
-    return _conversation(
-      dio.post<Map<String, dynamic>>(ApiRoutes.askBackUnblock(conversationId)),
-      'Could not lift the block',
+  Future<AskBackAccess> getAccess(String voteId) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.askBackAccess,
+      queryParameters: <String, dynamic>{'voteId': voteId},
     );
+    return _access(response.data, 'Could not check Ask Back access');
+  }
+
+  @override
+  Future<AskBackAccess> getCardAccess(
+    String contentType,
+    String contentId,
+  ) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.askBackCardAccess,
+      queryParameters: <String, dynamic>{
+        'contentType': contentType,
+        'contentId': contentId,
+      },
+    );
+    return _access(response.data, 'Could not check your plan');
+  }
+
+  @override
+  Future<AskBackAccess> unlock(String voteId) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.askBackUnlocks,
+      data: <String, dynamic>{'voteId': voteId},
+    );
+    return _access(response.data, 'Could not unlock this card');
+  }
+
+  AskBackAccess _access(Map<String, dynamic>? body, String failure) {
+    final api = ApiResponse<AskBackAccess>.fromJson(
+      _body(body),
+      (json) => AskBackAccess.fromJson(Map<String, dynamic>.from(json as Map)),
+    );
+    if (!api.success || api.data == null) {
+      throw StateError(api.message ?? failure);
+    }
+    return api.data!;
   }
 
   Map<String, dynamic>? _cursorQuery(String? cursor) {

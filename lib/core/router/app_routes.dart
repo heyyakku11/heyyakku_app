@@ -10,6 +10,12 @@ abstract final class AppRoutes {
   static const pollVote = '/vote/:shareCode';
   static String pollVoteLocation(String shareCode) => '/vote/$shareCode';
 
+  /// Canonical shared personality card path, identical to the website's
+  /// `/personality/{shareCode}`.
+  static const personalityVote = '/personality/:shareCode';
+  static String personalityVoteLocation(String shareCode) =>
+      '/personality/$shareCode';
+
   /// Ask back: the conversation list, and one private conversation.
   static const askBack = '/ask-back';
   static const askBackChat = '/ask-back/:conversationId';
@@ -25,4 +31,5 @@ abstract final class AppRoutes {
   static const pollAnswerName = 'pollAnswer';
   static const pollResultsName = 'pollResults';
   static const pollVoteName = 'pollVote';
+  static const personalityVoteName = 'personalityVote';
 }

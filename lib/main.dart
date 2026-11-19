@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yakku/firebase/firebase_options_dev.dart';
+import 'package:yakku/firebase/firebase_options_production.dart';
+import 'package:yakku/firebase/firebase_options_staging.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/auth/auth_token_store.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
@@ -19,6 +22,7 @@ import 'package:yakku/core/network/api_client.dart';
 import 'package:yakku/core/network/internet_connection_service.dart';
 import 'package:yakku/core/network/internet_connection_service_impl.dart';
 import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
+import 'package:yakku/core/deep_link/deep_link_service.dart';
 import 'package:yakku/core/router/app_router.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source_impl.dart';
@@ -60,8 +64,19 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
+  const environment = String.fromEnvironment('ENV');
+
+  final firebaseOptions = switch (environment) {
+    'dev' => DefaultFirebaseOptionsDev.currentPlatform,
+    'staging' => DefaultFirebaseOptionsStaging.currentPlatform,
+    'production' => DefaultFirebaseOptionsProduction.currentPlatform,
+    _ => throw Exception(
+      'Invalid environment "$environment". Pass --dart-define=ENV=dev|staging|production.',
+    ),
+  };
+
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(options: firebaseOptions);
   } catch (error) {
     if (kDebugMode) {
       debugPrint('[Firebase] initializeApp failed: $error');
@@ -161,6 +176,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final AskBackInboxController _askBackInbox;
   late final DeviceRegistrationService _deviceRegistration;
   late final GoRouter _router;
+  late final DeepLinkService _deepLinks;
   late final InternetCubit _internetCubit;
 
   @override
@@ -282,6 +298,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       navigatorKey: _rootNavigatorKey,
     );
 
+    // Listen from the start so a launch link is not missed; links are queued
+    // until the first frame, when the router can navigate.
+    _deepLinks = DeepLinkService()
+      ..initialize(onLink: (link) => _router.go(link.location));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _deepLinks.markReady();
+    });
+
     final internetService =
         widget.internetConnectionService ?? InternetConnectionServiceImpl();
     _internetCubit = InternetCubit(internetService);
@@ -327,6 +351,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _deviceRegistration.dispose();
     _polls.dispose();
     unawaited(widget.draftPolls.close());
+    unawaited(_deepLinks.dispose());
     _router.dispose();
     unawaited(_internetCubit.close());
     super.dispose();

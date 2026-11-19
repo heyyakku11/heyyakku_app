@@ -34,7 +34,7 @@ class InstagramStoryChannel {
   const InstagramStoryChannel();
 
   static const MethodChannel _channel = MethodChannel(
-    'com.example.yakku_dev/instagram_story',
+    'com.yakku.app/instagram_story',
   );
 
   /// Opens the Story composer with the PNG at [imagePath] as the background.

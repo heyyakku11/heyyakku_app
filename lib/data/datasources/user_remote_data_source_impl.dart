@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
+import 'package:yakku/data/models/community/community_queued_question.dart';
 import 'package:yakku/data/models/personality/personality_card.dart';
+import 'package:yakku/data/models/plans/yakku_plan.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
@@ -33,6 +35,25 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       throw StateError(apiResponse.message ?? 'Failed to load user profile');
     }
 
+    return apiResponse.data!;
+  }
+
+  @override
+  Future<List<YakkuPlan>> listPlans() async {
+    final response = await dio.get<Map<String, dynamic>>(ApiRoutes.plans);
+    final body = response.data;
+    if (body == null) throw StateError('Empty plans response');
+
+    final apiResponse = ApiResponse<List<YakkuPlan>>.fromJson(body, (json) {
+      final list = json is List ? json : const [];
+      return [
+        for (final item in list)
+          if (item is Map<String, dynamic>) YakkuPlan.fromJson(item),
+      ];
+    });
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(apiResponse.message ?? 'Failed to load plans');
+    }
     return apiResponse.data!;
   }
 
@@ -131,6 +152,56 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
+  Future<SharedPersonalityCard> getSharedPersonalityCard(
+    String shareCode,
+  ) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.sharedPersonalityCard(shareCode),
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty shared personality card response');
+    }
+
+    final apiResponse = ApiResponse<SharedPersonalityCard>.fromJson(
+      body,
+      (json) => SharedPersonalityCard.fromJson(json as Map<String, dynamic>),
+    );
+    final card = apiResponse.data;
+    if (!apiResponse.success || card == null) {
+      throw StateError(
+        apiResponse.message ?? 'Failed to load personality card',
+      );
+    }
+    return card;
+  }
+
+  @override
+  Future<PersonalityVoteResult> votePersonalityCard(
+    String shareCode,
+    List<String> traitIds,
+  ) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.personalityVote(shareCode),
+      data: <String, dynamic>{'traitIds': traitIds},
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty personality vote response');
+    }
+
+    final apiResponse = ApiResponse<PersonalityVoteResult>.fromJson(
+      body,
+      (json) => PersonalityVoteResult.fromJson(json as Map<String, dynamic>),
+    );
+    final result = apiResponse.data;
+    if (!apiResponse.success || result == null) {
+      throw StateError(apiResponse.message ?? 'Failed to submit your vote');
+    }
+    return result;
+  }
+
+  @override
   Future<List<PersonalityTrait>> getPersonalityTraits() async {
     final response = await dio.get<Map<String, dynamic>>(
       ApiRoutes.personalityTraits,
@@ -198,6 +269,97 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     if (!apiResponse.success) {
       throw StateError(apiResponse.message ?? 'Could not save your request');
     }
+  }
+
+  @override
+  Future<List<CommunityQueuedQuestion>> listCommunityQueuedQuestions() async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.communityQueuedQuestions,
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty queued questions response');
+
+    final apiResponse = ApiResponse<List<CommunityQueuedQuestion>>.fromJson(
+      body,
+      (json) {
+        final list = json is List ? json : const [];
+        return [
+          for (final item in list)
+            if (item is Map<String, dynamic>)
+              CommunityQueuedQuestion.fromJson(item),
+        ];
+      },
+    );
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(
+        apiResponse.message ?? 'Failed to load queued questions',
+      );
+    }
+    return apiResponse.data!;
+  }
+
+  @override
+  Future<CommunityQueuedQuestion> createCommunityQueuedQuestion({
+    required String question,
+    required List<String> tags,
+  }) async {
+    final response = await dio.post<Map<String, dynamic>>(
+      ApiRoutes.communityQueuedQuestions,
+      data: {'question': question, 'tags': tags},
+    );
+    return _parseQueuedQuestion(
+      response.data,
+      emptyMessage: 'Empty create queued question response',
+      failMessage: 'Could not queue your question',
+    );
+  }
+
+  @override
+  Future<CommunityQueuedQuestion> updateCommunityQueuedQuestion({
+    required String id,
+    required String question,
+    required List<String> tags,
+  }) async {
+    final response = await dio.put<Map<String, dynamic>>(
+      ApiRoutes.communityQueuedQuestion(id),
+      data: {'question': question, 'tags': tags},
+    );
+    return _parseQueuedQuestion(
+      response.data,
+      emptyMessage: 'Empty update queued question response',
+      failMessage: 'Could not update your question',
+    );
+  }
+
+  @override
+  Future<void> deleteCommunityQueuedQuestion(String id) async {
+    final response = await dio.delete<Map<String, dynamic>>(
+      ApiRoutes.communityQueuedQuestion(id),
+    );
+    final body = response.data;
+    if (body == null) throw StateError('Empty delete queued question response');
+    final apiResponse = ApiResponse<Object?>.fromJson(body, null);
+    if (!apiResponse.success) {
+      throw StateError(
+        apiResponse.message ?? 'Could not remove your question',
+      );
+    }
+  }
+
+  CommunityQueuedQuestion _parseQueuedQuestion(
+    Map<String, dynamic>? body, {
+    required String emptyMessage,
+    required String failMessage,
+  }) {
+    if (body == null) throw StateError(emptyMessage);
+    final apiResponse = ApiResponse<CommunityQueuedQuestion>.fromJson(
+      body,
+      (json) => CommunityQueuedQuestion.fromJson(json as Map<String, dynamic>),
+    );
+    if (!apiResponse.success || apiResponse.data == null) {
+      throw StateError(apiResponse.message ?? failMessage);
+    }
+    return apiResponse.data!;
   }
 
   @override

@@ -50,7 +50,7 @@ class SharePayload {
   factory SharePayload.create({
     required String shareCode,
     required String question,
-    String websiteBaseUrl = ApiConstants.webBaseUrl,
+    String? websiteBaseUrl,
     bool isPublic = true,
     List<String> options = const [],
     String path = 'vote',
@@ -67,7 +67,9 @@ class SharePayload {
     if (!isPublic) {
       throw const SharePayloadException(SharePayloadError.notPublic);
     }
-    final base = Uri.tryParse(websiteBaseUrl.trim());
+    final base = Uri.tryParse(
+      (websiteBaseUrl ?? ApiConstants.webBaseUrl).trim(),
+    );
     final host = base?.host.toLowerCase() ?? '';
     final isLocal =
         host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
@@ -103,13 +105,15 @@ class SharePayload {
   /// card's title, which share adapters use as the message headline.
   factory SharePayload.personality({
     required String shareCode,
-    String websiteBaseUrl = ApiConstants.webBaseUrl,
+    String? websiteBaseUrl,
   }) {
     final code = shareCode.trim();
     if (!PollDeepLink.isValidShareCode(code)) {
       throw const SharePayloadException(SharePayloadError.invalidShareCode);
     }
-    final base = Uri.tryParse(websiteBaseUrl.trim());
+    final base = Uri.tryParse(
+      (websiteBaseUrl ?? ApiConstants.webBaseUrl).trim(),
+    );
     final host = base?.host.toLowerCase() ?? '';
     if (base == null || base.scheme != 'https' || host.isEmpty) {
       throw const SharePayloadException(SharePayloadError.invalidBaseUrl);
@@ -132,7 +136,7 @@ class SharePayload {
 
   factory SharePayload.fromPollModel(
     PollModel poll, {
-    String websiteBaseUrl = ApiConstants.webBaseUrl,
+    String? websiteBaseUrl,
   }) => SharePayload.create(
     shareCode: poll.shareCode,
     question: poll.question,
@@ -141,7 +145,7 @@ class SharePayload {
 
   factory SharePayload.fromPollResponse(
     PollResponse poll, {
-    String websiteBaseUrl = ApiConstants.webBaseUrl,
+    String? websiteBaseUrl,
   }) => SharePayload.create(
     shareCode: poll.shareCode,
     question: poll.question,

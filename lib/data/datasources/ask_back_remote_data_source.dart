@@ -34,9 +34,25 @@ abstract interface class AskBackRemoteDataSource {
     String lastReadMessageId,
   );
 
-  Future<AskBackConversation> setMuted(String conversationId, bool muted);
-  Future<AskBackConversation> close(String conversationId);
   Future<AskBackConversation> reopen(String conversationId);
+
+  /// Blocks the other person. The server always files a report ([reason] is
+  /// the label the user picked) and ends the chat; blocking also stops that
+  /// person from voting on the user's cards or asking them back.
   Future<AskBackConversation> block(String conversationId, {String? reason});
-  Future<AskBackConversation> unblock(String conversationId);
+
+  /// `GET /api/v1/ask-back/access`: whether the card of [voteId] is unlocked,
+  /// how, and what the user's plan allows.
+  Future<AskBackAccess> getAccess(String voteId);
+
+  /// `GET /api/v1/ask-back/card-access`: the same as [getAccess] for the card
+  /// itself ([contentType] is `poll` or `check`, [contentId] the poll id or the
+  /// made check's id). `reasonsRevealed` false means the free plan: reasons
+  /// other than each option's top one are hidden.
+  Future<AskBackAccess> getCardAccess(String contentType, String contentId);
+
+  /// `POST /api/v1/ask-back/unlocks`: unlocks the card of [voteId] with a plan
+  /// ticket. Fails with a 403 `ASK_BACK_UNLOCK_REQUIRED` when there is no plan
+  /// or no ticket left.
+  Future<AskBackAccess> unlock(String voteId);
 }

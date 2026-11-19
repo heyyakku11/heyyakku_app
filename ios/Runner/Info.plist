@@ -47,11 +47,14 @@
 				</array>
 			</dict>
 		</dict>
+		<!-- Links are handled by DeepLinkService (app_links), not Flutter's router. -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>
 				<key>CFBundleURLName</key>
-				<string>com.example.yakku_dev</string>
+				<string>com.yakku.app.dev</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>yakku</string>

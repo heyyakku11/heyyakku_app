@@ -22,8 +22,55 @@ Yakku is a Flutter prototype for anonymous mobile polls. Create a question, coll
 
 ```bash
 flutter pub get
-flutter run
 ```
+
+The app uses Android product flavors (`dev`, `staging`, `production`) plus
+`--dart-define=ENV=...` for Firebase options and API/web base URLs.
+
+| Flavor | Application ID | ENV | Launcher name |
+| --- | --- | --- | --- |
+| `dev` | `com.yakku.app.dev` | `dev` | YAKKU Dev |
+| `staging` | `com.yakku.app.staging` | `staging` | YAKKU Stage |
+| `production` | `com.yakku.app` | `production` | YAKKU |
+
+```bash
+# Dev
+flutter run --flavor dev --dart-define=ENV=dev
+
+# Staging
+flutter run --flavor staging --dart-define=ENV=staging
+
+# Production
+flutter run --flavor production --dart-define=ENV=production
+```
+
+Keep Firebase native configs under `/firebase` (one folder per environment):
+
+```
+firebase/
+├── dev/
+│   ├── google-services.json
+│   └── GoogleService-Info.plist
+├── staging/          # add configs when the staging Firebase project is ready
+└── production/       # add configs when the production Firebase project is ready
+```
+
+Add `google-services.json` and `GoogleService-Info.plist` into each env folder
+when that Firebase project exists. Real config files are gitignored.
+
+- **Android:** Gradle copies `firebase/<flavor>/google-services.json` into
+  `android/app/src/<flavor>/` automatically for the selected flavor.
+- **iOS:** before building, copy the plist for the active env:
+
+```powershell
+.\tool\copy_firebase_ios.ps1 -Env dev
+```
+
+```bash
+./tool/copy_firebase_ios.sh dev
+```
+
+Dart-side Firebase options live under `lib/firebase/`.
 
 Analyze and test:
 

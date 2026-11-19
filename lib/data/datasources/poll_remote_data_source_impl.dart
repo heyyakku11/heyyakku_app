@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source.dart';
 import 'package:yakku/data/models/auth/api_response.dart';
@@ -31,9 +32,25 @@ class PollRemoteDataSourceImpl implements PollRemoteDataSource {
 
   @override
   Future<PollResponse> getPollByShareCode(String shareCode) async {
-    final response = await dio.get<Map<String, dynamic>>(
-      ApiRoutes.sharedContent(shareCode),
-    );
+    // TEMPORARY: request/response logging to inspect share-card failures.
+    final url = '${dio.options.baseUrl}${ApiRoutes.sharedContent(shareCode)}';
+    debugPrint('Share code: $shareCode');
+    debugPrint('API URL: $url');
+
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await dio.get<Map<String, dynamic>>(
+        ApiRoutes.sharedContent(shareCode),
+      );
+    } on DioException catch (error) {
+      // Dio throws on non-2xx, so log the error response here.
+      debugPrint('Response status: ${error.response?.statusCode}');
+      debugPrint('Response body: ${error.response?.data}');
+      rethrow;
+    }
+
+    debugPrint('Response status: ${response.statusCode}');
+    debugPrint('Response body: ${response.data}');
 
     final content = _unwrap(
       response.data,

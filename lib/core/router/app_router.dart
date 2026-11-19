@@ -8,6 +8,7 @@ import 'package:yakku/presentation/screens/answer_poll_screen.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_chat_screen.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_list_screen.dart';
 import 'package:yakku/presentation/screens/onboarding_screen.dart';
+import 'package:yakku/presentation/screens/personality/shared_personality_screen.dart';
 import 'package:yakku/presentation/screens/otp_screen.dart';
 import 'package:yakku/presentation/screens/poll_flow_args.dart';
 import 'package:yakku/presentation/screens/card_results_screen.dart';
@@ -67,15 +68,11 @@ abstract final class AppRouter {
           }
           if (!onOnboarding && !onSignUp) {
             // Keep a shared-poll destination through onboarding / login.
-            final shareCode = PollDeepLink.shareCodeFromPath(state.uri);
-            if (shareCode == null) return entry;
+            final link = PollDeepLink.fromPath(state.uri);
+            if (link == null) return entry;
             return Uri(
               path: entry,
-              queryParameters: {
-                PollDeepLink.returnToParam: AppRoutes.pollVoteLocation(
-                  shareCode,
-                ),
-              },
+              queryParameters: {PollDeepLink.returnToParam: link.location},
             ).toString();
           }
         }
@@ -147,6 +144,14 @@ abstract final class AppRouter {
           path: AppRoutes.pollVote,
           name: AppRoutes.pollVoteName,
           builder: (context, state) => SharedPollScreen(
+            key: ValueKey(state.pathParameters['shareCode']),
+            shareCode: state.pathParameters['shareCode'] ?? '',
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.personalityVote,
+          name: AppRoutes.personalityVoteName,
+          builder: (context, state) => SharedPersonalityScreen(
             key: ValueKey(state.pathParameters['shareCode']),
             shareCode: state.pathParameters['shareCode'] ?? '',
           ),

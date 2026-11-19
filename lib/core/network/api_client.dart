@@ -7,7 +7,7 @@ import 'package:yakku/core/network/auth_interceptor.dart';
 
 abstract final class ApiClient {
   static BaseOptions get _baseOptions => BaseOptions(
-    baseUrl: ApiConstants.baseUrl,
+    baseUrl: ApiConstants.backendBaseUrl,
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
     sendTimeout: const Duration(seconds: 30),

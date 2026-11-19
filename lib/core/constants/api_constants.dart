@@ -1,10 +1,13 @@
 abstract final class ApiConstants {
-  //development, staging, production
-  static const String environment = "development";
+  /// Build with `--dart-define=ENV=dev|staging|production` (matches Android flavors).
+  static const String environment = String.fromEnvironment(
+    'ENV',
+    defaultValue: 'dev',
+  );
 
   static String get backendBaseUrl {
     switch (environment) {
-      case 'development':
+      case 'dev':
         return 'https://heyyakku-backend.onrender.com';
 
       case 'staging':
@@ -15,25 +18,25 @@ abstract final class ApiConstants {
 
       default:
         throw UnsupportedError(
-          'Unknown environment: $environment',
+          'Unknown environment: $environment. Use ENV=dev|staging|production.',
         );
     }
   }
 
   static String get webBaseUrl {
     switch (environment) {
-      case 'development':
-        return 'https://heyyakku-web-git-develop-heyyakku33-9072.vercel.app/';
+      case 'dev':
+        return 'https://heyyakku-web-git-develop-heyyakku33-9072.vercel.app';
 
       case 'staging':
-        return 'https://heyyakku-web-git-staging-heyyakku33-9072.vercel.app/';
+        return 'https://heyyakku-web-git-staging-heyyakku33-9072.vercel.app';
 
       case 'production':
         return '';
 
       default:
         throw UnsupportedError(
-          'Unknown environment: $environment',
+          'Unknown environment: $environment. Use ENV=dev|staging|production.',
         );
     }
   }
@@ -43,10 +46,10 @@ abstract final class ApiConstants {
   static const String supportEmail = 'contact@heyyakku.com';
 
   /// Public privacy policy and terms page on the website.
-  static  String policyUrl = '$webBaseUrl/policy';
+  static String get policyUrl => '$webBaseUrl/policy';
 
   /// Public terms of service page on the website.
-  static  String termsUrl = '$webBaseUrl/terms';
+  static String get termsUrl => '$webBaseUrl/terms';
 
   /// The link friends open to vote on someone's personality card.
   static String personalityCardUrl(String shareCode) =>

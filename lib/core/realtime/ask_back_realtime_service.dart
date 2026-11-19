@@ -112,7 +112,7 @@ class AskBackRealtimeService implements AskBackRealtime {
   HubConnection _build() {
     final connection = HubConnectionBuilder()
         .withUrl(
-          '${ApiConstants.baseUrl}${ApiRoutes.askBackHub}',
+          '${ApiConstants.backendBaseUrl}${ApiRoutes.askBackHub}',
           options: HttpConnectionOptions(
             // The token goes in the query string (access_token): a mobile
             // WebSocket cannot send an Authorization header.

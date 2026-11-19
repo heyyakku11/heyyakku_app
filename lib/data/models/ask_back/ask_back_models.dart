@@ -16,6 +16,23 @@ enum AskBackStatus {
   }
 }
 
+/// Whose turn it is in a conversation, as the signed-in user sees it: the asker
+/// sends first, the voter replies once, then the asker again; [done] when every
+/// allowed question has been answered.
+enum AskBackTurn {
+  me,
+  them,
+  done;
+
+  static AskBackTurn parse(Object? value) {
+    return switch (value) {
+      'me' => AskBackTurn.me,
+      'done' => AskBackTurn.done,
+      _ => AskBackTurn.them,
+    };
+  }
+}
+
 class AskBackParticipant {
   const AskBackParticipant({
     required this.anonymousName,
@@ -37,12 +54,20 @@ class AskBackParticipant {
 class AskBackContext {
   const AskBackContext({
     required this.contentType,
+    this.contentId,
+    this.title,
     this.question,
     this.selectedOption,
     this.reason,
   });
 
   final String contentType;
+
+  /// Poll or made-check id; used to unlock the card from chat.
+  final String? contentId;
+
+  /// Short list tag: a check's title, or "Question" for a poll.
+  final String? title;
   final String? question;
   final String? selectedOption;
   final String? reason;
@@ -50,6 +75,8 @@ class AskBackContext {
   factory AskBackContext.fromJson(Map<String, dynamic> json) {
     return AskBackContext(
       contentType: json['contentType'] as String? ?? 'poll',
+      contentId: json['contentId']?.toString(),
+      title: json['title'] as String?,
       question: json['question'] as String?,
       selectedOption: json['selectedOption'] as String?,
       reason: json['reason'] as String?,
@@ -65,11 +92,14 @@ class AskBackConversation {
     required this.other,
     required this.context,
     required this.createdAt,
-    required this.isMuted,
     required this.unreadCount,
     required this.canSend,
     required this.canReopen,
     required this.canUnblock,
+    this.turn = AskBackTurn.them,
+    this.messagesLeft,
+    this.isPaused = false,
+    this.waitingReplies,
   });
 
   final String id;
@@ -80,11 +110,24 @@ class AskBackConversation {
   final AskBackParticipant other;
   final AskBackContext context;
   final DateTime createdAt;
-  final bool isMuted;
   final int unreadCount;
+
+  /// Active, not paused and my turn.
   final bool canSend;
   final bool canReopen;
+
+  /// True only for the person who blocked, so only they see "blocked".
   final bool canUnblock;
+  final AskBackTurn turn;
+
+  /// Messages I can still send; null when there is no limit.
+  final int? messagesLeft;
+
+  /// Read-only for both people because the asker's plan expired.
+  final bool isPaused;
+
+  /// Reasons still on the card; set when the free ask back is used up.
+  final int? waitingReplies;
 
   bool get isAsker => myRole == 'asker';
 
@@ -96,11 +139,83 @@ class AskBackConversation {
       other: AskBackParticipant.fromJson(_map(json['other'])),
       context: AskBackContext.fromJson(_map(json['context'])),
       createdAt: DateTime.parse(json['createdAt'] as String),
-      isMuted: json['isMuted'] as bool? ?? false,
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       canSend: json['canSend'] as bool? ?? false,
       canReopen: json['canReopen'] as bool? ?? false,
       canUnblock: json['canUnblock'] as bool? ?? false,
+      turn: AskBackTurn.parse(json['turn']),
+      messagesLeft: (json['messagesLeft'] as num?)?.toInt(),
+      isPaused: json['isPaused'] as bool? ?? false,
+      waitingReplies: (json['waitingReplies'] as num?)?.toInt(),
+    );
+  }
+}
+
+/// What the owner can do with Ask Back on one card: `GET /ask-back/access` and
+/// the answer of `POST /ask-back/unlocks`.
+class AskBackAccess {
+  const AskBackAccess({
+    required this.unlocked,
+    required this.paused,
+    required this.planCode,
+    required this.planName,
+    required this.planExpired,
+    required this.canUnlock,
+    this.reasonsRevealed = true,
+    this.unlockSource,
+    this.planExpiresAt,
+    this.ticketsLeft,
+    this.messageLimit,
+    this.unlimitedMessages = false,
+  });
+
+  /// Every reason on the card can be asked back.
+  final bool unlocked;
+
+  /// The owner can read every reason on the card (bought on its own, or an
+  /// active paid plan). False on the free plan, where only each option's top
+  /// reason is readable. Defaults to true for an older server.
+  final bool reasonsRevealed;
+
+  /// `plan` or `purchase` when unlocked.
+  final String? unlockSource;
+
+  /// Unlocked through a plan that has expired: chats are read-only.
+  final bool paused;
+  final String planCode;
+  final String planName;
+  final DateTime? planExpiresAt;
+
+  /// A paid plan was bought and has ended.
+  final bool planExpired;
+
+  /// Tickets left; null when there is no ticket limit or no active plan.
+  final int? ticketsLeft;
+
+  /// The active plan can unlock this card now.
+  final bool canUnlock;
+
+  /// Questions per reason; null with [unlimitedMessages] means no limit.
+  final int? messageLimit;
+  final bool unlimitedMessages;
+
+  bool get isFreePlan => planCode == 'free';
+
+  factory AskBackAccess.fromJson(Map<String, dynamic> json) {
+    final expires = json['planExpiresAt'];
+    return AskBackAccess(
+      unlocked: json['unlocked'] as bool? ?? false,
+      reasonsRevealed: json['reasonsRevealed'] as bool? ?? true,
+      unlockSource: json['unlockSource'] as String?,
+      paused: json['paused'] as bool? ?? false,
+      planCode: json['planCode'] as String? ?? 'free',
+      planName: json['planName'] as String? ?? 'Free',
+      planExpiresAt: expires is String ? DateTime.tryParse(expires) : null,
+      planExpired: json['planExpired'] as bool? ?? false,
+      ticketsLeft: (json['ticketsLeft'] as num?)?.toInt(),
+      canUnlock: json['canUnlock'] as bool? ?? false,
+      messageLimit: (json['messageLimit'] as num?)?.toInt(),
+      unlimitedMessages: json['unlimitedMessages'] as bool? ?? false,
     );
   }
 }
@@ -134,17 +249,37 @@ class AskBackListItem {
     required this.lastMessage,
     required this.lastActivityAt,
     required this.unreadCount,
-    required this.isMuted,
+    this.context = const AskBackContext(contentType: 'poll'),
+    this.turn = AskBackTurn.them,
+    this.canSend = false,
+    this.isPaused = false,
+    this.messagesLeft,
   });
 
   final String id;
   final AskBackStatus status;
   final String myRole;
   final AskBackParticipant other;
+  final AskBackContext context;
   final AskBackPreview? lastMessage;
   final DateTime lastActivityAt;
   final int unreadCount;
-  final bool isMuted;
+  final AskBackTurn turn;
+  final bool canSend;
+  final bool isPaused;
+  final int? messagesLeft;
+
+  bool get isAsker => myRole == 'asker';
+
+  /// Closed, blocked, finished, or paused: the Ended tab.
+  bool get isEnded =>
+      status != AskBackStatus.active || turn == AskBackTurn.done || isPaused;
+
+  /// Active and my turn to write.
+  bool get isYourTurn => !isEnded && turn == AskBackTurn.me;
+
+  /// Active and waiting for the other person.
+  bool get isWaiting => !isEnded && turn == AskBackTurn.them;
 
   factory AskBackListItem.fromJson(Map<String, dynamic> json) {
     final last = json['lastMessage'];
@@ -153,12 +288,16 @@ class AskBackListItem {
       status: AskBackStatus.parse(json['status']),
       myRole: json['myRole'] as String? ?? 'voter',
       other: AskBackParticipant.fromJson(_map(json['other'])),
+      context: AskBackContext.fromJson(_map(json['context'])),
       lastMessage: last is Map
           ? AskBackPreview.fromJson(Map<String, dynamic>.from(last))
           : null,
       lastActivityAt: DateTime.parse(json['lastActivityAt'] as String),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
-      isMuted: json['isMuted'] as bool? ?? false,
+      turn: AskBackTurn.parse(json['turn']),
+      canSend: json['canSend'] as bool? ?? false,
+      isPaused: json['isPaused'] as bool? ?? false,
+      messagesLeft: (json['messagesLeft'] as num?)?.toInt(),
     );
   }
 
@@ -167,17 +306,24 @@ class AskBackListItem {
     AskBackPreview? lastMessage,
     DateTime? lastActivityAt,
     int? unreadCount,
-    bool? isMuted,
+    AskBackTurn? turn,
+    bool? canSend,
+    bool? isPaused,
+    AskBackContext? context,
   }) {
     return AskBackListItem(
       id: id,
       status: status ?? this.status,
       myRole: myRole,
       other: other,
+      context: context ?? this.context,
       lastMessage: lastMessage ?? this.lastMessage,
       lastActivityAt: lastActivityAt ?? this.lastActivityAt,
       unreadCount: unreadCount ?? this.unreadCount,
-      isMuted: isMuted ?? this.isMuted,
+      turn: turn ?? this.turn,
+      canSend: canSend ?? this.canSend,
+      isPaused: isPaused ?? this.isPaused,
+      messagesLeft: messagesLeft,
     );
   }
 }

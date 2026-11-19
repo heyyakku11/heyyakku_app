@@ -8,6 +8,9 @@ abstract final class ApiRoutes {
   // Devices
   static const String currentDevice = '/api/v1/devices/me';
 
+  /// Public catalog of subscription plans (ordered by hierarchy).
+  static const String plans = '/api/v1/plans';
+
   // Checks
   static const String checks = '/api/v1/checks';
   static const String makeCheck = '/api/v1/checks/make';
@@ -61,6 +64,14 @@ abstract final class ApiRoutes {
   static const String myPersonalityCard = '/api/v1/personality-cards/me';
   static String personalityResults(String shareCode) =>
       '/api/v1/personality-cards/$shareCode/results';
+
+  /// A friend's card as a voter sees it (`GET`).
+  static String sharedPersonalityCard(String shareCode) =>
+      '/api/v1/personality-cards/$shareCode';
+
+  /// Votes on a friend's card (`POST`).
+  static String personalityVote(String shareCode) =>
+      '/api/v1/personality-cards/$shareCode/votes';
   static const String personalitySelfAssessment =
       '/api/v1/personality-cards/me/self-assessment';
   static const String personalityCommunitySharing =
@@ -69,6 +80,12 @@ abstract final class ApiRoutes {
 
   /// Asks to be notified when the community goes live.
   static const String communityNotifyMe = '/api/v1/community/notify-me';
+
+  /// Queued community questions (before Community opens).
+  static const String communityQueuedQuestions =
+      '/api/v1/community/queued-questions';
+  static String communityQueuedQuestion(String id) =>
+      '$communityQueuedQuestions/$id';
   static const String regenerateAnonymousName =
       '/api/v1/users/me/anonymous-name';
 
@@ -91,14 +108,19 @@ abstract final class ApiRoutes {
   static String askBackMessages(String id) =>
       '$askBackConversations/$id/messages';
   static String askBackRead(String id) => '$askBackConversations/$id/read';
-  static String askBackMute(String id) => '$askBackConversations/$id/mute';
-  static String askBackClose(String id) => '$askBackConversations/$id/close';
   static String askBackReopen(String id) => '$askBackConversations/$id/reopen';
   static String askBackBlock(String id) => '$askBackConversations/$id/block';
-  static String askBackUnblock(String id) =>
-      '$askBackConversations/$id/unblock';
 
-  /// SignalR hub for Ask Back real-time events (path only; see [ApiConstants.baseUrl]).
+  /// `GET ?voteId=`: what the owner can do with Ask Back on the card of a vote.
+  static const String askBackAccess = '/api/v1/ask-back/access';
+
+  /// `GET ?contentType=poll|check&contentId=`: the same, named by the card.
+  static const String askBackCardAccess = '/api/v1/ask-back/card-access';
+
+  /// `POST {voteId}`: unlocks the card with a plan ticket.
+  static const String askBackUnlocks = '/api/v1/ask-back/unlocks';
+
+  /// SignalR hub for Ask Back real-time events (path only; see [ApiConstants.backendBaseUrl]).
   static const String askBackHub = '/hubs/ask-back';
 
   // Media upload sessions

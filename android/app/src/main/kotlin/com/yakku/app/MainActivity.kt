@@ -1,4 +1,4 @@
-package com.example.yakku_dev
+package com.yakku.app
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -87,7 +87,7 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val TAG = "YakkuStoryShare"
-        const val STORY_CHANNEL = "com.example.yakku_dev/instagram_story"
+        const val STORY_CHANNEL = "com.yakku.app/instagram_story"
         const val STORY_ACTION = "com.instagram.share.ADD_TO_STORY"
         const val INSTAGRAM_PACKAGE = "com.instagram.android"
     }

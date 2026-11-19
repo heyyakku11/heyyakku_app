@@ -1,4 +1,6 @@
+import 'package:yakku/data/models/community/community_queued_question.dart';
 import 'package:yakku/data/models/personality/personality_card.dart';
+import 'package:yakku/data/models/plans/yakku_plan.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
 import 'package:yakku/data/models/poll/saved_poll_state_response.dart';
@@ -9,11 +11,33 @@ import 'package:yakku/data/models/user/user_profile_response.dart';
 abstract interface class UserRemoteDataSource {
   Future<UserProfileResponse> getMe();
 
+  /// `GET /api/v1/plans`: subscription catalog in hierarchy order.
+  Future<List<YakkuPlan>> listPlans();
+
   /// `GET /api/v1/users/me/settings`: the account-level settings.
   Future<UserSettings> getSettings();
 
   /// Adds the signed-in user to the queue notified when the community goes live. Safe to repeat.
   Future<void> joinCommunityWaitlist();
+
+  /// `GET /api/v1/community/queued-questions`: the caller's queued questions.
+  Future<List<CommunityQueuedQuestion>> listCommunityQueuedQuestions();
+
+  /// `POST /api/v1/community/queued-questions`: queues a question (max 3).
+  Future<CommunityQueuedQuestion> createCommunityQueuedQuestion({
+    required String question,
+    required List<String> tags,
+  });
+
+  /// `PUT /api/v1/community/queued-questions/{id}`: updates an owned queued question.
+  Future<CommunityQueuedQuestion> updateCommunityQueuedQuestion({
+    required String id,
+    required String question,
+    required List<String> tags,
+  });
+
+  /// `DELETE /api/v1/community/queued-questions/{id}`: removes an owned queued question.
+  Future<void> deleteCommunityQueuedQuestion(String id);
 
   /// `PATCH /api/v1/users/me/settings`: changes the settings that are given
   /// and returns all of them. Independent of the device's push setting.
@@ -39,6 +63,18 @@ abstract interface class UserRemoteDataSource {
   /// completed card's final result in the community on or off. Returns the
   /// saved choice.
   Future<bool> setPersonalityCommunitySharing(bool share);
+
+  /// `GET /api/v1/personality-cards/{shareCode}`: a friend's card as a voter
+  /// sees it (own card, already voted, can vote).
+  Future<SharedPersonalityCard> getSharedPersonalityCard(String shareCode);
+
+  /// `POST /api/v1/personality-cards/{shareCode}/votes`: picks exactly 3
+  /// distinct traits that describe the card's owner. One vote per voter, never
+  /// on your own card.
+  Future<PersonalityVoteResult> votePersonalityCard(
+    String shareCode,
+    List<String> traitIds,
+  );
 
   /// `GET /api/v1/personality/traits`: the predefined traits friends pick from.
   Future<List<PersonalityTrait>> getPersonalityTraits();

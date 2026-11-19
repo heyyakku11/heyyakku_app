@@ -10,7 +10,7 @@ the user adds one in Instagram and pastes the link.
 
 `created_poll_screen.dart` → `ShareCoordinator` → `InstagramShareAdapter`
 (story) → `StoryImageService.render` → `InstagramStoryChannel` →
-native `shareToStory` (MethodChannel `com.example.yakku_dev/instagram_story`).
+native `shareToStory` (MethodChannel `com.yakku.app/instagram_story`).
 
 - Android: `MainActivity.kt` sends `com.instagram.share.ADD_TO_STORY` with a
   FileProvider `content://` URI (`${applicationId}.storyfileprovider`, see
