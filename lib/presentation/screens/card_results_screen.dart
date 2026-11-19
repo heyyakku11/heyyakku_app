@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
@@ -16,6 +18,7 @@ import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
 import 'package:yakku/presentation/widgets/report_reason_sheet.dart';
 import 'package:yakku/presentation/widgets/results_locked_view.dart';
+import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 /// Results screen: a pick versus the crowd, then every option ranked by votes.
 ///
@@ -83,10 +86,53 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadPoll());
     }
     if (_canSeeReasons) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _markCardNotificationsRead(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _markCardNotificationsRead();
+        _loadAccess();
+      });
     }
+  }
+
+  /// What the owner's plan lets them read on this card. Null until loaded, and
+  /// when it could not be (then nothing is offered for sale).
+  AskBackAccess? _access;
+
+  Future<void> _loadAccess() async {
+    if (!mounted || !_canSeeReasons) return;
+    final check = widget.check;
+    final contentId = check?.id ?? widget.pollId;
+    if (contentId == null) return;
+    try {
+      final access = await AppScope.of(
+        context,
+      ).askBack.getCardAccess(check != null ? 'check' : 'poll', contentId);
+      if (!mounted) return;
+      setState(() => _access = access);
+    } catch (_) {
+      // Keep what we had: the screen works without the plan call to action.
+    }
+  }
+
+  /// Reasons hidden on the free plan: every reason but each option's top one,
+  /// and every written-in answer but one.
+  int _hiddenReasons(_ResultsData data) =>
+      data.tallies.fold<int>(
+        0,
+        (sum, tally) => sum + (tally.whyCount > 1 ? tally.whyCount - 1 : 0),
+      ) +
+      (data.customCount > 1 ? data.customCount - 1 : 0);
+
+  /// The "Unlock now" bar shows on the free plan only, and only while there is
+  /// something hidden. A plan or a bought card reveals every reason.
+  bool _showUnlockBar(_ResultsData? data) {
+    final access = _access;
+    if (access == null || access.reasonsRevealed || data == null) return false;
+    return _lockedBody() == null && _hiddenReasons(data) > 0;
+  }
+
+  Future<void> _openPlans() async {
+    final bought = await showYakkuPlans(context);
+    if (bought && mounted) await _loadAccess();
   }
 
   /// Reasons are anonymous but owner-only: the owner of a poll (opened by id)
@@ -430,6 +476,7 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
                 title: _lockedCheckTitle ?? 'Results',
               ),
               Expanded(child: _body(data)),
+              if (_showUnlockBar(data)) _UnlockBar(onTap: _openPlans),
             ],
           ),
         ),
@@ -678,6 +725,7 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
               top: i == 0 && tallies[i].votes > 0,
               loadReasons: _canSeeReasons ? _loadReasons : null,
               onReport: _reportReason,
+              onReturn: _loadAccess,
             ),
             const SizedBox(height: 10),
           ],
@@ -687,17 +735,19 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             loadAnswers: _canSeeReasons ? _loadCustomAnswers : null,
             onReport: _reportReason,
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Tap an answer to read one reason free. Every other %, reason and added option opens with a plan.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _muted,
-              fontSize: 14,
-              height: 1.4,
-              fontWeight: FontWeight.w400,
+          if (_showUnlockBar(data)) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Tap an answer to read one reason free. Every other reason opens with a plan.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _muted,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w400,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1411,7 +1461,9 @@ class _ResultBarRow extends StatelessWidget {
   final Color fill;
   final Color pillColor;
   final Color pillInk;
-  final IconData pillIcon;
+
+  /// Count-pill leading icon (Material [Icon] or Font Awesome [FaIcon]).
+  final Widget pillIcon;
   final bool top;
 
   /// Makes the whole row tappable (opens the option's reasons screen).
@@ -1536,7 +1588,7 @@ class _CountPill extends StatelessWidget {
   });
 
   final int count;
-  final IconData icon;
+  final Widget icon;
   final Color background;
   final Color ink;
 
@@ -1553,7 +1605,7 @@ class _CountPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: ink),
+          icon,
           const SizedBox(width: 6),
           Text(
             '$count',
@@ -1577,9 +1629,13 @@ class _ResultRow extends StatefulWidget {
     this.top = false,
     this.loadReasons,
     required this.onReport,
+    this.onReturn,
   });
 
   final _Tally tally;
+
+  /// Called when the reasons screen closes: a plan may have been bought there.
+  final VoidCallback? onReturn;
 
   /// The leading answer gets a raspberry border and a bolder bar.
   final bool top;
@@ -1602,19 +1658,21 @@ class _ResultRowState extends State<_ResultRow> {
 
   void _open() {
     final tally = widget.tally;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OptionReasonsScreen(
-          label: tally.label,
-          percent: tally.percent,
-          fraction: tally.fraction,
-          votes: tally.votes,
-          count: _count,
-          loadReasons: () => widget.loadReasons!(tally.id),
-          onReport: widget.onReport,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => OptionReasonsScreen(
+              label: tally.label,
+              percent: tally.percent,
+              fraction: tally.fraction,
+              votes: tally.votes,
+              count: _count,
+              loadReasons: () => widget.loadReasons!(tally.id),
+              onReport: widget.onReport,
+            ),
+          ),
+        )
+        .then((_) => widget.onReturn?.call());
   }
 
   @override
@@ -1629,9 +1687,84 @@ class _ResultRowState extends State<_ResultRow> {
       fill: widget.top ? YakkuPalette.pinkWash : YakkuPalette.blushFill,
       pillColor: YakkuPalette.pillPink,
       pillInk: YakkuPalette.primary,
-      pillIcon: Icons.chat_bubble_outline_rounded,
+      // Circular outline bubble (tail bottom-left), same as elsewhere in the app.
+      pillIcon: const FaIcon(
+        FontAwesomeIcons.comment,
+        size: 14,
+        color: YakkuPalette.primary,
+      ),
       top: widget.top,
       onTap: _canOpen ? _open : null,
+    );
+  }
+}
+
+/// The bar pinned under the results on the free plan: "See what they really
+/// think" with an Unlock now button that opens the plans sheet.
+class _UnlockBar extends StatelessWidget {
+  const _UnlockBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  static const _night = Color(0xFF211A1D);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: YakkuPalette.pillPink,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _night, width: 1.6),
+          boxShadow: const [BoxShadow(color: _night, offset: Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: YakkuPalette.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                size: 22,
+                color: YakkuPalette.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'See what they\nreally think',
+                style: TextStyle(
+                  color: YakkuPalette.textPrimary,
+                  fontSize: 15,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            FilledButton(
+              key: const ValueKey('unlock-now'),
+              onPressed: onTap,
+              style: FilledButton.styleFrom(
+                backgroundColor: YakkuPalette.primary,
+                foregroundColor: YakkuPalette.white,
+                minimumSize: const Size(0, 46),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text(
+                'Unlock now',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1655,8 +1788,7 @@ class _OwnOptionsRow extends StatelessWidget {
 
   bool get _canOpen => loadAnswers != null && count > 0;
 
-  double get _fraction =>
-      total <= 0 ? 0.0 : (count / total).clamp(0.0, 1.0);
+  double get _fraction => total <= 0 ? 0.0 : (count / total).clamp(0.0, 1.0);
 
   void _open(BuildContext context) {
     Navigator.of(context).push(
@@ -1682,7 +1814,11 @@ class _OwnOptionsRow extends StatelessWidget {
       fill: YakkuPalette.accentPurple,
       pillColor: YakkuPalette.accentPurple,
       pillInk: YakkuPalette.purpleInk,
-      pillIcon: Icons.edit_outlined,
+      pillIcon: const FaIcon(
+        FontAwesomeIcons.penToSquare,
+        size: 18,
+        color: YakkuPalette.purpleInk,
+      ),
       onTap: _canOpen ? () => _open(context) : null,
     );
   }

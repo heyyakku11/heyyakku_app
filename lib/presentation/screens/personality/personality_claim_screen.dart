@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/network/api_exception.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
@@ -282,7 +281,7 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
       runSpacing: 14,
       children: [
         for (final trait in _traits)
-          _TraitChip(
+          GuessTraitChip(
             label: trait.name,
             selected: _selected.contains(trait.id),
             onTap: () => _toggle(trait),
@@ -298,66 +297,6 @@ class _PersonalityClaimScreenState extends State<PersonalityClaimScreen>
       onPressed: _askNow,
       // Fewer than 3 picked: shake the sticker to point at what is missing.
       onDisabledTap: _nudge,
-    );
-  }
-}
-
-class _TraitChip extends StatelessWidget {
-  const _TraitChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          decoration: BoxDecoration(
-            color: selected ? YakkuPalette.Ink : YakkuPalette.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: YakkuPalette.Ink, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: selected ? YakkuPalette.Raspberry : YakkuPalette.Ink,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (selected) ...[
-                const FaIcon(
-                  FontAwesomeIcons.check,
-                  size: 12,
-                  color: YakkuPalette.white,
-                ),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? YakkuPalette.white : YakkuPalette.Ink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

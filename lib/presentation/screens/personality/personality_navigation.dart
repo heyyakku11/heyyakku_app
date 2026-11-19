@@ -3,6 +3,7 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/presentation/screens/personality/personality_claim_screen.dart';
 import 'package:yakku/presentation/screens/personality/personality_result_screen.dart';
 import 'package:yakku/presentation/screens/personality/personality_share_screen.dart';
+
 /// "Ask now" on the personality card, by where the card is:
 /// - draft: the user has not made their own guess yet, so the claim screen
 ///   (step 1: pick 3 traits, then share);
@@ -43,10 +44,7 @@ Future<bool> openPersonalityAsk(
 }
 
 /// The completed card's result: who friends say you are, against your guess.
-Future<void> openPersonalityResult(
-  BuildContext context,
-  PersonalityCard card,
-) {
+Future<void> openPersonalityResult(BuildContext context, PersonalityCard card) {
   return Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => PersonalityResultScreen(shareCode: card.shareCode),

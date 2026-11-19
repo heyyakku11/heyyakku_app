@@ -48,23 +48,24 @@ Future<void> _pump(WidgetTester tester, List<PollModel> cards) {
 }
 
 void main() {
-  testWidgets('a live card whose result is available still shows Live and how long is left', (
-    tester,
-  ) async {
-    await _pump(tester, [
-      _card(
-        status: PollStatus.active,
-        expiresAt: DateTime.now().add(const Duration(hours: 18, minutes: 30)),
-        votes: 7,
-      ),
-    ]);
+  testWidgets(
+    'a live card whose result is available still shows Live and how long is left',
+    (tester) async {
+      await _pump(tester, [
+        _card(
+          status: PollStatus.active,
+          expiresAt: DateTime.now().add(const Duration(hours: 18, minutes: 30)),
+          votes: 7,
+        ),
+      ]);
 
-    expect(find.text('Live · 18h left'), findsOneWidget);
-    expect(find.text('7'), findsOneWidget);
-    expect(find.text('friends voted'), findsOneWidget);
-    expect(find.text('See live result'), findsOneWidget);
-    expect(find.textContaining('Ended'), findsNothing);
-  });
+      expect(find.text('Live · 18h left'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('friends voted'), findsOneWidget);
+      expect(find.text('See live result'), findsOneWidget);
+      expect(find.textContaining('Ended'), findsNothing);
+    },
+  );
 
   testWidgets('the time left counts down in days, hours and minutes', (
     tester,
@@ -86,23 +87,24 @@ void main() {
     expect(find.text('Live · 19m left'), findsOneWidget);
   });
 
-  testWidgets('a card that ended with a result shows Ended and the final result', (
-    tester,
-  ) async {
-    await _pump(tester, [
-      _card(
-        status: PollStatus.inactive,
-        closedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        votes: 12,
-      ),
-    ]);
+  testWidgets(
+    'a card that ended with a result shows Ended and the final result',
+    (tester) async {
+      await _pump(tester, [
+        _card(
+          status: PollStatus.inactive,
+          closedAt: DateTime.now().subtract(const Duration(hours: 2)),
+          votes: 12,
+        ),
+      ]);
 
-    expect(find.text('Ended · result ready'), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
-    expect(find.text('friends voted'), findsOneWidget);
-    expect(find.text('See final result'), findsOneWidget);
-    expect(find.textContaining('Live'), findsNothing);
-  });
+      expect(find.text('Ended · result ready'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+      expect(find.text('friends voted'), findsOneWidget);
+      expect(find.text('See final result'), findsOneWidget);
+      expect(find.textContaining('Live'), findsNothing);
+    },
+  );
 
   testWidgets('a card past its end time is ended even if still marked active', (
     tester,
@@ -118,20 +120,21 @@ void main() {
     expect(find.text('Ended · result ready'), findsOneWidget);
   });
 
-  testWidgets('a live card under the vote limit shows progress and Share again', (
-    tester,
-  ) async {
-    await _pump(tester, [
-      _card(
-        status: PollStatus.active,
-        expiresAt: DateTime.now().add(const Duration(hours: 5, minutes: 30)),
-        votes: 2,
-        resultsUnlocked: false,
-      ),
-    ]);
+  testWidgets(
+    'a live card under the vote limit shows progress and Share again',
+    (tester) async {
+      await _pump(tester, [
+        _card(
+          status: PollStatus.active,
+          expiresAt: DateTime.now().add(const Duration(hours: 5, minutes: 30)),
+          votes: 2,
+          resultsUnlocked: false,
+        ),
+      ]);
 
-    expect(find.text('Live · 5h left'), findsOneWidget);
-    expect(find.text('2 of 3 votes · 1 more to see results'), findsOneWidget);
-    expect(find.text('Share again'), findsOneWidget);
-  });
+      expect(find.text('Live · 5h left'), findsOneWidget);
+      expect(find.text('2 of 3 votes · 1 more to see results'), findsOneWidget);
+      expect(find.text('Share again'), findsOneWidget);
+    },
+  );
 }

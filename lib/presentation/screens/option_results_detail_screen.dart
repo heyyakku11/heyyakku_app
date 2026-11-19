@@ -1,7 +1,11 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/presentation/widgets/ask_back_button.dart';
+import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 /// Every anonymous reason voters gave for one option of a card (owner view).
 ///
@@ -74,6 +78,13 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
     }
   }
 
+  /// Opens the plans sheet; when something was bought the reasons are loaded
+  /// again, now readable.
+  Future<void> _unlock() async {
+    final bought = await showYakkuPlans(context);
+    if (bought && mounted) await _load();
+  }
+
   Future<void> _report(PollReason reason) async {
     final result = await widget.onReport(reason.id);
     if (result == null || !mounted) return;
@@ -93,12 +104,19 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
     // Voters who picked this option and wrote nothing. A blocked reason has
     // no text left, so it would look like one of them; it is counted apart.
     final withoutReason = widget.votes - widget.count - _blocked;
+    // On the free plan only the option's top reason is readable.
+    final hidden = _reasons.where((reason) => reason.isHidden).length;
+    final visible = _reasons.length - hidden;
     return _DetailScaffold(
       palette: _DetailPalette.reasons,
       headline: '\u201C${widget.label}\u201D',
       percent: widget.percent,
       fraction: widget.fraction,
-      panelIcon: Icons.chat_bubble_outline_rounded,
+      panelIcon: const FaIcon(
+        FontAwesomeIcons.comment,
+        size: 18,
+        color: YakkuPalette.white,
+      ),
       panelTitle: 'Anonymous reasons',
       panelCount: widget.count,
       loading: _loading,
@@ -113,9 +131,18 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
                 : '$withoutReason friends picked this without a reason')
           : null,
       removed: _blocked,
+      panelSubtitle: hidden > 0 ? '$visible free \u00B7 $hidden hidden' : null,
       children: [
         for (final reason in _reasons)
-          _ReasonCard(reason: reason, onReport: () => _report(reason)),
+          if (!reason.isHidden)
+            _ReasonCard(reason: reason, onReport: () => _report(reason)),
+        if (hidden > 0)
+          _HiddenReasons(
+            key: const ValueKey('hidden-reasons'),
+            count: hidden,
+            palette: _DetailPalette.reasons,
+            onUnlock: _unlock,
+          ),
       ],
     );
   }
@@ -182,6 +209,13 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
     }
   }
 
+  /// Opens the plans sheet; when something was bought the answers are loaded
+  /// again, now readable.
+  Future<void> _unlock() async {
+    final bought = await showYakkuPlans(context);
+    if (bought && mounted) await _load();
+  }
+
   Future<void> _report(PollCustomAnswer answer) async {
     final result = await widget.onReport(answer.id);
     if (result == null || !mounted) return;
@@ -196,14 +230,28 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
     });
   }
 
+  /// Made-up answers to blur. They say nothing about what people wrote.
+  static const _standIns = <_StandIn>[
+    _StandIn(title: 'Hard to say', body: 'I like you, I just do not know you.'),
+    _StandIn(title: 'Somewhere in between', body: 'It depends on the day.'),
+    _StandIn(title: 'Not sure yet', body: 'Ask me again in a while.'),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    // On the free plan only one answer is readable.
+    final hidden = _answers.where((answer) => answer.isHidden).length;
+    final visible = _answers.length - hidden;
     return _DetailScaffold(
       palette: _DetailPalette.custom,
       headline: 'Something else.',
       percent: widget.percent,
       fraction: widget.fraction,
-      panelIcon: Icons.edit_outlined,
+      panelIcon: const FaIcon(
+        FontAwesomeIcons.penToSquare,
+        size: 18,
+        color: YakkuPalette.white,
+      ),
       panelTitle: 'Options others added',
       panelCount: widget.count,
       loading: _loading,
@@ -213,9 +261,20 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
       emptyMessage: 'No answers to show.',
       isEmpty: _answers.isEmpty,
       removed: _blocked,
+      panelSubtitle: hidden > 0 ? '$visible free \u00B7 $hidden hidden' : null,
       children: [
         for (final answer in _answers)
-          _CustomAnswerCard(answer: answer, onReport: () => _report(answer)),
+          if (!answer.isHidden)
+            _CustomAnswerCard(answer: answer, onReport: () => _report(answer)),
+        if (hidden > 0)
+          _HiddenReasons(
+            key: const ValueKey('hidden-answers'),
+            count: hidden,
+            palette: _DetailPalette.custom,
+            noun: 'answer',
+            standIns: _standIns,
+            onUnlock: _unlock,
+          ),
       ],
     );
   }
@@ -285,13 +344,16 @@ class _DetailScaffold extends StatelessWidget {
     required this.children,
     this.withoutReason,
     this.removed = 0,
+    this.panelSubtitle,
   });
 
   final _DetailPalette palette;
   final String headline;
   final int percent;
   final double fraction;
-  final IconData panelIcon;
+
+  /// Leading icon in the panel header (Material [Icon] or Font Awesome [FaIcon]).
+  final Widget panelIcon;
   final String panelTitle;
   final int panelCount;
   final bool loading;
@@ -308,8 +370,12 @@ class _DetailScaffold extends StatelessWidget {
   /// Reasons removed for breaking the rules; 0 hides the line.
   final int removed;
 
+  /// Replaces the default subtitle, for example "1 free · 8 hidden".
+  final String? panelSubtitle;
+
   /// "Both open" for two, otherwise "All 6 open".
   String get _subtitle {
+    if (panelSubtitle != null) return panelSubtitle!;
     if (panelCount <= 1) return 'Open';
     if (panelCount == 2) return 'Both open';
     return 'All $panelCount open';
@@ -564,7 +630,7 @@ class _PanelHeader extends StatelessWidget {
   });
 
   final _DetailPalette palette;
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final int count;
@@ -576,11 +642,12 @@ class _PanelHeader extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: palette.accent,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, size: 19, color: YakkuPalette.white),
+          child: icon,
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -687,7 +754,11 @@ class _ReportedPill extends StatelessWidget {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.flag_outlined, size: 14, color: YakkuPalette.textSecondary),
+          Icon(
+            Icons.flag_outlined,
+            size: 14,
+            color: YakkuPalette.textSecondary,
+          ),
           SizedBox(width: 6),
           Text(
             'Reported \u00B7 under review',
@@ -714,10 +785,12 @@ class _ReasonFooter extends StatelessWidget {
     required this.state,
     required this.palette,
     required this.onReport,
+    this.askBackLocked = false,
   });
 
   final String voteId;
   final bool canAskBack;
+  final bool askBackLocked;
   final ReasonReportState state;
   final _DetailPalette palette;
   final VoidCallback onReport;
@@ -733,6 +806,7 @@ class _ReasonFooter extends StatelessWidget {
             background: palette.chip,
             foreground: palette.accent,
             compact: true,
+            locked: askBackLocked,
           )
         else
           const Expanded(
@@ -806,6 +880,7 @@ class _ReasonCard extends StatelessWidget {
           _ReasonFooter(
             voteId: reason.id,
             canAskBack: reason.canAskBack,
+            askBackLocked: reason.askBackLocked,
             state: reason.reportState,
             palette: _DetailPalette.reasons,
             onReport: onReport,
@@ -814,6 +889,142 @@ class _ReasonCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The reasons the owner cannot read yet: blurred stand-in cards (the real
+/// text is never sent) with a pill on top that says how many and opens the
+/// plans sheet.
+class _HiddenReasons extends StatelessWidget {
+  const _HiddenReasons({
+    super.key,
+    required this.count,
+    required this.palette,
+    required this.onUnlock,
+    this.noun = 'reason',
+    this.standIns = _reasonStandIns,
+  });
+
+  final int count;
+  final _DetailPalette palette;
+  final VoidCallback onUnlock;
+
+  /// What is hidden, for the button: "3 more reasons" or "3 more answers".
+  final String noun;
+
+  /// Made-up lines to blur. They say nothing about the real ones.
+  final List<_StandIn> standIns;
+
+  static const _reasonStandIns = <_StandIn>[
+    _StandIn(body: 'Always fun. Never really opens up though.'),
+    _StandIn(body: "You're easy to be around, but I can't tell what you want."),
+    _StandIn(body: 'I like you, I just do not know you yet.'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = count.clamp(1, standIns.length);
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        ExcludeSemantics(
+          child: IgnorePointer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < cards; i++) ...[
+                      if (i > 0) const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+                        decoration: BoxDecoration(
+                          color: YakkuPalette.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (standIns[i].title != null) ...[
+                              Text(
+                                standIns[i].title!,
+                                style: const TextStyle(
+                                  color: YakkuPalette.textPrimary,
+                                  fontSize: 20,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            Text(
+                              standIns[i].body,
+                              style: const TextStyle(
+                                color: YakkuPalette.textPrimary,
+                                fontSize: 15,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Material(
+          color: palette.accent,
+          shape: const StadiumBorder(),
+          elevation: 3,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onUnlock,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 16,
+                    color: YakkuPalette.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      count == 1
+                          ? '1 more $noun \u00B7 Unlock now'
+                          : '$count more ${noun}s \u00B7 Unlock now',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: YakkuPalette.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A made-up card to blur in place of a hidden one.
+class _StandIn {
+  const _StandIn({this.title, required this.body});
+
+  final String? title;
+  final String body;
 }
 
 /// One written-in answer: the answer as a title, then either the reason given
@@ -898,6 +1109,7 @@ class _CustomAnswerCard extends StatelessWidget {
             _ReasonFooter(
               voteId: answer.id,
               canAskBack: answer.canAskBack,
+              askBackLocked: answer.askBackLocked,
               state: answer.reportState,
               palette: palette,
               onReport: onReport,

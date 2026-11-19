@@ -9,9 +9,7 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  testWidgets('shows the question and every option text', (
-    tester,
-  ) async {
+  testWidgets('shows the question and every option text', (tester) async {
     useStorySurface(tester);
     await tester.pumpWidget(
       const Directionality(

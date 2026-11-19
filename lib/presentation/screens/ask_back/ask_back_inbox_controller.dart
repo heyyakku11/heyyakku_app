@@ -40,9 +40,12 @@ class AskBackInboxController extends ChangeNotifier {
   bool get hasLoaded => _loaded;
   String? get error => _error;
 
-  /// Unread messages across the conversations loaded so far (the badge).
+  /// Unread messages across the conversations loaded so far.
   int get unreadTotal =>
       _items.fold<int>(0, (sum, item) => sum + item.unreadCount);
+
+  /// Active chats where it is the signed-in user's turn (You-tab badge).
+  int get yourTurnCount => _items.where((item) => item.isYourTurn).length;
 
   /// Starts listening and loads the first page. Safe to call again.
   Future<void> start() async {
@@ -115,13 +118,16 @@ class AskBackInboxController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// A chat screen has newer details (status, mute) than the list.
+  /// A chat screen has newer details (status, turn) than the list.
   void sync(AskBackConversation conversation) {
     final index = _items.indexWhere((item) => item.id == conversation.id);
     if (index < 0) return;
     _items[index] = _items[index].copyWith(
       status: conversation.status,
-      isMuted: conversation.isMuted,
+      turn: conversation.turn,
+      canSend: conversation.canSend,
+      isPaused: conversation.isPaused,
+      context: conversation.context,
     );
     notifyListeners();
   }

@@ -7,6 +7,8 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/profile/avatar_preferences.dart';
+import 'package:yakku/data/models/plans/yakku_plan.dart';
+import 'package:yakku/data/models/user/user_profile_response.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/profile/draft_screen.dart';
@@ -18,8 +20,10 @@ import 'package:yakku/presentation/screens/profile/settings_screen.dart';
 import 'package:yakku/presentation/screens/profile/widgets/profile_avatar.dart';
 import 'package:yakku/presentation/screens/profile/widgets/profile_skeleton.dart';
 import 'package:yakku/presentation/screens/profile/widgets/profile_personality_card.dart';
+import 'package:yakku/presentation/screens/profile/widgets/profile_plan_card.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/profile_option_tile.dart';
+import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.isActive = true});
@@ -37,6 +41,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _avatarPrefs = AvatarPreferences();
   AvatarColor _avatarColor = AvatarColors.defaultColor;
   int _cards = 0;
+  UserPlanResponse? _currentPlan;
+  List<YakkuPlan> _plans = const [];
+
   /// False until the profile has loaded once (it then stays true): the You tab shows a skeleton until then.
   bool _profileLoaded = false;
   AuthController? _authController;
@@ -115,12 +122,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (name != null) _name = name;
         // The server counts the cards made (polls + checks).
         _cards = me.stats.cardsMade;
+        _currentPlan = me.account.currentPlan;
       });
     } catch (_) {
       // The screen still shows what it has (the saved name, a zero count).
+    }
+
+    try {
+      final plans = await scope.userRemote.listPlans();
+      if (!mounted || !AppScope.of(context).authController.isLoggedIn) return;
+      setState(() => _plans = plans);
+    } catch (_) {
+      // Keep any previously loaded catalog; the card stays hidden if empty.
     } finally {
       if (mounted && !_profileLoaded) setState(() => _profileLoaded = true);
     }
+  }
+
+  List<YakkuPlan> get _upgradePlans {
+    final effective = effectivePlanCode(
+      code: _currentPlan?.code,
+      isExpired: _currentPlan?.isExpired ?? false,
+    );
+    return plansAboveCurrent(catalog: _plans, effectiveCode: effective);
+  }
+
+  Future<void> _onSeePlans() async {
+    await showYakkuPlans(context);
+    if (mounted) await _loadProfile();
   }
 
   Future<void> _onPersonalityAsk() async {
@@ -247,6 +276,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onShowInCommunityChanged: _onShowInCommunityChanged,
                       ),
                     ],
+                    if (_upgradePlans.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      ProfilePlanCard(
+                        currentPlan: _currentPlan,
+                        upgradePlans: _upgradePlans,
+                        onSeePlans: _onSeePlans,
+                      ),
+                    ],
                   ],
                   const SizedBox(height: 16),
                   Material(
@@ -279,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ProfileOptionTile(
                           icon: FontAwesomeIcons.arrowRotateLeft,
                           label: 'My ask backs',
-                          badgeCount: askBackInbox.unreadTotal,
+                          badgeCount: askBackInbox.yourTurnCount,
                           highlightBadge: true,
                           showDivider: true,
                           onTap: () async {
@@ -299,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _openWhenLoggedIn(const SavedPollsScreen()),
                         ),
                         ProfileOptionTile(
-                          icon: FontAwesomeIcons.gear,
+                          icon:FontAwesomeIcons.gear,
                           label: 'Settings',
                           onTap: () =>
                               _openWhenLoggedIn(const SettingsScreen()),

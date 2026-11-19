@@ -15,8 +15,6 @@ enum _SharedPollIssue {
   closed,
   expired,
   failed,
-  alreadyVoted,
-  ownCard,
   cannotVote,
 }
 
@@ -124,8 +122,10 @@ class _SharedPollScreenState extends State<SharedPollScreen> {
     // Logged-out users still see the card; they are asked to log in on submit.
     final voting = poll.voting;
     if (!loggedIn || voting == null) return null;
-    if (poll.isOwner) return _SharedPollIssue.ownCard;
-    if (voting.hasVoted) return _SharedPollIssue.alreadyVoted;
+    // The owner's own card is shown by AnswerPollScreen with share/results actions.
+    if (poll.isOwner) return null;
+    // An already-voted card is shown by AnswerPollScreen with the voter's pick.
+    if (voting.hasVoted) return null;
     if (!voting.canVote) {
       debugPrint('Shared card not votable: ${voting.blockedReason}');
       return _SharedPollIssue.cannotVote;
@@ -200,14 +200,6 @@ class _IssueView extends StatelessWidget {
       _SharedPollIssue.failed => (
         "Couldn't load this poll",
         'Something went wrong while contacting Yakku. Please try again.',
-      ),
-      _SharedPollIssue.alreadyVoted => (
-        'You already voted',
-        "You've already answered this card. Thanks for your opinion!",
-      ),
-      _SharedPollIssue.ownCard => (
-        'This is your card',
-        "You can't vote on a card you created. Share it with friends instead.",
       ),
       _SharedPollIssue.cannotVote => (
         "You can't vote on this card",

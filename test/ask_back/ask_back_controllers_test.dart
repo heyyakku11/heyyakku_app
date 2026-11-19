@@ -15,24 +15,34 @@ const String conversationId = 'c1';
 AskBackConversation conversation({
   AskBackStatus status = AskBackStatus.active,
   bool canSend = true,
+  AskBackTurn turn = AskBackTurn.me,
+  int? messagesLeft,
+  bool isPaused = false,
+  bool canReopen = false,
+  int? waitingReplies,
+  String myRole = 'asker',
 }) {
   return AskBackConversation(
     id: conversationId,
     status: status,
-    myRole: 'asker',
+    myRole: myRole,
     other: const AskBackParticipant(anonymousName: 'Quiet Fox'),
     context: const AskBackContext(
       contentType: 'poll',
       question: 'Which is better?',
       selectedOption: 'A',
       reason: 'Clearer',
+      title: 'Question',
     ),
     createdAt: DateTime.utc(2026, 10, 30),
-    isMuted: false,
     unreadCount: 0,
     canSend: canSend,
-    canReopen: false,
+    canReopen: canReopen,
     canUnblock: false,
+    turn: turn,
+    messagesLeft: messagesLeft,
+    isPaused: isPaused,
+    waitingReplies: waitingReplies,
   );
 }
 
@@ -63,6 +73,10 @@ class FakeRemote implements AskBackRemoteDataSource {
   final int pageSize;
   AskBackConversation current = conversation();
   int failSends = 0;
+
+  /// When set, the next send fails with this API error.
+  ApiException? sendError;
+  final List<String> blockReasons = [];
   final List<String> sentClientIds = [];
   final List<String> readCalls = [];
   int nextId = 100;
@@ -105,9 +119,17 @@ class FakeRemote implements AskBackRemoteDataSource {
     required String content,
   }) async {
     sentClientIds.add(clientMessageId);
+    final refused = sendError;
+    if (refused != null) {
+      sendError = null;
+      throw refused;
+    }
     if (failSends > 0) {
       failSends--;
-      throw const ApiException(kind: ApiErrorKind.connection, message: 'offline');
+      throw const ApiException(
+        kind: ApiErrorKind.connection,
+        message: 'offline',
+      );
     }
     final existing = stored.where((m) => m.clientMessageId == clientMessageId);
     if (existing.isNotEmpty) return existing.first;
@@ -127,7 +149,10 @@ class FakeRemote implements AskBackRemoteDataSource {
   }
 
   @override
-  Future<AskBackReadResult> markRead(String id, String lastReadMessageId) async {
+  Future<AskBackReadResult> markRead(
+    String id,
+    String lastReadMessageId,
+  ) async {
     readCalls.add(lastReadMessageId);
     return const AskBackReadResult(advanced: true, unreadCount: 0);
   }
@@ -143,19 +168,38 @@ class FakeRemote implements AskBackRemoteDataSource {
   Future<AskBackConversation> start(String voteId) async => current;
 
   @override
-  Future<AskBackConversation> setMuted(String id, bool muted) async => current;
-
-  @override
-  Future<AskBackConversation> close(String id) async => current;
-
-  @override
   Future<AskBackConversation> reopen(String id) async => current;
 
   @override
-  Future<AskBackConversation> block(String id, {String? reason}) async => current;
+  Future<AskBackConversation> block(String id, {String? reason}) async {
+    blockReasons.add(reason ?? '');
+    return current = conversation(
+      status: AskBackStatus.blocked,
+      canSend: false,
+      turn: AskBackTurn.done,
+    );
+  }
 
   @override
-  Future<AskBackConversation> unblock(String id) async => current;
+  Future<AskBackAccess> getAccess(String voteId) async => access;
+
+  @override
+  Future<AskBackAccess> getCardAccess(
+    String contentType,
+    String contentId,
+  ) async => access;
+
+  @override
+  Future<AskBackAccess> unlock(String voteId) async => access;
+
+  AskBackAccess access = const AskBackAccess(
+    unlocked: false,
+    paused: false,
+    planCode: 'free',
+    planName: 'Free',
+    planExpired: false,
+    canUnlock: false,
+  );
 }
 
 class FakeRealtime implements AskBackRealtime {
@@ -175,7 +219,8 @@ class FakeRealtime implements AskBackRealtime {
   @override
   Stream<AskBackStatusEvent> get statuses => statusEvents.stream;
   @override
-  Stream<({String conversationId, bool typing})> get typing => typingEvents.stream;
+  Stream<({String conversationId, bool typing})> get typing =>
+      typingEvents.stream;
   @override
   Stream<void> get reconnected => reconnectEvents.stream;
   @override
@@ -217,14 +262,23 @@ void main() {
 
   tearDown(() => chat.dispose());
 
-  test('opens with the newest page, joins the group and marks the latest incoming message read', () async {
-    await open([message(1), message(2, mine: true), message(3), message(4), message(5, mine: true)]);
+  test(
+    'opens with the newest page, joins the group and marks the latest incoming message read',
+    () async {
+      await open([
+        message(1),
+        message(2, mine: true),
+        message(3),
+        message(4),
+        message(5, mine: true),
+      ]);
 
-    expect(chat.messages.map((m) => m.id), ['m3', 'm4', 'm5']);
-    expect(chat.hasMoreOlder, isTrue);
-    expect(realtime.joined, [conversationId]);
-    expect(remote.readCalls, ['m4']);
-  });
+      expect(chat.messages.map((m) => m.id), ['m3', 'm4', 'm5']);
+      expect(chat.hasMoreOlder, isTrue);
+      expect(realtime.joined, [conversationId]);
+      expect(remote.readCalls, ['m4']);
+    },
+  );
 
   test('loading older messages prepends them without duplicates', () async {
     await open([for (var i = 1; i <= 8; i++) message(i)]);
@@ -234,7 +288,16 @@ void main() {
     await chat.loadOlder();
     await chat.loadOlder();
 
-    expect(chat.messages.map((m) => m.id), ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8']);
+    expect(chat.messages.map((m) => m.id), [
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+      'm6',
+      'm7',
+      'm8',
+    ]);
     expect(chat.hasMoreOlder, isFalse);
   });
 
@@ -252,23 +315,32 @@ void main() {
     expect(chat.messages.where((m) => m.isMine), hasLength(1));
   });
 
-  test('the REST response and the SignalR event for one message never duplicate it', () async {
-    await open([message(1)]);
+  test(
+    'the REST response and the SignalR event for one message never duplicate it',
+    () async {
+      await open([message(1)]);
 
-    chat.send('hello');
-    final clientId = remote.sentClientIds.single;
-    await pumpEventQueue();
-    // The same message arrives again over the socket (isMine for the sender's own devices).
-    realtime.messageEvents.add(remote.stored.last);
-    // And once more, plus a replay of an old one.
-    realtime.messageEvents.add(remote.stored.last);
-    realtime.messageEvents.add(message(1));
-    await pumpEventQueue();
+      chat.send('hello');
+      final clientId = remote.sentClientIds.single;
+      await pumpEventQueue();
+      // The same message arrives again over the socket (isMine for the sender's own devices).
+      realtime.messageEvents.add(remote.stored.last);
+      // And once more, plus a replay of an old one.
+      realtime.messageEvents.add(remote.stored.last);
+      realtime.messageEvents.add(message(1));
+      await pumpEventQueue();
 
-    expect(chat.messages.where((m) => m.clientMessageId == clientId), hasLength(1));
-    expect(chat.messages.map((m) => m.id).toSet().length, chat.messages.length);
-    expect(chat.messages, hasLength(2));
-  });
+      expect(
+        chat.messages.where((m) => m.clientMessageId == clientId),
+        hasLength(1),
+      );
+      expect(
+        chat.messages.map((m) => m.id).toSet().length,
+        chat.messages.length,
+      );
+      expect(chat.messages, hasLength(2));
+    },
+  );
 
   test('the socket event can arrive before the REST response', () async {
     await open([message(1)]);
@@ -297,24 +369,27 @@ void main() {
     slowChat.dispose();
   });
 
-  test('a failed send can be retried with the same client message id and is stored once', () async {
-    await open([message(1)]);
-    remote.failSends = 1;
+  test(
+    'a failed send can be retried with the same client message id and is stored once',
+    () async {
+      await open([message(1)]);
+      remote.failSends = 1;
 
-    chat.send('please');
-    await pumpEventQueue();
-    final failed = chat.messages.last;
-    expect(failed.state, ChatMessageState.failed);
+      chat.send('please');
+      await pumpEventQueue();
+      final failed = chat.messages.last;
+      expect(failed.state, ChatMessageState.failed);
 
-    chat.retry(failed);
-    await pumpEventQueue();
+      chat.retry(failed);
+      await pumpEventQueue();
 
-    expect(remote.sentClientIds, hasLength(2));
-    expect(remote.sentClientIds.toSet(), hasLength(1));
-    expect(chat.messages.where((m) => m.isMine), hasLength(1));
-    expect(chat.messages.last.state, ChatMessageState.sent);
-    expect(remote.stored.where((m) => m.isMine), hasLength(1));
-  });
+      expect(remote.sentClientIds, hasLength(2));
+      expect(remote.sentClientIds.toSet(), hasLength(1));
+      expect(chat.messages.where((m) => m.isMine), hasLength(1));
+      expect(chat.messages.last.state, ChatMessageState.sent);
+      expect(remote.stored.where((m) => m.isMine), hasLength(1));
+    },
+  );
 
   test('empty, whitespace and over-long messages are not sent', () async {
     await open([message(1)]);
@@ -337,19 +412,71 @@ void main() {
     expect(remote.sentClientIds, isEmpty);
   });
 
-  test('an incoming message is appended, read, and clears the typing hint', () async {
-    await open([message(1)]);
-    realtime.typingEvents.add((conversationId: conversationId, typing: true));
-    await pumpEventQueue();
-    expect(chat.otherTyping, isTrue);
+  group('turns and blocking', () {
+    test('the turn, messages left and pause come from the server', () async {
+      await open([message(1)]);
+      remote.current = conversation(
+        turn: AskBackTurn.them,
+        canSend: false,
+        messagesLeft: 2,
+        isPaused: true,
+      );
+      await chat.refreshConversation();
 
-    realtime.messageEvents.add(message(2));
-    await pumpEventQueue();
+      expect(chat.turn, AskBackTurn.them);
+      expect(chat.messagesLeft, 2);
+      expect(chat.isPaused, isTrue);
+      expect(chat.canSend, isFalse);
+    });
 
-    expect(chat.messages.map((m) => m.id), ['m1', 'm2']);
-    expect(chat.otherTyping, isFalse);
-    expect(remote.readCalls.last, 'm2');
+    test(
+      'a send the turn rule refuses is dropped and the composer closes',
+      () async {
+        await open([message(1)]);
+        remote.sendError = const ApiException(
+          kind: ApiErrorKind.conflict,
+          message: 'wait',
+          statusCode: 409,
+          code: 'ASK_BACK_NOT_YOUR_TURN',
+        );
+        remote.current = conversation(turn: AskBackTurn.them, canSend: false);
+
+        expect(chat.send('too eager'), isTrue);
+        await pumpEventQueue();
+
+        expect(chat.messages.where((m) => m.isMine), isEmpty);
+        expect(chat.canSend, isFalse);
+        expect(chat.turn, AskBackTurn.them);
+      },
+    );
+
+    test('blocking sends the reason and ends the chat', () async {
+      await open([message(1)]);
+
+      await chat.block(reason: 'Harassing me');
+
+      expect(remote.blockReasons, ['Harassing me']);
+      expect(chat.conversation!.status, AskBackStatus.blocked);
+      expect(chat.canSend, isFalse);
+    });
   });
+
+  test(
+    'an incoming message is appended, read, and clears the typing hint',
+    () async {
+      await open([message(1)]);
+      realtime.typingEvents.add((conversationId: conversationId, typing: true));
+      await pumpEventQueue();
+      expect(chat.otherTyping, isTrue);
+
+      realtime.messageEvents.add(message(2));
+      await pumpEventQueue();
+
+      expect(chat.messages.map((m) => m.id), ['m1', 'm2']);
+      expect(chat.otherTyping, isFalse);
+      expect(remote.readCalls.last, 'm2');
+    },
+  );
 
   test('events of other conversations are ignored', () async {
     await open([message(1)]);
@@ -360,45 +487,70 @@ void main() {
     expect(chat.messages.map((m) => m.id), ['m1']);
   });
 
-  test('after a reconnect the messages missed while offline are fetched from history', () async {
-    await open([message(1), message(2)]);
-    // Four messages arrive while the socket is down.
-    remote.stored.addAll([message(3), message(4), message(5), message(6)]);
+  test(
+    'after a reconnect the messages missed while offline are fetched from history',
+    () async {
+      await open([message(1), message(2)]);
+      // Four messages arrive while the socket is down.
+      remote.stored.addAll([message(3), message(4), message(5), message(6)]);
 
-    realtime.reconnectEvents.add(null);
-    await pumpEventQueue();
+      realtime.reconnectEvents.add(null);
+      await pumpEventQueue();
 
-    expect(chat.messages.map((m) => m.id), ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']);
-    expect(remote.readCalls.last, 'm6');
-  });
+      expect(chat.messages.map((m) => m.id), [
+        'm1',
+        'm2',
+        'm3',
+        'm4',
+        'm5',
+        'm6',
+      ]);
+      expect(remote.readCalls.last, 'm6');
+    },
+  );
 
-  test('the other person reading shows Seen on my latest read message', () async {
-    await open([message(1), message(2, mine: true), message(3, mine: true)]);
+  test(
+    'the other person reading shows Seen on my latest read message',
+    () async {
+      await open([message(1), message(2, mine: true), message(3, mine: true)]);
 
-    realtime.readEvents.add(const AskBackReadEvent(conversationId: conversationId, lastReadMessageId: 'm2'));
-    await pumpEventQueue();
+      realtime.readEvents.add(
+        const AskBackReadEvent(
+          conversationId: conversationId,
+          lastReadMessageId: 'm2',
+        ),
+      );
+      await pumpEventQueue();
 
-    expect(chat.lastSeenMessageId, 'm2');
-  });
+      expect(chat.lastSeenMessageId, 'm2');
+    },
+  );
 
-  test('leaving the screen leaves the group and releases the active conversation', () async {
-    await open([message(1)]);
+  test(
+    'leaving the screen leaves the group and releases the active conversation',
+    () async {
+      await open([message(1)]);
 
-    chat.dispose();
-    await pumpEventQueue();
+      chat.dispose();
+      await pumpEventQueue();
 
-    expect(realtime.left, [conversationId]);
-    // tearDown disposes again; the controller tolerates it.
-    chat = AskBackChatController(
-      conversationId: conversationId,
-      remote: remote,
-      realtime: realtime,
-      inbox: inbox,
-    );
-  });
+      expect(realtime.left, [conversationId]);
+      // tearDown disposes again; the controller tolerates it.
+      chat = AskBackChatController(
+        conversationId: conversationId,
+        remote: remote,
+        realtime: realtime,
+        inbox: inbox,
+      );
+    },
+  );
 
   group('conversation list', () {
-    AskBackListItem item(String id, {int unread = 0}) => AskBackListItem(
+    AskBackListItem item(
+      String id, {
+      int unread = 0,
+      AskBackTurn turn = AskBackTurn.them,
+    }) => AskBackListItem(
       id: id,
       status: AskBackStatus.active,
       myRole: 'asker',
@@ -406,36 +558,42 @@ void main() {
       lastMessage: null,
       lastActivityAt: DateTime.utc(2026, 10, 30),
       unreadCount: unread,
-      isMuted: false,
+      turn: turn,
     );
 
-    test('a new message moves its conversation to the top and counts as unread', () async {
-      await open([message(1)]);
-      remote.listItems = [item('a'), item('b'), item('c')];
-      await inbox.start();
+    test(
+      'a new message moves its conversation to the top and counts as unread',
+      () async {
+        await open([message(1)]);
+        remote.listItems = [item('a'), item('b'), item('c')];
+        await inbox.start();
 
-      realtime.messageEvents.add(message(7, conversation: 'c'));
-      await pumpEventQueue();
+        realtime.messageEvents.add(message(7, conversation: 'c'));
+        await pumpEventQueue();
 
-      expect(inbox.items.map((i) => i.id), ['c', 'a', 'b']);
-      expect(inbox.items.first.unreadCount, 1);
-      expect(inbox.items.first.lastMessage!.preview, 'message 7');
-      expect(inbox.unreadTotal, 1);
-    });
+        expect(inbox.items.map((i) => i.id), ['c', 'a', 'b']);
+        expect(inbox.items.first.unreadCount, 1);
+        expect(inbox.items.first.lastMessage!.preview, 'message 7');
+        expect(inbox.unreadTotal, 1);
+      },
+    );
 
-    test('a message in the open conversation, or my own, does not add unread', () async {
-      await open([message(1)]);
-      remote.listItems = [item('a'), item('b')];
-      await inbox.start();
-      inbox.setActive('b');
+    test(
+      'a message in the open conversation, or my own, does not add unread',
+      () async {
+        await open([message(1)]);
+        remote.listItems = [item('a'), item('b')];
+        await inbox.start();
+        inbox.setActive('b');
 
-      realtime.messageEvents.add(message(7, conversation: 'b'));
-      realtime.messageEvents.add(message(8, conversation: 'a', mine: true));
-      await pumpEventQueue();
+        realtime.messageEvents.add(message(7, conversation: 'b'));
+        realtime.messageEvents.add(message(8, conversation: 'a', mine: true));
+        await pumpEventQueue();
 
-      expect(inbox.unreadTotal, 0);
-      expect(inbox.items.first.id, 'a');
-    });
+        expect(inbox.unreadTotal, 0);
+        expect(inbox.items.first.id, 'a');
+      },
+    );
 
     test('reading a conversation clears its unread count', () async {
       await open([message(1)]);
@@ -447,12 +605,31 @@ void main() {
       expect(inbox.unreadTotal, 0);
     });
 
+    test('yourTurnCount is the You-tab badge for My ask backs', () async {
+      await open([message(1)]);
+      remote.listItems = [
+        item('a', turn: AskBackTurn.me),
+        item('b', turn: AskBackTurn.them),
+        item('c', turn: AskBackTurn.me),
+        item('d', turn: AskBackTurn.done),
+      ];
+      await inbox.start();
+
+      expect(inbox.yourTurnCount, 2);
+      expect(inbox.unreadTotal, 0);
+    });
+
     test('a status event updates the conversation', () async {
       await open([message(1)]);
       remote.listItems = [item('a')];
       await inbox.start();
 
-      realtime.statusEvents.add(const AskBackStatusEvent(conversationId: 'a', status: AskBackStatus.blocked));
+      realtime.statusEvents.add(
+        const AskBackStatusEvent(
+          conversationId: 'a',
+          status: AskBackStatus.blocked,
+        ),
+      );
       await pumpEventQueue();
 
       expect(inbox.items.single.status, AskBackStatus.blocked);
@@ -466,20 +643,68 @@ void main() {
         'status': 'blocked',
         'myRole': 'voter',
         'other': {'anonymousName': 'Quiet Fox', 'isDeleted': true},
-        'context': {'contentType': 'check', 'question': 'Q', 'selectedOption': null, 'reason': null},
+        'context': {
+          'contentType': 'check',
+          'question': 'Q',
+          'selectedOption': null,
+          'reason': null,
+        },
         'createdAt': '2026-10-30T09:00:00Z',
-        'isMuted': true,
         'unreadCount': 2,
         'canSend': false,
         'canReopen': false,
         'canUnblock': true,
+        'turn': 'done',
+        'messagesLeft': null,
+        'isPaused': true,
       });
 
+      expect(parsed.turn, AskBackTurn.done);
+      expect(parsed.messagesLeft, isNull);
+      expect(parsed.isPaused, isTrue);
       expect(parsed.status, AskBackStatus.blocked);
       expect(parsed.isAsker, isFalse);
       expect(parsed.other.isDeleted, isTrue);
       expect(parsed.context.reason, isNull);
       expect(parsed.canUnblock, isTrue);
+    });
+
+    test('an older server without turn fields still parses', () {
+      final parsed = AskBackConversation.fromJson({
+        'id': 'x',
+        'status': 'active',
+        'myRole': 'asker',
+        'other': {'anonymousName': 'Quiet Fox'},
+        'context': {'contentType': 'poll'},
+        'createdAt': '2026-10-30T09:00:00Z',
+        'canSend': true,
+      });
+
+      expect(parsed.turn, AskBackTurn.them);
+      expect(parsed.messagesLeft, isNull);
+      expect(parsed.isPaused, isFalse);
+    });
+
+    test('access JSON parses a plan with tickets and an expiry', () {
+      final access = AskBackAccess.fromJson({
+        'unlocked': false,
+        'unlockSource': null,
+        'paused': false,
+        'planCode': 'yakku_lite',
+        'planName': 'Yakku Lite',
+        'planExpiresAt': '2026-11-25T00:00:00Z',
+        'planExpired': false,
+        'ticketsLeft': 2,
+        'canUnlock': true,
+        'messageLimit': 3,
+        'unlimitedMessages': false,
+      });
+
+      expect(access.canUnlock, isTrue);
+      expect(access.ticketsLeft, 2);
+      expect(access.messageLimit, 3);
+      expect(access.planExpiresAt, DateTime.utc(2026, 11, 25));
+      expect(access.isFreePlan, isFalse);
     });
 
     test('an unknown status falls back to active', () {
@@ -490,7 +715,9 @@ void main() {
     test('the socket token helper reads the JWT expiry', () {
       // header.payload.signature with exp one hour from now
       final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
-      final payload = base64Url.encode(utf8.encode('{"exp":$exp}')).replaceAll('=', '');
+      final payload = base64Url
+          .encode(utf8.encode('{"exp":$exp}'))
+          .replaceAll('=', '');
       final left = AskBackRealtimeService.secondsUntilExpiry('h.$payload.s');
       expect(left, inInclusiveRange(3590, 3600));
       expect(AskBackRealtimeService.secondsUntilExpiry('not-a-jwt'), isNull);

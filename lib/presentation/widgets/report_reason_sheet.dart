@@ -183,7 +183,11 @@ class _ReportSheetState<T> extends State<_ReportSheet<T>> {
               children: [
                 Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: Icon(Icons.outlined_flag_rounded, size: 24, color: _ink),
+                  child: Icon(
+                    Icons.outlined_flag_rounded,
+                    size: 24,
+                    color: _ink,
+                  ),
                 ),
                 SizedBox(width: 14),
                 Expanded(

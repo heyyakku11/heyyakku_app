@@ -159,6 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       : PersonalityCardTile(
                                           card: card,
                                           traits: store.traits,
+                                          topTraits: store.topTraits,
                                           onPressed: _onPersonalityAsk,
                                         ),
                                 );

@@ -3,14 +3,15 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/personality/personality_card.dart';
 
 /// "Describe me in 3 words": the user's own personality card at the top of the
-/// Friends feed. Friends pick 3 traits from the predefined list; once enough
-/// have answered, the card shows who the user is.
+/// Friends feed. Draft/collecting keep the promo layout; completed shows the
+/// friends-say stickers card from the product design.
 class PersonalityCardTile extends StatelessWidget {
   const PersonalityCardTile({
     super.key,
     required this.card,
     required this.traits,
     required this.onPressed,
+    this.topTraits = const [],
   });
 
   /// How many trait chips are shown before the "+N more" chip.
@@ -20,11 +21,17 @@ class PersonalityCardTile extends StatelessWidget {
 
   /// The full predefined trait list; empty while it has not loaded.
   final List<PersonalityTrait> traits;
+
+  /// Crowd-top trait names once the card is completed (up to 3).
+  final List<String> topTraits;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final done = card.isCompleted;
+    if (card.isCompleted) {
+      return _CompletedFriendsCard(topTraits: topTraits, onPressed: onPressed);
+    }
+
     final collecting = card.status == PersonalityCardStatus.collecting;
     final needed = card.requiredVotes;
     final progress = '${card.totalVotes} of $needed friends';
@@ -56,9 +63,7 @@ class PersonalityCardTile extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              done
-                  ? 'Here is who you are'
-                  : collecting
+              collecting
                   ? '$remaining more ${remaining == 1 ? 'friend' : 'friends'} '
                         'and this is who you are'
                   : 'Describe me in 3 words',
@@ -76,17 +81,15 @@ class PersonalityCardTile extends StatelessWidget {
             ] else ...[
               const SizedBox(height: 7),
               Text(
-                done
-                    ? '$needed friends have answered. See what they said.'
-                    : 'Friends pick 3 of these ${traits.isEmpty ? '' : '${traits.length} '}'
-                          'traits. Once $needed friends answer, this is who you are.',
+                'Friends pick 3 of these ${traits.isEmpty ? '' : '${traits.length} '}'
+                'traits. Once $needed friends answer, this is who you are.',
                 style: TextStyle(
                   color: YakkuPalette.white.withValues(alpha: 0.9),
                   fontSize: 15,
                   height: 1.4,
                 ),
               ),
-              if (!done && traits.isNotEmpty) ...[
+              if (traits.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _buildChips(),
               ],
@@ -102,9 +105,9 @@ class PersonalityCardTile extends StatelessWidget {
                   foregroundColor: YakkuPalette.Ink,
                   shape: const StadiumBorder(),
                 ),
-                child: Text(
-                  done ? 'See results' : 'Ask now',
-                  style: const TextStyle(
+                child: const Text(
+                  'Ask now',
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -127,6 +130,122 @@ class PersonalityCardTile extends StatelessWidget {
         for (final trait in shown) _OutlineChip(label: trait.name),
         if (more > 0) _MoreChip(label: '+$more more'),
       ],
+    );
+  }
+}
+
+/// Completed personality: raspberry sticker card with tilted trait chips.
+class _CompletedFriendsCard extends StatelessWidget {
+  const _CompletedFriendsCard({
+    required this.topTraits,
+    required this.onPressed,
+  });
+
+  static const _stickers = [
+    (color: YakkuPalette.Gold, angle: -0.08),
+    (color: Color(0xFFFBD6DF), angle: 0.05),
+    (color: Color(0xFFCFEBD9), angle: -0.04),
+  ];
+
+  final List<String> topTraits;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final traits = topTraits.take(3).toList();
+
+    return Material(
+      color: YakkuPalette.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: YakkuPalette.Raspberry,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: YakkuPalette.Ink, width: 2.2),
+            boxShadow: const [
+              BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 4)),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 16, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'YOUR FRIENDS SAY YOU’RE',
+                        style: TextStyle(
+                          color: YakkuPalette.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: YakkuPalette.white,
+                      size: 26,
+                    ),
+                  ],
+                ),
+                if (traits.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
+                    children: [
+                      for (var i = 0; i < traits.length; i++)
+                        Transform.rotate(
+                          angle: _stickers[i % _stickers.length].angle,
+                          child: _TraitSticker(
+                            label: traits[i],
+                            color: _stickers[i % _stickers.length].color,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TraitSticker extends StatelessWidget {
+  const _TraitSticker({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: YakkuPalette.Ink, width: 2),
+        boxShadow: const [
+          BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Text(
+        label.toLowerCase(),
+        style: const TextStyle(
+          color: YakkuPalette.Ink,
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.2,
+        ),
+      ),
     );
   }
 }

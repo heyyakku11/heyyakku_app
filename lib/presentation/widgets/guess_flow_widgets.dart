@@ -323,6 +323,69 @@ class GuessAskButton extends StatelessWidget {
   }
 }
 
+/// A pickable personality trait: white pill with an ink border and a hard
+/// shadow; ink fill with a check when [selected].
+class GuessTraitChip extends StatelessWidget {
+  const GuessTraitChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? YakkuPalette.Ink : YakkuPalette.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: YakkuPalette.Ink, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: selected ? YakkuPalette.Raspberry : YakkuPalette.Ink,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                const FaIcon(
+                  FontAwesomeIcons.check,
+                  size: 12,
+                  color: YakkuPalette.white,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? YakkuPalette.white : YakkuPalette.Ink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Paints a dashed rounded-rectangle outline (for locked or empty slots).
 class DashedBorderPainter extends CustomPainter {
   const DashedBorderPainter({required this.color, required this.radius});

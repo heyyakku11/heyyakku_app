@@ -35,6 +35,18 @@ abstract final class AskBackFormat {
     return '${local.day} ${_months[local.month - 1]} ${_clock(local)}';
   }
 
+  /// How long ago: "just now", "5m ago", "2h ago", "3d ago", then "12 Oct".
+  static String relative(DateTime time, {DateTime? now}) {
+    final local = time.toLocal();
+    final current = now ?? DateTime.now();
+    final elapsed = current.difference(local);
+    if (elapsed.inMinutes < 1) return 'just now';
+    if (elapsed.inMinutes < 60) return '${elapsed.inMinutes}m ago';
+    if (elapsed.inHours < 24) return '${elapsed.inHours}h ago';
+    if (elapsed.inDays < 7) return '${elapsed.inDays}d ago';
+    return '${local.day} ${_months[local.month - 1]}';
+  }
+
   /// For the conversation list: "3:05 PM", "Yesterday", or "12 Oct".
   static String listTime(DateTime time, {DateTime? now}) {
     final local = time.toLocal();

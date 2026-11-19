@@ -25,6 +25,8 @@ class ProfileSkeleton extends StatelessWidget {
             const SkeletonBox(width: 150, height: 14, radius: 7),
             const SizedBox(height: 24),
             const SkeletonBox(height: 190, radius: 28),
+            const SizedBox(height: 14),
+            const SkeletonBox(height: 220, radius: 28),
             const SizedBox(height: 16),
             DecoratedBox(
               decoration: BoxDecoration(

@@ -70,6 +70,13 @@ class AskBackChatController extends ChangeNotifier {
   static const Uuid _uuid = Uuid();
   static const int maxLength = 2000;
 
+  /// Error codes of a send that the turn, question limit or plan rules refuse.
+  static const Set<String> _turnRuleCodes = <String>{
+    'ASK_BACK_NOT_YOUR_TURN',
+    'ASK_BACK_LIMIT_REACHED',
+    'ASK_BACK_PLAN_EXPIRED',
+  };
+
   AskBackConversation? _conversation;
   final List<ChatMessage> _confirmed = <ChatMessage>[]; // oldest first
   final List<ChatMessage> _pending = <ChatMessage>[]; // sending or failed
@@ -95,6 +102,9 @@ class AskBackChatController extends ChangeNotifier {
   bool get hasMoreOlder => _hasMoreOlder;
   bool get otherTyping => _otherTyping;
   bool get canSend => _conversation?.canSend ?? false;
+  AskBackTurn get turn => _conversation?.turn ?? AskBackTurn.them;
+  int? get messagesLeft => _conversation?.messagesLeft;
+  bool get isPaused => _conversation?.isPaused ?? false;
   ValueNotifier<bool> get connected => _realtime.isConnected;
 
   /// Oldest first; messages not yet stored by the server come last.
@@ -286,7 +296,13 @@ class AskBackChatController extends ChangeNotifier {
       if (!_pending.contains(pending)) return; // already confirmed by an event
       pending.state = ChatMessageState.failed;
       final mapped = DioErrorMapper.map(error);
-      if (mapped.kind == ApiErrorKind.conflict) {
+      if (_turnRuleCodes.contains(mapped.code)) {
+        // Not my turn any more, out of questions, or paused: retrying can
+        // never succeed, so the message is dropped and the conversation shows
+        // the real state (the composer closes).
+        _pending.remove(pending);
+        unawaited(refreshConversation());
+      } else if (mapped.kind == ApiErrorKind.conflict) {
         // Closed or blocked in the meantime.
         unawaited(refreshConversation());
       }
@@ -411,19 +427,13 @@ class AskBackChatController extends ChangeNotifier {
 
   // ---- actions ----
 
-  Future<void> setMuted(bool muted) =>
-      _apply(() => _remote.setMuted(conversationId, muted));
-
-  Future<void> closeConversation() =>
-      _apply(() => _remote.close(conversationId));
-
   Future<void> reopenConversation() =>
       _apply(() => _remote.reopen(conversationId));
 
+  /// Blocks the other person and ends the chat. The server always files a
+  /// report with [reason] (the label the user picked).
   Future<void> block({String? reason}) =>
       _apply(() => _remote.block(conversationId, reason: reason));
-
-  Future<void> unblock() => _apply(() => _remote.unblock(conversationId));
 
   Future<void> _apply(Future<AskBackConversation> Function() action) async {
     _conversation = await action();

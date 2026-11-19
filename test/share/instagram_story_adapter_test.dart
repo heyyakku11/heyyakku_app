@@ -162,7 +162,7 @@ void main() {
   );
 
   group('InstagramStoryChannel', () {
-    const channel = MethodChannel('com.example.yakku_dev/instagram_story');
+    const channel = MethodChannel('com.yakku.app/instagram_story');
     tearDown(
       () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null),

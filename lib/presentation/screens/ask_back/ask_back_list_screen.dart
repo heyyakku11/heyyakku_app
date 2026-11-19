@@ -6,12 +6,15 @@ import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/ask_back/ask_back_chat_widgets.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_format.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/presentation/screens/profile/my_cards_screen.dart';
 
-/// The user's Ask Back conversations: each one is a private chat about a vote's
-/// reason, with the other person shown only by their anonymous name.
+/// Which slice of the inbox the segmented control shows.
+enum _AskBackTab { all, yourTurn, waiting, ended }
+
+/// The user's Ask Back conversations, grouped by turn: your turn, waiting, ended.
 class AskBackListScreen extends StatefulWidget {
   const AskBackListScreen({super.key});
 
@@ -22,6 +25,7 @@ class AskBackListScreen extends StatefulWidget {
 class _AskBackListScreenState extends State<AskBackListScreen> {
   final ScrollController _scroll = ScrollController();
   AskBackInboxController? _inbox;
+  _AskBackTab _tab = _AskBackTab.all;
 
   @override
   void initState() {
@@ -51,10 +55,18 @@ class _AskBackListScreenState extends State<AskBackListScreen> {
     super.dispose();
   }
 
+  List<AskBackListItem> _filter(List<AskBackListItem> items) {
+    return switch (_tab) {
+      _AskBackTab.all => items,
+      _AskBackTab.yourTurn => items.where((item) => item.isYourTurn).toList(),
+      _AskBackTab.waiting => items.where((item) => item.isWaiting).toList(),
+      _AskBackTab.ended => items.where((item) => item.isEnded).toList(),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final inbox = AppScope.of(context).askBackInbox;
-    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: YakkuPalette.cream,
@@ -84,9 +96,9 @@ class _AskBackListScreenState extends State<AskBackListScreen> {
               ),
             ),
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
               child: Text(
-                'Chats about a reason. 1 question \u2192 1 reply, open for 24 hours.',
+                'Chats about a reason. 1 question \u2192 1 reply.',
                 style: TextStyle(
                   color: YakkuPalette.textSecondary,
                   fontSize: 13,
@@ -136,30 +148,70 @@ class _AskBackListScreenState extends State<AskBackListScreen> {
                     );
                   }
 
-                  return RefreshIndicator(
-                    onRefresh: inbox.refresh,
-                    child: ListView.separated(
-                      controller: _scroll,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount:
-                          inbox.items.length + (inbox.isLoadingMore ? 1 : 0),
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        indent: 72,
-                        color: theme.dividerColor.withValues(alpha: 0.4),
+                  final all = inbox.items;
+                  final yourTurn = all.where((item) => item.isYourTurn).length;
+                  final waiting = all.where((item) => item.isWaiting).length;
+                  final ended = all.where((item) => item.isEnded).length;
+                  final visible = _filter(all);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TabRow(
+                        tab: _tab,
+                        all: all.length,
+                        yourTurn: yourTurn,
+                        waiting: waiting,
+                        ended: ended,
+                        onChanged: (tab) => setState(() => _tab = tab),
                       ),
-                      itemBuilder: (context, index) {
-                        if (index >= inbox.items.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          );
-                        }
-                        return _ConversationTile(item: inbox.items[index]);
-                      },
-                    ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: inbox.refresh,
+                          child: visible.isEmpty
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.all(32),
+                                  children: [
+                                    const SizedBox(height: 80),
+                                    Text(
+                                      _emptyTabLabel(_tab),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: YakkuPalette.textSecondary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : ListView(
+                                  controller: _scroll,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    24,
+                                  ),
+                                  children: [
+                                    ..._sections(visible),
+                                    if (inbox.isLoadingMore)
+                                      const Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -169,6 +221,353 @@ class _AskBackListScreenState extends State<AskBackListScreen> {
       ),
     );
   }
+
+  String _emptyTabLabel(_AskBackTab tab) => switch (tab) {
+    _AskBackTab.yourTurn => 'Nothing needs a reply right now.',
+    _AskBackTab.waiting => 'You are not waiting on anyone.',
+    _AskBackTab.ended => 'No ended chats yet.',
+    _AskBackTab.all => 'No ask backs yet.',
+  };
+
+  /// On All: ACTIVE then ENDED. On a filter tab: one flat list.
+  List<Widget> _sections(List<AskBackListItem> items) {
+    if (_tab != _AskBackTab.all) {
+      return [
+        for (final item in items) ...[
+          _ConversationCard(item: item),
+          const SizedBox(height: 12),
+        ],
+      ];
+    }
+
+    final active = items.where((item) => !item.isEnded).toList();
+    final ended = items.where((item) => item.isEnded).toList();
+    return [
+      if (active.isNotEmpty) ...[
+        _SectionHeader(label: 'ACTIVE', count: active.length),
+        for (final item in active) ...[
+          _ConversationCard(item: item),
+          const SizedBox(height: 12),
+        ],
+      ],
+      if (ended.isNotEmpty) ...[
+        _SectionHeader(label: 'ENDED', count: ended.length),
+        for (final item in ended) ...[
+          _ConversationCard(item: item),
+          const SizedBox(height: 12),
+        ],
+      ],
+    ];
+  }
+}
+
+class _TabRow extends StatelessWidget {
+  const _TabRow({
+    required this.tab,
+    required this.all,
+    required this.yourTurn,
+    required this.waiting,
+    required this.ended,
+    required this.onChanged,
+  });
+
+  final _AskBackTab tab;
+  final int all;
+  final int yourTurn;
+  final int waiting;
+  final int ended;
+  final ValueChanged<_AskBackTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <(_AskBackTab, String)>[
+      (_AskBackTab.all, 'All $all'),
+      (_AskBackTab.yourTurn, 'Your turn $yourTurn'),
+      (_AskBackTab.waiting, 'Waiting $waiting'),
+      (_AskBackTab.ended, 'Ended $ended'),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          for (var i = 0; i < chips.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            _TabChip(
+              label: chips[i].$2,
+              selected: tab == chips[i].$1,
+              onTap: () => onChanged(chips[i].$1),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? YakkuPalette.Ink : YakkuPalette.white,
+      shape: const StadiumBorder(
+        side: BorderSide(color: YakkuPalette.roseBorder),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? YakkuPalette.white : YakkuPalette.Ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+      child: Text(
+        '$label \u00B7 $count',
+        style: const TextStyle(
+          color: YakkuPalette.textSecondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _ConversationCard extends StatelessWidget {
+  const _ConversationCard({required this.item});
+
+  final AskBackListItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final yourTurn = item.isYourTurn;
+    final option = item.context.selectedOption;
+    final title = (item.context.title?.trim().isNotEmpty ?? false)
+        ? item.context.title!
+        : 'Question';
+    final tag = '${item.isAsker ? 'YOUR' : 'THEIR'} ${title.toUpperCase()}';
+    final name = item.isAsker
+        ? (item.other.anonymousName.isEmpty
+              ? 'Anonymous friend'
+              : item.other.anonymousName)
+        : 'Someone you answered';
+    final picked = option == null || option.isEmpty
+        ? null
+        : (item.isAsker
+              ? 'Picked \u2018$option\u2019'
+              : 'You picked \u2018$option\u2019');
+    final last = item.lastMessage;
+    final preview = last == null
+        ? 'Say hello'
+        : (last.isMine ? 'You: ${last.preview}' : 'They: ${last.preview}');
+    final tint = _AvatarTint.of(item.id);
+    final tagColors = _TagColors.of(item);
+
+    return Material(
+      color: YakkuPalette.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: yourTurn ? YakkuPalette.Ink : YakkuPalette.roseBorder,
+          width: yourTurn ? 2 : 1.2,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => context.push(AppRoutes.askBackChatLocation(item.id)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tagColors.fill,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tag,
+                      style: TextStyle(
+                        color: tagColors.ink,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (item.isEnded)
+                    Text(
+                      AskBackFormat.listTime(item.lastActivityAt),
+                      style: const TextStyle(
+                        color: YakkuPalette.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnonymousAvatar(size: 44, color: tint),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: YakkuPalette.Ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (picked != null)
+                          Text(
+                            picked,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: YakkuPalette.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          preview,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: YakkuPalette.textPrimary,
+                            fontSize: 14,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _StatusBadge(item: item),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.item});
+
+  final AskBackListItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, fill, ink) = item.isYourTurn
+        ? ('Your turn', YakkuPalette.primary, YakkuPalette.white)
+        : item.isWaiting
+        ? (
+            'Waiting for their reply',
+            YakkuPalette.greyBlush,
+            YakkuPalette.textSecondary,
+          )
+        : (
+            item.status == AskBackStatus.blocked ? 'Blocked' : 'Chat ended',
+            YakkuPalette.greyBlush,
+            YakkuPalette.textSecondary,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: ink, fontSize: 13, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _TagColors {
+  const _TagColors(this.fill, this.ink);
+
+  final Color fill;
+  final Color ink;
+
+  static _TagColors of(AskBackListItem item) {
+    if (!item.isAsker) {
+      return const _TagColors(
+        YakkuPalette.accentPurple,
+        YakkuPalette.purpleInk,
+      );
+    }
+    if (item.context.contentType == 'poll') {
+      return const _TagColors(YakkuPalette.mint, YakkuPalette.forestGreen);
+    }
+    final hash = item.id.hashCode.abs() % 2;
+    return hash == 0
+        ? const _TagColors(YakkuPalette.pillPink, YakkuPalette.primary)
+        : const _TagColors(YakkuPalette.mint, YakkuPalette.forestGreen);
+  }
+}
+
+class _AvatarTint {
+  static const _colors = <Color>[
+    YakkuPalette.avatarPink,
+    Color(0xFFB7D4F8),
+    YakkuPalette.mint,
+    YakkuPalette.butter,
+    YakkuPalette.accentPurple,
+  ];
+
+  static Color of(String id) => _colors[id.hashCode.abs() % _colors.length];
 }
 
 /// Shown while the user has no ask-back chats yet.
@@ -236,142 +635,6 @@ class _EmptyState extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ConversationTile extends StatelessWidget {
-  const _ConversationTile({required this.item});
-
-  final AskBackListItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final unread = item.unreadCount > 0;
-    final last = item.lastMessage;
-    final preview = last == null
-        ? 'Say hello'
-        : (last.isMine ? 'You: ${last.preview}' : last.preview);
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screen,
-        vertical: 6,
-      ),
-      leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: YakkuPalette.pillPink,
-        child: Text(
-          item.other.anonymousName.isEmpty
-              ? '?'
-              : item.other.anonymousName.characters.first.toUpperCase(),
-          style: const TextStyle(
-            color: YakkuPalette.primary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              item.other.anonymousName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: unread ? FontWeight.w800 : FontWeight.w600,
-              ),
-            ),
-          ),
-          Text(
-            AskBackFormat.listTime(last?.createdAt ?? item.lastActivityAt),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: unread
-                  ? YakkuPalette.primary
-                  : theme.colorScheme.onSurfaceVariant,
-              fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Row(
-          children: [
-            if (item.status != AskBackStatus.active) ...[
-              _StatusChip(status: item.status),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: Text(
-                preview,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: unread
-                      ? theme.colorScheme.onSurface
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontWeight: unread ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            if (item.isMuted)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Icon(
-                  Icons.notifications_off_outlined,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            if (unread)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: const BoxDecoration(
-                  color: YakkuPalette.primary,
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-                child: Text(
-                  item.unreadCount > 99 ? '99+' : '${item.unreadCount}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-      onTap: () => context.push(AppRoutes.askBackChatLocation(item.id)),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final AskBackStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final blocked = status == AskBackStatus.blocked;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: (blocked ? Colors.red : Colors.grey).withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        blocked ? 'Blocked' : 'Closed',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: blocked ? Colors.red.shade700 : Colors.grey.shade700,
-        ),
       ),
     );
   }
