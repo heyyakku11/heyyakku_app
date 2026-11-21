@@ -39,8 +39,8 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Verified App Links: https://<host>/vote/{shareCode} (polls) and
-                 https://<host>/personality/{shareCode} (personality cards).
+            <!-- Verified App Links: https://<host>/vote?share_code=… (and legacy /vote/{code})
+                 plus https://<host>/personality/{shareCode}.
                  Verified against /.well-known/assetlinks.json on the host. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -49,20 +49,20 @@
                 <data
                     android:scheme="https"
                     android:host="${appLinkHost}"
-                    android:pathPrefix="/vote/"/>
+                    android:pathPrefix="/vote"/>
                 <data
                     android:scheme="https"
                     android:host="${appLinkHost}"
                     android:pathPrefix="/personality/"/>
             </intent-filter>
-            <!-- Custom scheme used by the web "Open in app" button: yakku:///vote/{shareCode}
-                 and yakku:///personality/{shareCode}.
+            <!-- Custom scheme used by the web "Open in app" button: yakku:///vote?share_code=…
+                 (legacy yakku:///vote/{code}) and yakku:///personality/{shareCode}.
                  Works inside in-app browsers (Snapchat, Instagram) that skip verified App Links. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="yakku" android:pathPrefix="/vote/"/>
+                <data android:scheme="yakku" android:pathPrefix="/vote"/>
                 <data android:scheme="yakku" android:pathPrefix="/personality/"/>
             </intent-filter>
         </activity>

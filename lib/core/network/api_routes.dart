@@ -61,6 +61,7 @@ abstract final class ApiRoutes {
   // Shared content (polls and checks, resolved by share code)
   static String sharedContent(String shareCode) => '/api/v1/shares/$shareCode';
 
+  /// App user voting (Bearer JWT). Web guests use POST /api/v1/guest/votes instead.
   static const String castVote = '/api/v1/votes';
 
   // User
