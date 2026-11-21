@@ -87,13 +87,52 @@ class CheckRemoteDataSourceImpl implements CheckRemoteDataSource {
 
   @override
   Future<List<UserCheckResponse>> getMyChecks() async {
-    final response = await dio.get<Map<String, dynamic>>(ApiRoutes.myChecks);
-    return _unwrapList(
-      response.data,
-      emptyMessage: 'Empty my checks response',
-      failureMessage: 'Failed to load your checks',
-      itemFromJson: UserCheckResponse.fromJson,
-    );
+    final items = <UserCheckResponse>[];
+    String? cursor;
+    final seenCursors = <String>{};
+
+    while (true) {
+      final response = await dio.get<Map<String, dynamic>>(
+        ApiRoutes.myChecks,
+        queryParameters: cursor == null || cursor.isEmpty
+            ? null
+            : <String, dynamic>{'cursor': cursor},
+      );
+      final body = response.data;
+      if (body == null) {
+        throw StateError('Empty my checks response');
+      }
+
+      final apiResponse = ApiResponse<List<UserCheckResponse>>.fromJson(body, (
+        json,
+      ) {
+        if (json is! List) return const <UserCheckResponse>[];
+        return json
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  UserCheckResponse.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList(growable: false);
+      });
+
+      if (!apiResponse.success || apiResponse.data == null) {
+        throw StateError(apiResponse.message ?? 'Failed to load your checks');
+      }
+
+      items.addAll(apiResponse.data!);
+      final page = cursorFromMeta(apiResponse.meta);
+      final next = page.nextCursor;
+      if (!page.hasMore ||
+          next == null ||
+          next.isEmpty ||
+          !seenCursors.add(next)) {
+        break;
+      }
+      cursor = next;
+    }
+
+    return List<UserCheckResponse>.unmodifiable(items);
   }
 
   @override
