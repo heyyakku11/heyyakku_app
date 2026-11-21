@@ -637,11 +637,11 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'b' * 500);
       expect(
         tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        hasLength(40),
+        hasLength(120),
       );
       expect(
         tester.widget<TextField>(find.byType(TextField).last).controller!.text,
-        hasLength(150),
+        hasLength(120),
       );
     });
 

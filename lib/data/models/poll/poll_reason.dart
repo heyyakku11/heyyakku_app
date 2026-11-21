@@ -23,7 +23,7 @@ enum ReasonReportState {
 }
 
 /// The longest reason text the API accepts with a report.
-const int reasonReportMaxLength = 300;
+const int reasonReportMaxLength = 120;
 
 /// The reasons for one option, plus how many an admin blocked after a report.
 class PollReasonList {

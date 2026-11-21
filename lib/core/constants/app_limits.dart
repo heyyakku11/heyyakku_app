@@ -2,14 +2,14 @@ abstract final class AppLimits {
   /// User-generated options only. Something else is extra and mandatory.
   static const int minOptions = 2;
   static const int maxOptions = 3;
-  static const int maxQuestionLength = 120;
-  static const int maxOptionLength = 40;
+  static const int maxQuestionLength = 200;
+  static const int maxOptionLength = 120;
 
   /// A voter's own 'Something else' answer.
-  static const int maxCustomAnswerLength = 40;
+  static const int maxCustomAnswerLength = 120;
 
   /// The optional 'why' a voter can add to their answer.
-  static const int maxReasonLength = 150;
+  static const int maxReasonLength = 120;
 
   /// Fallback for votes needed before results are revealed; the API sends
   /// the real value as `minVotes`.
