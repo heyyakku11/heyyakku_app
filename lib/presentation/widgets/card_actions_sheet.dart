@@ -186,7 +186,7 @@ class _ActionRow extends StatelessWidget {
                     title,
                     style: TextStyle(
                       color: color,
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),

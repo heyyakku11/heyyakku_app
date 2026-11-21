@@ -55,4 +55,10 @@ abstract interface class AskBackRemoteDataSource {
   /// ticket. Fails with a 403 `ASK_BACK_UNLOCK_REQUIRED` when there is no plan
   /// or no ticket left.
   Future<AskBackAccess> unlock(String voteId);
+
+  /// `GET /api/v1/ask-back/blocks`: people the caller blocked, newest first.
+  Future<AskBackBlocksPage> listBlocks({int page = 1, int pageSize = 20});
+
+  /// `DELETE /api/v1/ask-back/blocks/{blockId}`: lift a block the caller owns.
+  Future<void> unblockByBlockId(String blockId);
 }

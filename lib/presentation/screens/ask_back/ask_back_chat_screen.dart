@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
@@ -8,6 +10,8 @@ import 'package:yakku/presentation/screens/ask_back/ask_back_chat_controller.dar
 import 'package:yakku/presentation/screens/ask_back/ask_back_chat_widgets.dart';
 import 'package:yakku/presentation/screens/ask_back/block_report_sheets.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
+import 'package:yakku/presentation/widgets/ask_back_unlock_sheet.dart';
+import 'package:yakku/presentation/widgets/skeleton.dart';
 import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 /// One private Ask Back conversation. The picked option sits in the header and
@@ -35,6 +39,18 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
   final ScrollController _scroll = ScrollController();
   AskBackChatController? _chat;
 
+  /// Card access for ticket unlock vs plans upsell on the free-ask bar.
+  AskBackAccess? _cardAccess;
+  String? _accessContentKey;
+
+  bool get _cardUnlocked =>
+      _cardAccess != null && _cardAccess!.unlocked && !_cardAccess!.paused;
+
+  bool get _canSpendTicket =>
+      _cardAccess != null &&
+      _cardAccess!.canUnlock &&
+      !_cardAccess!.unlocked;
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +61,44 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
         _chat?.loadOlder();
       }
     });
+  }
+
+  Future<void> _refreshCardAccess(
+    AskBackConversation conversation, {
+    bool force = false,
+  }) async {
+    final type = conversation.context.contentType;
+    final id = conversation.context.contentId;
+    if (type.isEmpty || id == null || id.isEmpty) return;
+    final key = '$type:$id';
+    if (!force && key == _accessContentKey && _cardAccess != null) return;
+    _accessContentKey = key;
+    try {
+      final access = await AppScope.of(context).askBack.getCardAccess(type, id);
+      if (!mounted) return;
+      setState(() => _cardAccess = access);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cardAccess = null);
+    }
+  }
+
+  /// One ticket unlocks the card once; backend ignores a second spend.
+  Future<void> _unlockCardWithTicket(AskBackConversation conversation) async {
+    final access = _cardAccess;
+    final voteId = conversation.voteId;
+    if (access == null || !_canSpendTicket || voteId == null || voteId.isEmpty) {
+      return;
+    }
+    final unlocked = await showAskBackUnlockSheet(
+      context,
+      access: access,
+      unlock: () => AppScope.of(context).askBack.unlock(voteId),
+    );
+    if (unlocked == true && mounted) {
+      await _refreshCardAccess(conversation, force: true);
+      await _chat?.refreshConversation();
+    }
   }
 
   @override
@@ -78,16 +132,18 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
   void _send() {
     final chat = _chat;
     if (chat == null) return;
-    if (chat.send(_text.text)) {
-      _text.clear();
-      if (_scroll.hasClients) {
-        _scroll.animateTo(
-          0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-      setState(() {});
+    final text = _text.text;
+    // Clear and unfocus first so the composer cannot look "still active"
+    // for a frame after the turn flips to waiting.
+    FocusScope.of(context).unfocus();
+    if (!chat.send(text)) return;
+    _text.clear();
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -121,11 +177,14 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       builder: (context, _) {
         final conversation = chat.conversation;
         final blocked = conversation?.status == AskBackStatus.blocked;
+        final iBlocked = blocked && (conversation?.canUnblock ?? false);
         final option = conversation?.context.selectedOption;
         return Scaffold(
           backgroundColor: YakkuPalette.cream,
           appBar: AskBackChatAppBar(
-            title: blocked ? '$_friend · blocked' : _friend,
+            title: blocked
+                ? (iBlocked ? '$_friend · block' : '$_friend · blocked')
+                : _friend,
             subtitle: option == null || option.isEmpty
                 ? null
                 : 'Picked "$option"',
@@ -139,8 +198,12 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
   }
 
   Widget _body(AskBackChatController chat, AskBackConversation? conversation) {
+    if (conversation != null) {
+      // Fire once per content key; ignore when already cached.
+      unawaited(_refreshCardAccess(conversation));
+    }
     if (chat.isLoading && conversation == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const _AskBackChatSkeleton();
     }
     if (conversation == null) {
       return Center(
@@ -271,7 +334,8 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       return ChatComposer(
         controller: _text,
         maxLength: AskBackChatController.maxLength,
-        messagesLeft: chat.messagesLeft,
+        // Asker-only budget; voters just reply on their turn.
+        messagesLeft: conversation.isAsker ? chat.messagesLeft : null,
         hintText: chat.messages.isEmpty
             ? 'Ask them something...'
             : 'Ask another...',
@@ -287,7 +351,9 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       return const ChatStatusBar(text: 'This person is no longer on Yakku.');
     }
     if (conversation.status == AskBackStatus.blocked) {
-      return const ChatStatusBar(text: 'Chat ended');
+      return ChatStatusBar(
+        text: conversation.canUnblock ? 'You blocked them' : 'They blocked you',
+      );
     }
     if (chat.isPaused) {
       return const ChatStatusBar(text: 'Chat paused');
@@ -302,7 +368,25 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
     if (limitHit) {
       return FreeAskUsedBar(
         waitingReplies: conversation.waitingReplies,
-        onUnlock: () => showYakkuPlans(context),
+        cardUnlocked: _cardUnlocked,
+        canSpendTicket: _canSpendTicket,
+        ticketsLeft: _cardAccess?.ticketsLeft,
+        onUnlock: () async {
+          if (_canSpendTicket) {
+            await _unlockCardWithTicket(conversation);
+            return;
+          }
+          final bought = await showYakkuPlans(
+            context,
+            contentType: conversation.context.contentType,
+            contentId: conversation.context.contentId,
+            includeThisCard: _cardUnlocked ? false : null,
+          );
+          if (bought && mounted) {
+            await _refreshCardAccess(conversation, force: true);
+            await chat.refreshConversation();
+          }
+        },
       );
     }
     if (conversation.status == AskBackStatus.closed) {
@@ -318,5 +402,86 @@ class _AskBackChatScreenState extends State<AskBackChatScreen>
       return const ChatStatusBar(text: 'Chat ended');
     }
     return const ChatStatusBar(text: 'Waiting for their reply');
+  }
+}
+
+/// Placeholder layout while the conversation and first page of messages load:
+/// rule chip, reason block, a few bubbles, and the composer bar.
+class _AskBackChatSkeleton extends StatelessWidget {
+  const _AskBackChatSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SkeletonPulse(
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Center(
+              child: SkeletonBox(width: 280, height: 32, radius: 20),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SkeletonBox(width: 88, height: 10, radius: 5),
+                        SizedBox(height: 8),
+                        SkeletonBox(width: 220, height: 56, radius: 20),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: SkeletonBox(width: 200, height: 48, radius: 20),
+                  ),
+                  SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SkeletonBox(width: 168, height: 48, radius: 20),
+                  ),
+                  SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: SkeletonBox(width: 148, height: 40, radius: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _ComposerSkeleton(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComposerSkeleton extends StatelessWidget {
+  const _ComposerSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      decoration: const BoxDecoration(
+        color: YakkuPalette.white,
+        border: Border(top: BorderSide(color: YakkuPalette.roseBorder)),
+      ),
+      child: const Row(
+        children: [
+          Expanded(child: SkeletonBox(height: 48, radius: 26)),
+          SizedBox(width: 10),
+          SkeletonBox.circle(size: 48),
+        ],
+      ),
+    );
   }
 }

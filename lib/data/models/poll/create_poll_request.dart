@@ -5,14 +5,12 @@ class CreatePollRequest {
   final String contentType;
   final DateTime? expiresAt;
   final List<CreatePollOptionRequest> options;
-  final String? mediaUploadSessionId;
 
   const CreatePollRequest({
     required this.question,
     required this.contentType,
     required this.options,
     this.expiresAt,
-    this.mediaUploadSessionId,
   });
 
   Map<String, dynamic> toJson() {
@@ -21,8 +19,6 @@ class CreatePollRequest {
       'contentType': contentType,
       if (expiresAt != null) 'expiresAt': expiresAt!.toUtc().toIso8601String(),
       'options': options.map((option) => option.toJson()).toList(),
-      if (mediaUploadSessionId != null && mediaUploadSessionId!.isNotEmpty)
-        'mediaUploadSessionId': mediaUploadSessionId,
     };
   }
 }

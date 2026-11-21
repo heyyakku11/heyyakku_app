@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:signalr_netcore/signalr_client.dart';
+import 'package:yakku/core/auth/jwt_access_token.dart';
 import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/core/network/api_routes.dart';
 import 'package:yakku/data/models/ask_back/ask_back_models.dart';
@@ -278,18 +278,8 @@ class AskBackRealtimeService implements AskBackRealtime {
   }
 
   /// Seconds until the JWT expires, or null when it cannot be read.
-  static int? secondsUntilExpiry(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return null;
-      final payload = utf8.decode(
-        base64Url.decode(base64Url.normalize(parts[1])),
-      );
-      final exp = (jsonDecode(payload) as Map<String, dynamic>)['exp'];
-      if (exp is! num) return null;
-      return exp.toInt() - DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      return null;
-    }
-  }
+  ///
+  /// Prefer [JwtAccessToken.secondsUntilExpiry] for new call sites.
+  static int? secondsUntilExpiry(String token) =>
+      JwtAccessToken.secondsUntilExpiry(token);
 }

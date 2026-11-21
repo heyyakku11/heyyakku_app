@@ -1,20 +1,16 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:yakku/core/constants/app_limits.dart';
 import 'package:yakku/core/constants/app_radii.dart';
 import 'package:yakku/core/constants/app_spacing.dart';
-import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/poll/draft_poll.dart';
 import 'package:yakku/data/models/poll/original_question.dart';
 import 'package:yakku/data/models/poll/poll_response.dart';
-import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/create/create_poll_claim_screen.dart';
@@ -93,12 +89,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   bool _showErrors = false;
   bool _allowComments = true;
   bool _stopPlaceholder = false;
-
-  final ImagePicker _imagePicker = ImagePicker();
-  File? _photoFile;
-  String? _mediaSessionId;
-  bool _isUploadingPhoto = false;
-  int _mediaSelectionVersion = 0;
 
   late final AnimationController _screenShakeController;
 
@@ -209,12 +199,10 @@ class _CreatePollSheetState extends State<CreatePollSheet>
       _hasQuestion &&
       _optionsFilled &&
       !_hasDuplicateOptions &&
-      !_isCreating &&
-      !_isUploadingPhoto;
+      !_isCreating;
 
   /// Save is available once the question and the minimum options are filled.
-  bool get _canSave =>
-      _formReady && (_photoFile == null || _mediaSessionId != null);
+  bool get _canSave => _formReady;
 
   bool get _hasSavableContent {
     if (_questionController.text.trim().isNotEmpty) return true;
@@ -427,108 +415,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
     });
   }
 
-  Future<void> _onPhotoChipTap() async {
-    final auth = AppScope.of(context).authController;
-    if (!auth.isLoggedIn) {
-      openSignUp(context);
-      return;
-    }
-
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: YakkuPalette.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Take photo'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from gallery'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
-              ),
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('Cancel'),
-                onTap: () => Navigator.pop(sheetContext),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (source == null || !mounted) return;
-    await _pickAndUploadPhoto(source);
-  }
-
-  Future<void> _pickAndUploadPhoto(ImageSource source) async {
-    try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 85,
-      );
-      if (picked == null || !mounted) return;
-
-      final file = File(picked.path);
-      final length = await file.length();
-      if (length > MediaUploadRepository.maxImageBytes) {
-        _showMessage('Photo must be 10 MB or smaller');
-        return;
-      }
-
-      final selectionVersion = ++_mediaSelectionVersion;
-      setState(() {
-        _photoFile = file;
-        _mediaSessionId = null;
-        _isUploadingPhoto = true;
-      });
-
-      final session = await AppScope.of(context).mediaUploads.uploadImageFile(
-        file: file,
-        selectionVersion: selectionVersion,
-        mimeType: picked.mimeType,
-      );
-
-      if (!mounted) return;
-      if (selectionVersion != _mediaSelectionVersion) return;
-
-      setState(() {
-        _mediaSessionId = session.sessionId;
-        _isUploadingPhoto = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _isUploadingPhoto = false;
-        if (_mediaSessionId == null) {
-          _photoFile = null;
-        }
-      });
-      _showMessage(
-        DioErrorMapper.map(error, fallback: 'Could not upload photo').message,
-      );
-    }
-  }
-
-  void _clearPhoto() {
-    _mediaSelectionVersion++;
-    setState(() {
-      _photoFile = null;
-      _mediaSessionId = null;
-      _isUploadingPhoto = false;
-    });
-  }
-
   void _focusMissingField() {
     if (!_hasQuestion) {
       _questionFocus.requestFocus();
@@ -550,7 +436,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
   /// the claim screen where the user picks their own answer and creates the
   /// poll.
   Future<void> _onSavePressed() async {
-    if (_isCreating || _isUploadingPhoto) return;
+    if (_isCreating) return;
 
     if (!_hasQuestion || !_optionsFilled) {
       HapticFeedback.mediumImpact();
@@ -601,7 +487,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
         builder: (_) => CreatePollClaimScreen(
           question: question,
           options: options,
-          mediaUploadSessionId: _mediaSessionId,
         ),
       ),
     );
@@ -719,10 +604,6 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                                 stopPlaceholder: _stopPlaceholder,
                                 examples: _questionPlaceholderPhrases,
                                 onSubmitted: _moveFocusFromQuestion,
-                                photoFile: _photoFile,
-                                isUploadingPhoto: _isUploadingPhoto,
-                                onPhotoTap: _onPhotoChipTap,
-                                onClearPhoto: _clearPhoto,
                               ),
                               ClipRect(
                                 child: AnimatedSize(
@@ -853,7 +734,7 @@ class _CreatePollSheetState extends State<CreatePollSheet>
                       ),
                       _SaveFooter(
                         ready: ready,
-                        isLoading: _isCreating || _isUploadingPhoto,
+                        isLoading: _isCreating,
                         onPressed: _onSavePressed,
                       ),
                     ],
@@ -952,11 +833,7 @@ class _QuestionCard extends StatelessWidget {
     required this.stopPlaceholder,
     required this.examples,
     required this.onSubmitted,
-    required this.onPhotoTap,
-    required this.onClearPhoto,
     this.highlightError = false,
-    this.photoFile,
-    this.isUploadingPhoto = false,
   });
 
   /// Red border: the question is mandatory and still empty.
@@ -967,10 +844,6 @@ class _QuestionCard extends StatelessWidget {
   final bool stopPlaceholder;
   final List<String> examples;
   final VoidCallback onSubmitted;
-  final VoidCallback onPhotoTap;
-  final VoidCallback onClearPhoto;
-  final File? photoFile;
-  final bool isUploadingPhoto;
 
   bool get _nearLimit =>
       controller.text.length >= (AppLimits.maxQuestionLength * 0.85).floor();
@@ -991,98 +864,68 @@ class _QuestionCard extends StatelessWidget {
           width: highlightError ? 1.8 : 1.2,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        alignment: Alignment.topLeft,
         children: [
-          Stack(
-            alignment: Alignment.topLeft,
-            children: [
-              TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: false,
-                maxLines: null,
-                minLines: 3,
-                maxLength: AppLimits.maxQuestionLength,
-                keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.next,
-                textCapitalization: TextCapitalization.sentences,
+          TextField(
+            controller: controller,
+            focusNode: focusNode,
+            autofocus: false,
+            maxLines: null,
+            minLines: 3,
+            maxLength: AppLimits.maxQuestionLength,
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.sentences,
+            style: textTheme.titleLarge?.copyWith(
+              color: YakkuPalette.textPrimary,
+              fontWeight: FontWeight.w800,
+              height: 1.35,
+            ),
+            cursorColor: YakkuPalette.primary,
+            onSubmitted: (_) => onSubmitted(),
+            onEditingComplete: onSubmitted,
+            buildCounter:
+                (
+                  context, {
+                  required currentLength,
+                  required isFocused,
+                  required maxLength,
+                }) {
+                  if (!_nearLimit) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '$currentLength/$maxLength',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: YakkuPalette.textSecondary,
+                      ),
+                    ),
+                  );
+                },
+            decoration: const InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: YakkuPalette.transparent,
+              hintText: '',
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              counterText: '',
+            ),
+          ),
+          if (showPlaceholder)
+            IgnorePointer(
+              child: _TypingPlaceholder(
+                phrases: examples,
                 style: textTheme.titleLarge?.copyWith(
-                  color: YakkuPalette.textPrimary,
-                  fontWeight: FontWeight.w800,
+                  color: YakkuPalette.placeholder,
+                  fontWeight: FontWeight.w600,
                   height: 1.35,
                 ),
-                cursorColor: YakkuPalette.primary,
-                onSubmitted: (_) => onSubmitted(),
-                onEditingComplete: onSubmitted,
-                buildCounter:
-                    (
-                      context, {
-                      required currentLength,
-                      required isFocused,
-                      required maxLength,
-                    }) {
-                      if (!_nearLimit) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          '$currentLength/$maxLength',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: YakkuPalette.textSecondary,
-                          ),
-                        ),
-                      );
-                    },
-                decoration: const InputDecoration(
-                  isDense: true,
-                  filled: true,
-                  fillColor: YakkuPalette.transparent,
-                  hintText: '',
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  counterText: '',
-                ),
               ),
-              if (showPlaceholder)
-                IgnorePointer(
-                  child: _TypingPlaceholder(
-                    phrases: examples,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: YakkuPalette.placeholder,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (photoFile != null) ...[
-            const SizedBox(height: 12),
-            _ImagePreview(
-              photoFile: photoFile!,
-              isUploading: isUploadingPhoto,
-              onClear: onClearPhoto,
             ),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              // Photo chip temporarily disabled.
-              // _MediaChip(
-              //   icon: Icons.image_outlined,
-              //   label: 'Photo',
-              //   selected: photoFile != null,
-              //   onTap: onPhotoTap,
-              // ),
-              // Future: Video / Voice media chips.
-              // _MediaChip(icon: Icons.videocam_outlined, label: 'Video'),
-              // _MediaChip(icon: Icons.mic_none_rounded, label: 'Voice'),
-            ],
-          ),
         ],
       ),
     );
@@ -1543,69 +1386,6 @@ class _SaveFooter extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ImagePreview extends StatelessWidget {
-  const _ImagePreview({
-    required this.photoFile,
-    required this.isUploading,
-    required this.onClear,
-  });
-
-  final File photoFile;
-  final bool isUploading;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Image.file(
-              photoFile,
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
-          ),
-        ),
-        if (isUploading)
-          Positioned.fill(
-            child: ColoredBox(
-              color: YakkuPalette.black.withValues(alpha: 0.35),
-              child: const Center(
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: YakkuPalette.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Material(
-            color: YakkuPalette.black.withValues(alpha: 0.55),
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: isUploading ? null : onClear,
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.close, size: 16, color: YakkuPalette.white),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

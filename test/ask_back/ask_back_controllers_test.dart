@@ -24,11 +24,13 @@ AskBackConversation conversation({
 }) {
   return AskBackConversation(
     id: conversationId,
+    voteId: 'vote-1',
     status: status,
     myRole: myRole,
     other: const AskBackParticipant(anonymousName: 'Quiet Fox'),
     context: const AskBackContext(
       contentType: 'poll',
+      contentId: 'poll-1',
       question: 'Which is better?',
       selectedOption: 'A',
       reason: 'Clearer',
@@ -145,6 +147,13 @@ class FakeRemote implements AskBackRemoteDataSource {
       cursor: 'cursor-$n',
     );
     stored.add(saved);
+    // Mirror server turn / asker quota after a successful send.
+    final left = current.messagesLeft;
+    current = current.copyWith(
+      canSend: false,
+      turn: AskBackTurn.them,
+      messagesLeft: left == null ? null : (left - 1).clamp(0, left),
+    );
     return saved;
   }
 
@@ -191,6 +200,27 @@ class FakeRemote implements AskBackRemoteDataSource {
 
   @override
   Future<AskBackAccess> unlock(String voteId) async => access;
+
+  @override
+  Future<AskBackBlocksPage> listBlocks({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    return AskBackBlocksPage(
+      items: blocks,
+      page: page,
+      pageSize: pageSize,
+      totalCount: blocks.length,
+      totalPages: 1,
+    );
+  }
+
+  @override
+  Future<void> unblockByBlockId(String blockId) async {
+    blocks.removeWhere((item) => item.blockId == blockId);
+  }
+
+  List<AskBackBlockItem> blocks = const [];
 
   AskBackAccess access = const AskBackAccess(
     unlocked: false,
@@ -314,6 +344,110 @@ void main() {
     expect(chat.messages.last.content, 'hello');
     expect(chat.messages.where((m) => m.isMine), hasLength(1));
   });
+
+  test(
+    'messages left and turn update as soon as the asker sends',
+    () async {
+      await open([message(1)]);
+      remote.current = conversation(
+        messagesLeft: 3,
+        turn: AskBackTurn.me,
+        canSend: true,
+      );
+      await chat.refreshConversation();
+
+      expect(chat.messagesLeft, 3);
+      expect(chat.send('first ask'), isTrue);
+      expect(chat.messagesLeft, 2);
+      expect(chat.turn, AskBackTurn.them);
+      expect(chat.canSend, isFalse);
+
+      await pumpEventQueue();
+      expect(chat.messagesLeft, 2);
+      expect(chat.turn, AskBackTurn.them);
+      expect(chat.canSend, isFalse);
+    },
+  );
+
+  test(
+    'canSend stays false while a send is in flight even if GET is stale',
+    () async {
+      await open([message(1)]);
+      remote.current = conversation(
+        messagesLeft: 2,
+        turn: AskBackTurn.me,
+        canSend: true,
+      );
+      await chat.refreshConversation();
+
+      final completer = Completer<AskBackMessage>();
+      final slow = _SlowRemote(remote, completer);
+      final slowChat = AskBackChatController(
+        conversationId: conversationId,
+        remote: slow,
+        realtime: realtime,
+        inbox: inbox,
+      );
+      await slowChat.init();
+      await pumpEventQueue();
+      slow.current = conversation(
+        messagesLeft: 2,
+        turn: AskBackTurn.me,
+        canSend: true,
+      );
+      await slowChat.refreshConversation();
+
+      expect(slowChat.send('hold the line'), isTrue);
+      expect(slowChat.canSend, isFalse);
+      expect(slowChat.turn, AskBackTurn.them);
+
+      // A stale GET that still says "your turn" must not reopen the composer.
+      await slowChat.refreshConversation();
+      expect(slowChat.canSend, isFalse);
+
+      slow.current = conversation(
+        messagesLeft: 1,
+        turn: AskBackTurn.them,
+        canSend: false,
+      );
+      completer.complete(
+        message(50, mine: true, clientId: slow.lastClientId),
+      );
+      await pumpEventQueue();
+      expect(slowChat.canSend, isFalse);
+      expect(slowChat.messagesLeft, 1);
+      slowChat.dispose();
+    },
+  );
+
+  test(
+    'a failed send restores messages left until the user retries',
+    () async {
+      await open([message(1)]);
+      remote.current = conversation(
+        messagesLeft: 2,
+        turn: AskBackTurn.me,
+        canSend: true,
+      );
+      await chat.refreshConversation();
+      remote.failSends = 1;
+
+      expect(chat.send('please'), isTrue);
+      expect(chat.messagesLeft, 1);
+      await pumpEventQueue();
+
+      expect(chat.messages.last.state, ChatMessageState.failed);
+      expect(chat.messagesLeft, 2);
+      expect(chat.canSend, isTrue);
+
+      chat.retry(chat.messages.last);
+      expect(chat.messagesLeft, 1);
+      await pumpEventQueue();
+      expect(chat.messages.last.state, ChatMessageState.sent);
+      expect(chat.messagesLeft, 1);
+      expect(chat.canSend, isFalse);
+    },
+  );
 
   test(
     'the REST response and the SignalR event for one message never duplicate it',

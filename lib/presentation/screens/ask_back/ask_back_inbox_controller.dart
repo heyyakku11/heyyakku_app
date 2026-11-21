@@ -128,6 +128,7 @@ class AskBackInboxController extends ChangeNotifier {
       canSend: conversation.canSend,
       isPaused: conversation.isPaused,
       context: conversation.context,
+      canUnblock: conversation.canUnblock,
     );
     notifyListeners();
   }

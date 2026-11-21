@@ -142,7 +142,7 @@ class _NotificationListState extends State<NotificationList> {
     }
   }
 
-  /// Marks the notification read and opens the card's results screen.
+  /// Marks the notification read and opens its target screen.
   Future<void> _open(AppNotification item) async {
     unawaited(_markRead(item));
     final target = item.target;

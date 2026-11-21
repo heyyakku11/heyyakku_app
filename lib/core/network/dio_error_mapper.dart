@@ -78,6 +78,7 @@ abstract final class DioErrorMapper {
     final kind = switch (statusCode) {
       400 => ApiErrorKind.badRequest,
       401 => ApiErrorKind.unauthorized,
+      402 => ApiErrorKind.paymentRequired,
       403 => ApiErrorKind.forbidden,
       404 => ApiErrorKind.notFound,
       409 => ApiErrorKind.conflict,
@@ -92,6 +93,9 @@ abstract final class DioErrorMapper {
         serverMessage ?? 'Session expired. Please sign in again.',
       ApiErrorKind.forbidden =>
         serverMessage ?? 'You do not have permission to do that.',
+      ApiErrorKind.paymentRequired =>
+        serverMessage ??
+            'Payment is not confirmed yet. Check status or try again.',
       ApiErrorKind.notFound =>
         serverMessage ??
             _notFoundFallback(cause) ??

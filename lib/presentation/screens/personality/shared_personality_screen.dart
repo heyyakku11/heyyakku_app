@@ -14,8 +14,12 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/personality/personality_navigation.dart';
+import 'package:yakku/presentation/screens/personality/personality_share_screen.dart';
+import 'package:yakku/presentation/widgets/already_voted_view.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/guess_flow_widgets.dart';
+import 'package:yakku/presentation/widgets/personality_own_locked_view.dart';
+import 'package:yakku/presentation/widgets/voting_closed_view.dart';
 
 enum _PersonalityIssue {
   notFound,
@@ -112,7 +116,8 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
       final issue = _issueFor(card);
       setState(() {
         _issue = issue;
-        _card = issue == null ? card : null;
+        // Keep the card for the closed edge template (owner name / vote count).
+        _card = issue == null || issue == _PersonalityIssue.closed ? card : null;
       });
       if (issue == null && _traits.isEmpty) unawaited(_loadTraits());
     } catch (error) {
@@ -216,10 +221,7 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
         }
       case ApiErrorKind.conflict:
         // Not collecting votes any more (the card just got its last vote).
-        setState(() {
-          _card = null;
-          _issue = _PersonalityIssue.closed;
-        });
+        setState(() => _issue = _PersonalityIssue.closed);
       case ApiErrorKind.forbidden:
         if (card != null) {
           setState(() => _card = card.copyWith(isOwner: true, canVote: false));
@@ -260,16 +262,77 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
     }
   }
 
+  /// Opens the same share destinations friends get for this personality card.
+  Future<void> _shareOwnCard(SharedPersonalityCard card) async {
+    if (_openingOwnCard) return;
+    setState(() => _openingOwnCard = true);
+    try {
+      final store = AppScope.of(context).personalityCards;
+      // Prefer the owner's own picks for the blurred preview; fall back to the
+      // catalog so the card still looks filled if the store is cold.
+      var traits = [
+        for (final trait in store.card?.selfTraits ?? const <PersonalityTrait>[])
+          trait.name,
+      ];
+      if (traits.isEmpty) {
+        await store.refresh();
+        if (!mounted) return;
+        traits = [
+          for (final trait in store.card?.selfTraits ?? const <PersonalityTrait>[])
+            trait.name,
+        ];
+      }
+      if (traits.isEmpty) {
+        traits = [for (final trait in store.traits) trait.name];
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => PersonalityShareScreen(
+            shareCode: card.shareCode,
+            traits: traits,
+            minVotes: card.requiredVotes,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show('Could not open share');
+    } finally {
+      if (mounted) setState(() => _openingOwnCard = false);
+    }
+  }
+
+  List<String> _previewTraitNames() {
+    final store = AppScope.of(context).personalityCards;
+    final self = [
+      for (final trait in store.card?.selfTraits ?? const <PersonalityTrait>[])
+        trait.name,
+    ];
+    if (self.isNotEmpty) return self;
+    return [for (final trait in store.traits) trait.name];
+  }
+
   @override
   Widget build(BuildContext context) {
     final card = _card;
+    if (card != null && !card.isOwner && card.hasVoted) {
+      return Scaffold(
+        backgroundColor: YakkuPalette.pinkTintSoft,
+        body: _buildVoted(),
+      );
+    }
+
+    if (_issue == _PersonalityIssue.closed) {
+      return Scaffold(
+        backgroundColor: YakkuPalette.pinkTintSoft,
+        body: _buildVotingClosed(card),
+      );
+    }
+
     final Widget body;
     if (card != null) {
-      body = card.isOwner
-          ? _buildOwn(card)
-          : card.hasVoted
-          ? _buildVoted()
-          : _buildVote(card);
+      body = card.isOwner ? _buildOwn(card) : _buildVote(card);
     } else if (_issue != null) {
       body = _buildIssue(_issue!);
     } else {
@@ -305,6 +368,30 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildVotingClosed(SharedPersonalityCard? card) {
+    final name = card?.ownerAnonymousName.trim() ?? '';
+    final votes = card?.totalVotes;
+    final needed = card?.requiredVotes;
+    final filled = votes != null && needed != null && needed > 0
+        ? '$votes of $needed votes in'
+        : null;
+
+    return VotingClosedView(
+      key: const ValueKey('personality-voting-closed'),
+      onLeave: _leave,
+      onClose: _leave,
+      accentColor: YakkuPalette.Raspberry,
+      background: const BoxDecoration(color: YakkuPalette.pinkTintSoft),
+      showYakkuMark: false,
+      title: VotingClosedView.defaultTitle,
+      subtitle: name.isEmpty
+          ? 'This card already has all its votes.'
+          : "$name's card already has all its votes.",
+      statusLabel: filled,
+      preview: _ClosedPersonalityPreview(ownerName: name),
     );
   }
 
@@ -398,47 +485,71 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
 
   // --------------------------------------------------------------- own card
 
+  /// Same pattern as poll/check own links: card preview + progress + action.
+  /// Voting stays blocked; the owner can share again or open their flow.
   Widget _buildOwn(SharedPersonalityCard card) {
-    final (body, action) = switch (card.status) {
-      PersonalityCardStatus.draft => (
-        'Make your own guess first, then share it with friends.',
-        'Make your guess',
-      ),
-      PersonalityCardStatus.collecting => (
-        card.requiredVotes > 0
-            ? '${card.totalVotes} of ${card.requiredVotes} friends have voted. '
-                  'You cannot vote on your own card.'
-            : 'You cannot vote on your own card.',
-        'Share again',
-      ),
-      PersonalityCardStatus.completed => (
-        'Your friends have all voted. See how they see you.',
-        'View results',
-      ),
-    };
-    return _MessageView(
+    return PersonalityOwnLockedView(
       key: const ValueKey('personality-own-view'),
-      title: 'This is your card',
-      body: body,
-      primaryLabel: action,
-      onPrimary: _openingOwnCard ? null : _openOwnCard,
-      primaryLoading: _openingOwnCard,
-      onLeave: _leave,
+      status: card.status,
+      totalVotes: card.totalVotes,
+      requiredVotes: card.requiredVotes,
+      traitNames: _previewTraitNames(),
+      busy: _openingOwnCard,
+      onMakeGuess: _openingOwnCard ? null : _openOwnCard,
+      onShareAgain: _openingOwnCard ? null : () => _shareOwnCard(card),
+      onViewResults: _openingOwnCard ? null : _openOwnCard,
     );
   }
 
   // ------------------------------------------------------------ voted / issue
 
   Widget _buildVoted() {
-    return _MessageView(
+    final pickNames = [
+      for (final id in _selected)
+        for (final trait in _traits)
+          if (trait.id == id) trait.name,
+    ];
+
+    return AlreadyVotedView(
       key: const ValueKey('personality-voted-view'),
-      title: 'You already voted',
-      body: 'Locked in. Thanks for being honest.',
       onLeave: _leave,
+      onClose: _leave,
+      accentColor: YakkuPalette.Raspberry,
+      background: const BoxDecoration(color: YakkuPalette.pinkTintSoft),
+      showYakkuMark: false,
+      preview: pickNames.isEmpty
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Your picks',
+                  style: TextStyle(
+                    color: YakkuPalette.Ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final name in pickNames) _LockedTraitChip(label: name),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
   Widget _buildIssue(_PersonalityIssue issue) {
+    // Closed must never fall through to the plain text message view.
+    if (issue == _PersonalityIssue.closed) {
+      return _buildVotingClosed(_card);
+    }
+
     final (title, body) = switch (issue) {
       _PersonalityIssue.notFound => (
         'Card not found',
@@ -449,7 +560,7 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
         "This card isn't available for voting.",
       ),
       _PersonalityIssue.closed => (
-        'Voting is closed',
+        VotingClosedView.defaultTitle,
         'This card already has all its votes.',
       ),
       _PersonalityIssue.failed => (
@@ -464,6 +575,129 @@ class _SharedPersonalityScreenState extends State<SharedPersonalityScreen> {
       primaryLabel: issue == _PersonalityIssue.failed ? 'Try again' : null,
       onPrimary: issue == _PersonalityIssue.failed ? _load : null,
       onLeave: _leave,
+    );
+  }
+}
+
+/// Compact locked personality card for the closed edge screen. Avoids the
+/// share-card CTA row so narrow viewports stay overflow-free.
+class _ClosedPersonalityPreview extends StatelessWidget {
+  const _ClosedPersonalityPreview({required this.ownerName});
+
+  final String ownerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (ownerName.isNotEmpty) ...[
+          Text(
+            ownerName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: YakkuPalette.Ink,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        Center(
+          child: Transform.rotate(
+            angle: -0.04,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 300),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: YakkuPalette.Raspberry,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: YakkuPalette.Ink, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 6)),
+                  ],
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.fromLTRB(18, 18, 18, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Yakku.',
+                            style: TextStyle(
+                              color: YakkuPalette.white,
+                              fontSize: 22,
+                              height: 1,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          Spacer(),
+                          Text(
+                            'WHO YOU ARE',
+                            style: TextStyle(
+                              color: Color(0xCCFFFFFF),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Describe me in 3 words',
+                        style: TextStyle(
+                          color: YakkuPalette.white,
+                          fontSize: 28,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                      SizedBox(height: 18),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0x33FFFFFF),
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.lock_rounded,
+                                color: YakkuPalette.white,
+                                size: 18,
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Voting locked · answers are in',
+                                  style: TextStyle(
+                                    color: YakkuPalette.white,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -606,6 +840,37 @@ class _AnonymousNote extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Non-interactive raspberry chip for picks shown on the already-voted screen.
+class _LockedTraitChip extends StatelessWidget {
+  const _LockedTraitChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: YakkuPalette.Raspberry.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: YakkuPalette.Raspberry.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: YakkuPalette.Raspberry,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

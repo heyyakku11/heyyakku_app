@@ -142,7 +142,7 @@ class SubMirrorCheckCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: YakkuPalette.Ink,
-                  fontSize: compact ? 15 : 22,
+                  fontSize: compact ? 18 : 22,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: compact ? -0.2 : -0.4,

@@ -3,8 +3,13 @@ import 'package:yakku/core/auth/auth_controller.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
+import 'package:yakku/core/payments/payment_flow_controller.dart';
+import 'package:yakku/core/payments/pending_payment_store.dart';
+import 'package:yakku/core/payments/pending_purchase_intent.dart';
+import 'package:yakku/core/payments/razorpay_checkout_service.dart';
 import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
+import 'package:yakku/data/datasources/payment_remote_data_source.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
@@ -12,7 +17,6 @@ import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
-import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
@@ -28,9 +32,13 @@ class AppScope extends InheritedWidget {
     required this.polls,
     required this.pollApi,
     required this.checkApi,
-    required this.mediaUploads,
     required this.activityPolls,
     required this.userRemote,
+    required this.payments,
+    required this.pendingPayments,
+    required this.pendingPurchase,
+    required this.paymentFlow,
+    required this.razorpayCheckout,
     required this.notifications,
     required this.deviceRegistration,
     required this.draftPolls,
@@ -48,9 +56,13 @@ class AppScope extends InheritedWidget {
   final MockPollRepository polls;
   final PollApiRepository pollApi;
   final CheckApiRepository checkApi;
-  final MediaUploadRepository mediaUploads;
   final ActivityPollRepository activityPolls;
   final UserRemoteDataSource userRemote;
+  final PaymentRemoteDataSource payments;
+  final PendingPaymentStore pendingPayments;
+  final PendingPurchaseStore pendingPurchase;
+  final PaymentFlowController paymentFlow;
+  final RazorpayCheckoutService razorpayCheckout;
   final NotificationRemoteDataSource notifications;
   final DeviceRegistrationService deviceRegistration;
   final DraftPollStore draftPolls;
@@ -78,9 +90,13 @@ class AppScope extends InheritedWidget {
         polls != oldWidget.polls ||
         pollApi != oldWidget.pollApi ||
         checkApi != oldWidget.checkApi ||
-        mediaUploads != oldWidget.mediaUploads ||
         activityPolls != oldWidget.activityPolls ||
         userRemote != oldWidget.userRemote ||
+        payments != oldWidget.payments ||
+        pendingPayments != oldWidget.pendingPayments ||
+        pendingPurchase != oldWidget.pendingPurchase ||
+        paymentFlow != oldWidget.paymentFlow ||
+        razorpayCheckout != oldWidget.razorpayCheckout ||
         notifications != oldWidget.notifications ||
         deviceRegistration != oldWidget.deviceRegistration ||
         draftPolls != oldWidget.draftPolls ||

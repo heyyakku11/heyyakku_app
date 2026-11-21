@@ -43,6 +43,10 @@ class YakkuPlan {
   bool get isFree => code == freeCode;
   bool get isLite => code == liteCode;
   bool get isLove => code == loveCode;
+  bool get isThisCard => code == thisCardCode;
+
+  /// Paid catalog SKUs shown in the plans sheet (not Free).
+  bool get isPurchasableSku => isThisCard || isLite || isLove;
 
   String get formattedPrice {
     final major = (priceMinor / 100).round();
@@ -52,13 +56,28 @@ class YakkuPlan {
     return '$currency $major';
   }
 
+  /// Short column label for the comparison table.
+  String get shortLabel {
+    if (isThisCard) return 'Card';
+    if (isLite) return 'Lite';
+    if (isLove) return 'Love';
+    return name;
+  }
+
   /// e.g. "3 cards · 7 days" or "Every card · 30 days".
   String get detailLine {
+    if (isThisCard) return 'One card';
     final cards = unlockTickets == null
         ? 'Every card'
         : '$unlockTickets ${unlockTickets == 1 ? 'card' : 'cards'}';
     if (durationDays == null) return cards;
     return '$cards · $durationDays days';
+  }
+
+  /// Buy button label when the plan can be purchased.
+  String get purchaseButtonLabel {
+    final title = isThisCard ? 'this card' : name;
+    return 'Get $title · $formattedPrice';
   }
 
   factory YakkuPlan.fromJson(Map<String, dynamic> json) {
@@ -117,4 +136,72 @@ String planBadgeLabel({
     YakkuPlan.loveCode => 'YAKKU LOVE',
     _ => 'FREE',
   };
+}
+
+/// Why a purchase CTA is enabled or disabled in the plans sheet.
+enum PlanPurchaseAvailability {
+  /// User may start checkout (backend still authoritative).
+  available,
+
+  /// This subscription is already the active plan.
+  current,
+
+  /// Active Love cannot move down to Lite.
+  downgrade,
+
+  /// Not a paid SKU / not offered in this context.
+  unavailable,
+}
+
+/// UI purchase eligibility from the effective plan. Backend enforces the same
+/// rules again on order creation.
+PlanPurchaseAvailability planPurchaseAvailability({
+  required YakkuPlan plan,
+  required String effectiveCode,
+}) {
+  if (!plan.isPurchasableSku || plan.priceMinor <= 0) {
+    return PlanPurchaseAvailability.unavailable;
+  }
+  if (plan.isThisCard) {
+    return PlanPurchaseAvailability.available;
+  }
+  final current = YakkuPlan.sortKey(effectiveCode);
+  final target = YakkuPlan.sortKey(plan.code);
+  if (target == current) return PlanPurchaseAvailability.current;
+  if (target < current) return PlanPurchaseAvailability.downgrade;
+  return PlanPurchaseAvailability.available;
+}
+
+bool canPurchasePlan({
+  required YakkuPlan plan,
+  required String effectiveCode,
+}) {
+  return planPurchaseAvailability(
+        plan: plan,
+        effectiveCode: effectiveCode,
+      ) ==
+      PlanPurchaseAvailability.available;
+}
+
+/// Paid plans for the sheet: Lite/Love always; `this_card` only with card context.
+List<YakkuPlan> purchasablePlansForSheet({
+  required List<YakkuPlan> catalog,
+  required bool includeThisCard,
+}) {
+  final plans = catalog.where((plan) {
+    if (!plan.isPurchasableSku || plan.priceMinor <= 0) return false;
+    if (plan.isThisCard) return includeThisCard;
+    return plan.isSubscriptionUpgrade;
+  }).toList();
+  plans.sort((a, b) {
+    int rank(YakkuPlan plan) {
+      if (plan.isThisCard) return 0;
+      if (plan.isLite) return 1;
+      if (plan.isLove) return 2;
+      return 99;
+    }
+
+    return rank(a).compareTo(rank(b));
+  });
+  return plans;
 }

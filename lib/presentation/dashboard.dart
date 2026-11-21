@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:yakku/core/router/app_routes.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
@@ -144,21 +142,15 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     _refreshUnread();
   }
 
-  /// Tapping a push opens the results screen of the card it is about: the
-  /// payload carries `contentType` (poll|check) and `contentId`.
+  /// Tapping a push opens the results (or progress) screen of the card it is
+  /// about: the payload carries `screen`, `contentType` (poll|check|personality)
+  /// and `contentId`.
   void _openFromPush(RemoteMessage message) {
     if (!mounted) return;
     final scope = AppScope.of(context);
     if (!scope.authController.isLoggedIn) return;
 
     final data = message.data;
-
-    // A new Ask back message: open that conversation (the push carries only its id).
-    final conversationId = data['conversationId']?.toString();
-    if (conversationId != null && conversationId.isNotEmpty) {
-      context.push(AppRoutes.askBackChatLocation(conversationId));
-      return;
-    }
 
     final notificationId = data['notificationId']?.toString();
     if (notificationId != null && notificationId.isNotEmpty) {
@@ -170,12 +162,15 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           .catchError((_) {});
     }
 
+    // Prefer structured target fields when present; fall back to flat push keys.
     final target = NotificationTarget.tryParse({
+      'screen': data['screen'],
+      'conversationId': data['conversationId'],
       'contentId': data['contentId'],
       'contentType': data['contentType'],
     });
     if (target == null) {
-      // No card attached: land on the Activity tab instead.
+      // No destination attached: land on the Activity tab instead.
       _onNavTap(_activityNavIndex);
       return;
     }

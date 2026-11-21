@@ -61,10 +61,42 @@
 				</array>
 			</dict>
 		</array>
-		<!-- Lets canOpenURL detect Instagram for Story sharing (AppDelegate.swift). -->
+		<!-- Instagram Story share + Razorpay UPI Intent (optional but required for
+		     Checkout to list installed UPI apps via canOpenURL on iOS). -->
 		<key>LSApplicationQueriesSchemes</key>
 		<array>
 			<string>instagram-stories</string>
+			<string>tez</string>
+			<string>phonepe</string>
+			<string>paytmmp</string>
+			<string>credpay</string>
+			<string>mobikwik</string>
+			<string>in.fampay.app</string>
+			<string>bhim</string>
+			<string>amazonpay</string>
+			<string>navi</string>
+			<string>kiwi</string>
+			<string>payzapp</string>
+			<string>jupiter</string>
+			<string>omnicard</string>
+			<string>icici</string>
+			<string>popclubapp</string>
+			<string>sbiyono</string>
+			<string>myjio</string>
+			<string>slice-upi</string>
+			<string>bobupi</string>
+			<string>shriramone</string>
+			<string>indusmobile</string>
+			<string>kotakbank</string>
+			<string>snapmint</string>
+			<string>freecharge</string>
+			<string>navipay</string>
+			<string>whatsapp-consumer</string>
+			<string>postpe</string>
+			<string>super</string>
+			<string>lxme</string>
+			<string>scapia</string>
+			<string>curieapp</string>
 		</array>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>

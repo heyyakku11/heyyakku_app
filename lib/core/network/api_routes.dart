@@ -11,6 +11,12 @@ abstract final class ApiRoutes {
   /// Public catalog of subscription plans (ordered by hierarchy).
   static const String plans = '/api/v1/plans';
 
+  // Payments (Razorpay one-time checkout; JWT + live session required)
+  static const String paymentOrders = '/api/v1/payments/orders';
+  static const String paymentVerify = '/api/v1/payments/verify';
+  static const String paymentHistory = '/api/v1/payments/history';
+  static String paymentOrder(String orderId) => '$paymentOrders/$orderId';
+
   // Checks
   static const String checks = '/api/v1/checks';
   static const String makeCheck = '/api/v1/checks/make';
@@ -120,18 +126,10 @@ abstract final class ApiRoutes {
   /// `POST {voteId}`: unlocks the card with a plan ticket.
   static const String askBackUnlocks = '/api/v1/ask-back/unlocks';
 
+  /// `GET`: people the caller blocked. `DELETE /{blockId}`: lift one block.
+  static const String askBackBlocks = '/api/v1/ask-back/blocks';
+  static String askBackBlockById(String blockId) => '$askBackBlocks/$blockId';
+
   /// SignalR hub for Ask Back real-time events (path only; see [ApiConstants.backendBaseUrl]).
   static const String askBackHub = '/hubs/ask-back';
-
-  // Media upload sessions
-  static const String mediaUploadSessions = '/api/v1/media-upload-sessions';
-
-  static String mediaUploadSessionById(String sessionId) =>
-      '$mediaUploadSessions/$sessionId';
-
-  static String mediaUploadSessionComplete(String sessionId) =>
-      '$mediaUploadSessions/$sessionId/complete';
-
-  static String mediaUploadSessionCancel(String sessionId) =>
-      '$mediaUploadSessions/$sessionId/cancel';
 }

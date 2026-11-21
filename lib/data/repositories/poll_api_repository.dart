@@ -22,36 +22,6 @@ class PollApiRepository {
     required String question,
     required List<String> options,
     required int selectedOptionIndex,
-  }) {
-    return _createPoll(
-      question: question,
-      options: options,
-      selectedOptionIndex: selectedOptionIndex,
-      contentType: 'question',
-    );
-  }
-
-  Future<PollResponse> createImagePoll({
-    required String question,
-    required List<String> options,
-    required int selectedOptionIndex,
-    required String mediaUploadSessionId,
-  }) {
-    return _createPoll(
-      question: question,
-      options: options,
-      selectedOptionIndex: selectedOptionIndex,
-      contentType: 'image',
-      mediaUploadSessionId: mediaUploadSessionId,
-    );
-  }
-
-  Future<PollResponse> _createPoll({
-    required String question,
-    required List<String> options,
-    required int selectedOptionIndex,
-    required String contentType,
-    String? mediaUploadSessionId,
   }) async {
     if (selectedOptionIndex < 0 || selectedOptionIndex >= options.length) {
       throw ArgumentError.value(
@@ -64,8 +34,7 @@ class PollApiRepository {
     final poll = await _remote.createPoll(
       CreatePollRequest(
         question: question,
-        contentType: contentType,
-        mediaUploadSessionId: mediaUploadSessionId,
+        contentType: 'question',
         options: [
           for (var i = 0; i < options.length; i++)
             CreatePollOptionRequest(text: options[i], displayOrder: i + 1),

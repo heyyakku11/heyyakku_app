@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
@@ -15,11 +17,11 @@ import 'package:yakku/presentation/screens/option_results_detail_screen.dart';
 import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/screens/share_result_screen.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
+import 'package:yakku/presentation/widgets/ask_back_unlock_sheet.dart';
 import 'package:yakku/presentation/widgets/card_actions_sheet.dart';
 import 'package:yakku/presentation/widgets/report_reason_sheet.dart';
 import 'package:yakku/presentation/widgets/results_locked_view.dart';
-import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
-
+import 'package:yakku/presentation/widgets/skeleton.dart';
 /// Results screen: a pick versus the crowd, then every option ranked by votes.
 ///
 /// Three entry points share one design:
@@ -32,17 +34,25 @@ class CardResultsScreen extends StatefulWidget {
     required PollResponse this.poll,
     required String this.selectedOptionId,
   }) : pollId = null,
-       check = null;
+       check = null,
+       celebrateReady = false;
 
   /// Loads the poll by id and shows its current results.
-  const CardResultsScreen.byPollId({super.key, required String this.pollId})
-    : poll = null,
-      selectedOptionId = null,
-      check = null;
+  ///
+  /// [celebrateReady] is set only from the "Your result is ready" push
+  /// (`cardResultsReady`): confetti + ready panel before opening tallies.
+  const CardResultsScreen.byPollId({
+    super.key,
+    required String this.pollId,
+    this.celebrateReady = false,
+  }) : poll = null,
+       selectedOptionId = null,
+       check = null;
 
   const CardResultsScreen.check({
     super.key,
     required UserCheckResponse this.check,
+    this.celebrateReady = false,
   }) : poll = null,
        pollId = null,
        selectedOptionId = null;
@@ -51,6 +61,9 @@ class CardResultsScreen extends StatefulWidget {
   final String? selectedOptionId;
   final String? pollId;
   final UserCheckResponse? check;
+
+  /// Push-only entry from `cardResultsReady`.
+  final bool celebrateReady;
 
   /// Only the post-answer flow adds the user's own vote and offers the
   /// audience sheet.
@@ -75,6 +88,9 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
 
   /// True while a close, reshare or delete request is in flight.
   bool _acting = false;
+
+  /// Cleared when the user taps "View results" on the ready-push celebration.
+  late bool _celebrateReady = widget.celebrateReady;
 
   UserCheckResponse? get _currentCheck => _latestCheck ?? widget.check;
 
@@ -113,26 +129,45 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
     }
   }
 
-  /// Reasons hidden on the free plan: every reason but each option's top one,
-  /// and every written-in answer but one.
-  int _hiddenReasons(_ResultsData data) =>
-      data.tallies.fold<int>(
-        0,
-        (sum, tally) => sum + (tally.whyCount > 1 ? tally.whyCount - 1 : 0),
-      ) +
-      (data.customCount > 1 ? data.customCount - 1 : 0);
+  bool get _canSpendTicket =>
+      _access != null && _access!.canUnlock && !_access!.unlocked;
 
-  /// The "Unlock now" bar shows on the free plan only, and only while there is
-  /// something hidden. A plan or a bought card reveals every reason.
-  bool _showUnlockBar(_ResultsData? data) {
+  /// Spends one plan ticket using a vote from the first option that has reasons.
+  Future<void> _unlockCardWithTicket() async {
     final access = _access;
-    if (access == null || access.reasonsRevealed || data == null) return false;
-    return _lockedBody() == null && _hiddenReasons(data) > 0;
-  }
+    if (access == null || !_canSpendTicket || !mounted) return;
 
-  Future<void> _openPlans() async {
-    final bought = await showYakkuPlans(context);
-    if (bought && mounted) await _loadAccess();
+    final optionId = _data()
+        ?.tallies
+        .where((t) => t.whyCount > 0)
+        .map((t) => t.id)
+        .firstOrNull;
+    if (optionId == null) {
+      AppToast.show('Open a reason first, then unlock this card.');
+      return;
+    }
+
+    String? voteId;
+    try {
+      final list = await _loadReasons(optionId);
+      voteId = list.items
+          .where((r) => r.canAskBack)
+          .map((r) => r.id)
+          .followedBy(list.items.map((r) => r.id))
+          .firstOrNull;
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show('Could not unlock this card. Try again.');
+      return;
+    }
+    if (voteId == null || !mounted) return;
+
+    final unlocked = await showAskBackUnlockSheet(
+      context,
+      access: access,
+      unlock: () => AppScope.of(context).askBack.unlock(voteId!),
+    );
+    if (unlocked == true && mounted) await _loadAccess();
   }
 
   /// Reasons are anonymous but owner-only: the owner of a poll (opened by id)
@@ -476,7 +511,6 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
                 title: _lockedCheckTitle ?? 'Results',
               ),
               Expanded(child: _body(data)),
-              if (_showUnlockBar(data)) _UnlockBar(onTap: _openPlans),
             ],
           ),
         ),
@@ -492,10 +526,12 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
   }
 
   /// Under the vote limit the server sends no results, only progress.
+  /// Ready-push celebration also lands here even when results are unlocked.
   Widget? _lockedBody() {
     final check = _currentCheck;
     if (check != null) {
-      if (check.resultsUnlocked) return null;
+      final celebrating = _celebrateReady && check.resultsUnlocked;
+      if (check.resultsUnlocked && !celebrating) return null;
       final live = _data()?.isLive ?? false;
       return ResultsLockedView(
         question: check.question.trim().isNotEmpty
@@ -509,14 +545,22 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
         closesAt: live ? check.expiresAt : null,
         closedAt: live ? null : _closedStamp(check.closedAt, check.expiresAt),
         closed: !live,
-        onShareAgain: live
-            ? () => _openCardShare(checkShareRoute(check))
+        resultsReady: celebrating,
+        showConfetti: celebrating,
+        totalVotes: check.totalVotes ?? 0,
+        onViewResults: celebrating
+            ? () => setState(() => _celebrateReady = false)
             : null,
+        onShareAgain: celebrating || !live
+            ? null
+            : () => _openCardShare(checkShareRoute(check)),
       );
     }
 
     final poll = widget.poll ?? _loadedPoll;
-    if (poll == null || poll.resultsUnlocked) return null;
+    if (poll == null) return null;
+    final celebrating = _celebrateReady && poll.resultsUnlocked;
+    if (poll.resultsUnlocked && !celebrating) return null;
     final live = _data()?.isLive ?? false;
     return ResultsLockedView(
       question: poll.question,
@@ -526,7 +570,15 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
       closesAt: live ? poll.expiresAt : null,
       closedAt: live ? null : _closedStamp(poll.closedAt, poll.expiresAt),
       closed: !live,
-      onShareAgain: live ? () => _openCardShare(pollShareRoute(poll)) : null,
+      resultsReady: celebrating,
+      showConfetti: celebrating,
+      totalVotes: poll.totalVoteCount,
+      onViewResults: celebrating
+          ? () => setState(() => _celebrateReady = false)
+          : null,
+      onShareAgain: celebrating || !live
+          ? null
+          : () => _openCardShare(pollShareRoute(poll)),
     );
   }
 
@@ -586,9 +638,7 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
   }
 
   Widget _body(_ResultsData? data) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const _CardResultsSkeleton();
     final locked = _lockedBody();
     if (locked != null) return locked;
     if (data == null || data.tallies.isEmpty) {
@@ -691,6 +741,13 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             onShareResult: () => _openSharePoster(data, standings, mine),
           ),
           const SizedBox(height: 24),
+          if (_canSpendTicket) ...[
+            _TicketUnlockStrip(
+              access: _access!,
+              onUnlock: _unlockCardWithTicket,
+            ),
+            const SizedBox(height: 16),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -726,6 +783,8 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
               loadReasons: _canSeeReasons ? _loadReasons : null,
               onReport: _reportReason,
               onReturn: _loadAccess,
+              contentType: widget.check != null ? 'check' : 'poll',
+              contentId: widget.check?.id ?? widget.pollId,
             ),
             const SizedBox(height: 10),
           ],
@@ -734,20 +793,9 @@ class _CardResultsScreenState extends State<CardResultsScreen> {
             total: data.voters,
             loadAnswers: _canSeeReasons ? _loadCustomAnswers : null,
             onReport: _reportReason,
+            contentType: widget.check != null ? 'check' : 'poll',
+            contentId: widget.check?.id ?? widget.pollId,
           ),
-          if (_showUnlockBar(data)) ...[
-            const SizedBox(height: 24),
-            const Text(
-              'Tap an answer to read one reason free. Every other reason opens with a plan.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _muted,
-                fontSize: 14,
-                height: 1.4,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1032,8 +1080,8 @@ class _VersusCard extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 38,
+                    height: 38,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: _night,
@@ -1044,7 +1092,7 @@ class _VersusCard extends StatelessWidget {
                       'vs',
                       style: TextStyle(
                         color: YakkuPalette.white,
-                        fontSize: 11,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1124,6 +1172,7 @@ class _VersusCard extends StatelessWidget {
         _ShareButton(
           label: shareMore ? 'Share more' : 'Share this',
           onTap: shareMore ? onShareMore : onShareResult,
+          shake: shareMore,
         ),
       ],
     );
@@ -1153,53 +1202,120 @@ class _VersusCard extends StatelessWidget {
 }
 
 /// Yellow pill with a darker lower edge, like a pressable key.
-class _ShareButton extends StatelessWidget {
-  const _ShareButton({required this.label, required this.onTap});
+///
+/// When [shake] is true (the live "Share more" CTA), the pill keeps a soft
+/// attention shake so it reads as the next action on the versus card.
+class _ShareButton extends StatefulWidget {
+  const _ShareButton({
+    required this.label,
+    required this.onTap,
+    this.shake = false,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final bool shake;
+
+  @override
+  State<_ShareButton> createState() => _ShareButtonState();
+}
+
+class _ShareButtonState extends State<_ShareButton>
+    with SingleTickerProviderStateMixin {
+  static const _restTilt = -0.05;
+
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // One shake burst, then idle until the 2s cycle repeats.
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    if (widget.shake) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ShareButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shake == oldWidget.shake) return;
+    if (widget.shake) {
+      _controller.repeat();
+    } else {
+      _controller
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.05,
-      child: GestureDetector(
-        onTap: onTap,
+    final pill = GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: _VersusCard._yellowEdge,
+          borderRadius: BorderRadius.circular(30),
+        ),
         child: Container(
-          padding: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
           decoration: BoxDecoration(
-            color: _VersusCard._yellowEdge,
+            color: _VersusCard._yellow,
             borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: _VersusCard._night, width: 1.5),
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-            decoration: BoxDecoration(
-              color: _VersusCard._yellow,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: _VersusCard._night, width: 1.5),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.ios_share_rounded,
-                  size: 16,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.ios_share_rounded,
+                size: 16,
+                color: _VersusCard._night,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.label,
+                style: const TextStyle(
                   color: _VersusCard._night,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: _VersusCard._night,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+
+    if (!widget.shake) {
+      return Transform.rotate(angle: _restTilt, child: pill);
+    }
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        // Shake in the first ~0.55s of each 2s cycle, then rest until the next.
+        const burst = 0.55 / 2.0;
+        final t = _controller.value;
+        final active = t < burst;
+        final local = active ? (t / burst) : 0.0;
+        final decay = active ? (1 - Curves.easeOut.transform(local)) : 0.0;
+        final wave = math.sin(local * math.pi * 6) * decay;
+        return Transform.rotate(
+          angle: _restTilt + wave * 0.12,
+          child: child,
+        );
+      },
+      child: pill,
     );
   }
 }
@@ -1474,100 +1590,112 @@ class _ResultBarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final row = Container(
+    // Keep border outside the clip so the stroke stays fully visible on every
+    // corner; clipping the same box as the border was eating the outline.
+    final borderWidth = top ? 2.0 : 1.2;
+    final borderColor = top ? YakkuPalette.Raspberry : YakkuPalette.roseBorder;
+    final innerRadius = (_radius - borderWidth).clamp(0.0, _radius);
+
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  text: label,
+                  children: [
+                    if (mine) ...[
+                      const TextSpan(text: '  '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: YakkuPalette.primaryBright,
+                            ),
+                          ),
+                          child: const Text(
+                            'You',
+                            style: TextStyle(
+                              color: YakkuPalette.primaryBright,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _CardResultsColors.ink,
+                  fontSize: 15,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '$percent%',
+              style: const TextStyle(
+                color: _CardResultsColors.ink,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 10),
+            _CountPill(
+              count: count,
+              icon: pillIcon,
+              background: pillColor,
+              ink: pillInk,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final row = DecoratedBox(
       decoration: BoxDecoration(
         color: YakkuPalette.white,
         borderRadius: BorderRadius.circular(_radius),
-        border: Border.all(
-          color: top ? YakkuPalette.Raspberry : YakkuPalette.roseBorder,
-          width: top ? 1.8 : 1,
-        ),
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: fraction.clamp(0.0, 1.0),
-                heightFactor: 1,
-                child: ColoredBox(color: fill),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(innerRadius),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width =
+                      constraints.maxWidth * fraction.clamp(0.0, 1.0);
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: width,
+                      height: constraints.maxHeight,
+                      child: ColoredBox(color: fill),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-          // Sizes the row: at least 56 high, taller when the label wraps.
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 56),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        text: label,
-                        children: [
-                          if (mine) ...[
-                            const TextSpan(text: '  '),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.middle,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: YakkuPalette.primaryBright,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'You',
-                                  style: TextStyle(
-                                    color: YakkuPalette.primaryBright,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _CardResultsColors.ink,
-                        fontSize: 15,
-                        height: 1.2,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '$percent%',
-                    style: TextStyle(
-                      color: _CardResultsColors.ink,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _CountPill(
-                    count: count,
-                    icon: pillIcon,
-                    background: pillColor,
-                    ink: pillInk,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            content,
+          ],
+        ),
       ),
     );
     if (onTap == null) return row;
@@ -1630,6 +1758,8 @@ class _ResultRow extends StatefulWidget {
     this.loadReasons,
     required this.onReport,
     this.onReturn,
+    this.contentType,
+    this.contentId,
   });
 
   final _Tally tally;
@@ -1643,6 +1773,8 @@ class _ResultRow extends StatefulWidget {
   /// Null when the viewer cannot read reasons (not the owner).
   final Future<PollReasonList> Function(String optionId)? loadReasons;
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
+  final String? contentType;
+  final String? contentId;
 
   @override
   State<_ResultRow> createState() => _ResultRowState();
@@ -1669,6 +1801,8 @@ class _ResultRowState extends State<_ResultRow> {
               count: _count,
               loadReasons: () => widget.loadReasons!(tally.id),
               onReport: widget.onReport,
+              contentType: widget.contentType,
+              contentId: widget.contentId,
             ),
           ),
         )
@@ -1684,7 +1818,11 @@ class _ResultRowState extends State<_ResultRow> {
       percent: tally.percent,
       count: _count,
       mine: tally.mine,
-      fill: widget.top ? YakkuPalette.pinkWash : YakkuPalette.blushFill,
+      // Top opinion needs a stronger wash so the fill reads clearly behind
+      // the label; blush alone looked almost empty on cream.
+      fill: widget.top
+          ? YakkuPalette.Raspberry.withValues(alpha: 0.22)
+          : YakkuPalette.blushFill,
       pillColor: YakkuPalette.pillPink,
       pillInk: YakkuPalette.primary,
       // Circular outline bubble (tail bottom-left), same as elsewhere in the app.
@@ -1699,76 +1837,6 @@ class _ResultRowState extends State<_ResultRow> {
   }
 }
 
-/// The bar pinned under the results on the free plan: "See what they really
-/// think" with an Unlock now button that opens the plans sheet.
-class _UnlockBar extends StatelessWidget {
-  const _UnlockBar({required this.onTap});
-
-  final VoidCallback onTap;
-
-  static const _night = Color(0xFF211A1D);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: YakkuPalette.pillPink,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _night, width: 1.6),
-          boxShadow: const [BoxShadow(color: _night, offset: Offset(0, 4))],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: YakkuPalette.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.lock_outline_rounded,
-                size: 22,
-                color: YakkuPalette.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'See what they\nreally think',
-                style: TextStyle(
-                  color: YakkuPalette.textPrimary,
-                  fontSize: 15,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            FilledButton(
-              key: const ValueKey('unlock-now'),
-              onPressed: onTap,
-              style: FilledButton.styleFrom(
-                backgroundColor: YakkuPalette.primary,
-                foregroundColor: YakkuPalette.white,
-                minimumSize: const Size(0, 46),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                shape: const StadiumBorder(),
-              ),
-              child: const Text(
-                'Unlock now',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Friends' write-in answers, shown with the lavender bar and pencil pill. For
 /// the owner, tapping the row opens a screen with each answer and its reason.
 class _OwnOptionsRow extends StatelessWidget {
@@ -1777,6 +1845,8 @@ class _OwnOptionsRow extends StatelessWidget {
     required this.total,
     this.loadAnswers,
     required this.onReport,
+    this.contentType,
+    this.contentId,
   });
 
   final int count;
@@ -1785,6 +1855,8 @@ class _OwnOptionsRow extends StatelessWidget {
   /// Null when the viewer cannot read the answers (not the owner).
   final Future<PollCustomAnswerList> Function()? loadAnswers;
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
+  final String? contentType;
+  final String? contentId;
 
   bool get _canOpen => loadAnswers != null && count > 0;
 
@@ -1799,6 +1871,8 @@ class _OwnOptionsRow extends StatelessWidget {
           count: count,
           loadAnswers: loadAnswers!,
           onReport: onReport,
+          contentType: contentType,
+          contentId: contentId,
         ),
       ),
     );
@@ -1820,6 +1894,88 @@ class _OwnOptionsRow extends StatelessWidget {
         color: YakkuPalette.purpleInk,
       ),
       onTap: _canOpen ? () => _open(context) : null,
+    );
+  }
+}
+
+/// Spend a Lite (or Love) ticket to open Ask Back on every reason of this card.
+class _TicketUnlockStrip extends StatelessWidget {
+  const _TicketUnlockStrip({
+    required this.access,
+    required this.onUnlock,
+  });
+
+  final AskBackAccess access;
+  final VoidCallback onUnlock;
+
+  String get _label {
+    final tickets = access.ticketsLeft;
+    if (tickets == null) return 'Unlock this card';
+    if (tickets == 1) return 'Unlock this card \u00B7 1 ticket left';
+    return 'Unlock this card \u00B7 $tickets tickets left';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: YakkuPalette.primary,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        key: const ValueKey('results-ticket-unlock'),
+        customBorder: const StadiumBorder(),
+        onTap: onUnlock,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.lock_open_rounded,
+                size: 18,
+                color: YakkuPalette.white,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _label,
+                  style: const TextStyle(
+                    color: YakkuPalette.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: YakkuPalette.white,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sparse placeholders while poll/check results load (locked or unlocked).
+class _CardResultsSkeleton extends StatelessWidget {
+  const _CardResultsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SkeletonPulse(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SkeletonBox(height: 260, radius: 28),
+            SizedBox(height: 28),
+            SkeletonBox(height: 96, radius: 22),
+            Spacer(),
+            SkeletonBox(height: 56, radius: 28),
+          ],
+        ),
+      ),
     );
   }
 }

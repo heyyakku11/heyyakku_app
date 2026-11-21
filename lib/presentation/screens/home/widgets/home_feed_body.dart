@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/home/fun_card_group.dart';
 import 'package:yakku/data/models/home/mirror_check.dart';
-import 'package:yakku/data/models/home/question_worth_asking.dart';
 import 'package:yakku/presentation/screens/home/widgets/just_for_fun_section.dart';
 import 'package:yakku/presentation/screens/home/widgets/mirror_check_card.dart';
 import 'package:yakku/presentation/screens/home/widgets/sub_mirror_check_card.dart';
@@ -13,7 +12,6 @@ class HomeFeedBody extends StatelessWidget {
     super.key,
     required this.mirrorChecks,
     this.errorMessage,
-    required this.questionsWorthAsking,
     this.funGroups = const [],
     this.leading,
   });
@@ -26,7 +24,6 @@ class HomeFeedBody extends StatelessWidget {
 
   final List<MirrorCheck> mirrorChecks;
   final String? errorMessage;
-  final List<QuestionWorthAsking> questionsWorthAsking;
 
   @override
   Widget build(BuildContext context) {

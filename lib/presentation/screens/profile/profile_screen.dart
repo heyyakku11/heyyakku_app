@@ -147,8 +147,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return plansAboveCurrent(catalog: _plans, effectiveCode: effective);
   }
 
-  Future<void> _onSeePlans() async {
-    await showYakkuPlans(context);
+  YakkuPlan? get _lovePlan {
+    for (final plan in _plans) {
+      if (plan.isLove) return plan;
+    }
+    return null;
+  }
+
+  bool get _showPlanCard {
+    final effective = effectivePlanCode(
+      code: _currentPlan?.code,
+      isExpired: _currentPlan?.isExpired ?? false,
+    );
+    final activePaid = _currentPlan != null &&
+        !(_currentPlan!.isExpired) &&
+        (effective == YakkuPlan.liteCode || effective == YakkuPlan.loveCode);
+    return activePaid || _upgradePlans.isNotEmpty;
+  }
+
+  Future<void> _onSeePlans({String? initialPlanCode}) async {
+    await showYakkuPlans(
+      context,
+      currentPlan: _currentPlan,
+      catalog: _plans,
+      initialPlanCode: initialPlanCode,
+    );
     if (mounted) await _loadProfile();
   }
 
@@ -276,12 +299,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onShowInCommunityChanged: _onShowInCommunityChanged,
                       ),
                     ],
-                    if (_upgradePlans.isNotEmpty) ...[
+                    if (_showPlanCard) ...[
                       const SizedBox(height: 14),
                       ProfilePlanCard(
                         currentPlan: _currentPlan,
                         upgradePlans: _upgradePlans,
-                        onSeePlans: _onSeePlans,
+                        lovePlan: _lovePlan,
+                        onSeePlans: () => _onSeePlans(),
+                        onKeepLove: () =>
+                            _onSeePlans(initialPlanCode: YakkuPlan.loveCode),
+                        onGetLove: () =>
+                            _onSeePlans(initialPlanCode: YakkuPlan.loveCode),
                       ),
                     ],
                   ],

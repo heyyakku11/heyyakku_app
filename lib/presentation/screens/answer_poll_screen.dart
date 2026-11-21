@@ -11,6 +11,7 @@ import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/auth/open_sign_up.dart';
 import 'package:yakku/presentation/screens/card_results_screen.dart';
 import 'package:yakku/presentation/screens/share/open_card_share.dart';
+import 'package:yakku/presentation/widgets/already_voted_view.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/results_locked_view.dart';
 
@@ -307,6 +308,8 @@ class _AnswerPollScreenState extends State<AnswerPollScreen> {
                     closed: status == 'closed' || status == 'expired',
                     onShareAgain: _shareOwnCard,
                     resultsReady: poll.resultsUnlocked,
+                    // Celebration confetti is push-only (`cardResultsReady`).
+                    showConfetti: false,
                     totalVotes: poll.totalVoteCount,
                     onViewResults: _openingResults ? null : _openOwnResults,
                   ),
@@ -332,106 +335,96 @@ class _AnswerPollScreenState extends State<AnswerPollScreen> {
     final sticker = theme.stickerLabel.trim();
     final showResults = poll.resultsUnlocked;
 
-    return _StepFrame(
+    Widget? header;
+    if (heading.isNotEmpty || sticker.isNotEmpty) {
+      header = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: heading.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Text(
+                      heading,
+                      style: TextStyle(
+                        color: theme.headingColor,
+                        fontSize: 34,
+                        height: 1.02,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                      ),
+                    ),
+                  ),
+          ),
+          if (sticker.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            _StickerBanner(text: sticker, color: theme.stickerColor),
+          ],
+        ],
+      );
+    }
+
+    return AlreadyVotedView(
       key: const ValueKey('voted-view'),
-      background: _themeBackground(theme),
+      onLeave: _leave,
       onClose: _leave,
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
+      accentColor: theme.accentColor,
+      background: _themeBackground(theme),
+      header: header,
+      preview: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SendButton(
-            label: 'Back to Yakku',
-            color: theme.accentColor,
-            onPressed: _leave,
+          Text(
+            poll.question,
+            style: TextStyle(
+              color: theme.questionColor,
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
-          const SizedBox(height: 12),
-          const _AnonymousNote(),
+          const SizedBox(height: 16),
+          for (var i = 0; i < options.length; i++) ...[
+            _VotedOptionRow(
+              letter: _letter(i),
+              text: options[i].text ?? '',
+              theme: theme,
+              isMine: options[i].id == myOptionId,
+              percentage: showResults ? options[i].percentage : null,
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (showResults || (myOptionId == null && myCustom.isNotEmpty))
+            _VotedOptionRow(
+              letter: _letter(options.length),
+              // With results shown, written-in answers are one "Something else"
+              // group; the voter's own words stay visible under it.
+              text: showResults ? _somethingElse : '“$myCustom”',
+              subtitle: showResults && myOptionId == null && myCustom.isNotEmpty
+                  ? '“$myCustom”'
+                  : null,
+              theme: theme,
+              isMine: myOptionId == null && myCustom.isNotEmpty,
+              tag: 'YOUR ANSWER',
+              percentage: showResults
+                  ? (poll.customAnswerPercentage ?? 0)
+                  : null,
+            ),
+          if (myReason.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ReasonQuote(reason: myReason, theme: theme),
+          ],
+          const SizedBox(height: 14),
+          if (!showResults && poll.minVotes > 0)
+            _UnlockProgress(
+              progress: poll.voteProgress,
+              needed: poll.minVotes,
+              theme: theme,
+            ),
         ],
       ),
-      children: [
-        if (heading.isNotEmpty || sticker.isNotEmpty)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: heading.isEmpty
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: Text(
-                          heading,
-                          style: TextStyle(
-                            color: theme.headingColor,
-                            fontSize: 34,
-                            height: 1.02,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.8,
-                          ),
-                        ),
-                      ),
-              ),
-              if (sticker.isNotEmpty) ...[
-                const SizedBox(width: 12),
-                _StickerBanner(text: sticker, color: theme.stickerColor),
-              ],
-            ],
-          ),
-        const SizedBox(height: 14),
-        _StatusBadge(
-          theme: theme,
-          icon: Icons.check_rounded,
-          title: 'You already voted',
-          subtitle: 'Locked in. Thanks for being honest.',
-        ),
-        const SizedBox(height: 18),
-        Text(
-          poll.question,
-          style: TextStyle(
-            color: theme.questionColor,
-            fontSize: 22,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
-        ),
-        const SizedBox(height: 16),
-        for (var i = 0; i < options.length; i++) ...[
-          _VotedOptionRow(
-            letter: _letter(i),
-            text: options[i].text ?? '',
-            theme: theme,
-            isMine: options[i].id == myOptionId,
-            percentage: showResults ? options[i].percentage : null,
-          ),
-          const SizedBox(height: 10),
-        ],
-        if (showResults || (myOptionId == null && myCustom.isNotEmpty))
-          _VotedOptionRow(
-            letter: _letter(options.length),
-            // With results shown, written-in answers are one "Something else"
-            // group; the voter's own words stay visible under it.
-            text: showResults ? _somethingElse : '“$myCustom”',
-            subtitle: showResults && myOptionId == null && myCustom.isNotEmpty
-                ? '“$myCustom”'
-                : null,
-            theme: theme,
-            isMine: myOptionId == null && myCustom.isNotEmpty,
-            tag: 'YOUR ANSWER',
-            percentage: showResults ? (poll.customAnswerPercentage ?? 0) : null,
-          ),
-        if (myReason.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _ReasonQuote(reason: myReason, theme: theme),
-        ],
-        const SizedBox(height: 14),
-        if (!showResults && poll.minVotes > 0)
-          _UnlockProgress(
-            progress: poll.voteProgress,
-            needed: poll.minVotes,
-            theme: theme,
-          ),
-      ],
     );
   }
 
@@ -1075,73 +1068,6 @@ class _DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
     return oldDelegate.color != color || oldDelegate.radius != radius;
-  }
-}
-
-/// Status card at the top of the "already voted" and "your card" views.
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.theme,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final CheckTheme theme;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = theme.accentColor;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: YakkuPalette.white.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-              child: Icon(icon, color: YakkuPalette.white, size: 26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: YakkuPalette.textPrimary,
-                      fontSize: 20,
-                      height: 1.1,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: YakkuPalette.bodyInk,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

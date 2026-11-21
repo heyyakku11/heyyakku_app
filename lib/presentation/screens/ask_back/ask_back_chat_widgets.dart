@@ -692,18 +692,56 @@ class FreeAskUsedBar extends StatelessWidget {
     super.key,
     required this.waitingReplies,
     required this.onUnlock,
+    this.cardUnlocked = false,
+    this.canSpendTicket = false,
+    this.ticketsLeft,
   });
 
   /// Reasons still waiting on the card; null when the count is unknown.
   final int? waitingReplies;
   final VoidCallback onUnlock;
 
+  /// Card already unlocked with a ticket/purchase: upgrade plans for more asks.
+  final bool cardUnlocked;
+
+  /// Owner has a plan ticket left and this card is not unlocked yet.
+  final bool canSpendTicket;
+
+  /// Remaining plan tickets; null means unlimited (Love).
+  final int? ticketsLeft;
+
+  String get _buttonLabel {
+    if (cardUnlocked) return 'Show Yakku plans';
+    if (canSpendTicket) {
+      final tickets = ticketsLeft;
+      if (tickets == null) return 'Unlock this card';
+      if (tickets == 1) return 'Unlock this card \u00B7 1 ticket left';
+      return 'Unlock this card \u00B7 $tickets tickets left';
+    }
+    return 'Unlock now';
+  }
+
   @override
   Widget build(BuildContext context) {
     final count = waitingReplies;
-    final body = count == null
-        ? 'Unlock this card to read all waiting replies and ask back everyone.'
-        : 'Unlock this card to read all $count waiting replies and ask back everyone.';
+    final String title;
+    final String body;
+    if (cardUnlocked) {
+      title = 'Want more ask backs?';
+      body = count == null
+          ? 'Get a Yakku plan for more asks and to keep the conversation going.'
+          : 'Get a Yakku plan for more asks across all $count waiting replies.';
+    } else if (canSpendTicket) {
+      title = 'Unlock this card';
+      body = count == null
+          ? 'Spend 1 plan ticket to ask back on every reason on this card. One ticket unlocks the card once.'
+          : 'Spend 1 plan ticket to unlock every reason and keep asking back ($count waiting). One ticket per card.';
+    } else {
+      title = 'Your free ask back is used';
+      body = count == null
+          ? 'Unlock this card to read all waiting replies and ask back everyone.'
+          : 'Unlock this card to read all $count waiting replies and ask back everyone.';
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -724,9 +762,13 @@ class FreeAskUsedBar extends StatelessWidget {
                   color: Color(0xFFFFF3D6),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.lock_outline_rounded,
-                  color: Color(0xFFC9A227),
+                child: Icon(
+                  cardUnlocked
+                      ? Icons.workspace_premium_outlined
+                      : canSpendTicket
+                      ? Icons.lock_open_rounded
+                      : Icons.lock_outline_rounded,
+                  color: const Color(0xFFC9A227),
                   size: 20,
                 ),
               ),
@@ -735,9 +777,9 @@ class FreeAskUsedBar extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Your free ask back is used',
-                      style: TextStyle(
+                    Text(
+                      title,
+                      style: const TextStyle(
                         color: YakkuPalette.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -768,9 +810,9 @@ class FreeAskUsedBar extends StatelessWidget {
               minimumSize: const Size.fromHeight(54),
               shape: const StadiumBorder(),
             ),
-            child: const Text(
-              'Unlock now',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            child: Text(
+              _buttonLabel,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
           ),
         ],

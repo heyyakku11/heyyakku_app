@@ -1,4 +1,5 @@
 import 'package:yakku/core/auth/auth_token_store.dart';
+import 'package:yakku/core/auth/jwt_access_token.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/models/auth/refresh_token_request.dart';
 import 'package:yakku/data/models/auth/token_response.dart';
@@ -23,10 +24,40 @@ class TokenRefreshService {
   /// True while a refresh is running (including waiters on the same future).
   bool get isRefreshing => _inFlight != null;
 
+  /// How soon before `exp` a token is treated as stale and rotated early.
+  static const defaultBufferSeconds = 60;
+
   Future<TokenResponse> refresh() {
     return _inFlight ??= _doRefresh().whenComplete(() {
       _inFlight = null;
     });
+  }
+
+  /// Returns a usable access token, refreshing first when the current JWT is
+  /// expired or within [bufferSeconds] of expiry.
+  ///
+  /// Returns null when there is no access token. Throws when a required
+  /// refresh fails (caller should end the session).
+  Future<String?> ensureFreshAccessToken({
+    int bufferSeconds = defaultBufferSeconds,
+  }) async {
+    if (!_tokenStore.isHydrated) {
+      await _tokenStore.hydrate();
+    }
+
+    var token = _tokenStore.accessToken;
+    if (token == null || token.isEmpty) return null;
+
+    if (!JwtAccessToken.needsRefresh(token, bufferSeconds: bufferSeconds)) {
+      return token;
+    }
+
+    if (!_tokenStore.hasRefreshToken) {
+      throw StateError('Access token expired and no refresh token available');
+    }
+
+    final tokens = await refresh();
+    return tokens.accessToken;
   }
 
   Future<TokenResponse> _doRefresh() async {

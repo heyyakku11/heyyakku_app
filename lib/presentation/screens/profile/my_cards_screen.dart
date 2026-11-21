@@ -12,6 +12,7 @@ import 'package:yakku/presentation/screens/profile/widgets/my_cards_empty_state.
 import 'package:yakku/presentation/screens/share/open_card_share.dart';
 import 'package:yakku/presentation/widgets/app_alert.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
+import 'package:yakku/presentation/widgets/skeleton.dart';
 
 enum _Tab { all, live, closed }
 
@@ -336,7 +337,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   }
 
   Widget _body(List<_Item> live, List<_Item> closed) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const _MyCardsSkeleton();
     if (_error != null) {
       return Center(
         child: Column(
@@ -399,6 +400,68 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                 ],
               ],
             ),
+    );
+  }
+}
+
+/// One card-shaped placeholder while My cards loads.
+class _MyCardsSkeleton extends StatelessWidget {
+  const _MyCardsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonPulse(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            decoration: BoxDecoration(
+              color: YakkuPalette.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: YakkuPalette.Ink, width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: YakkuPalette.Ink, offset: Offset(0, 3)),
+              ],
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SkeletonBox(width: 108, height: 10, radius: 5),
+                      ),
+                    ),
+                    SkeletonBox(width: 22, height: 14, radius: 7),
+                  ],
+                ),
+                SizedBox(height: 10),
+                SkeletonBox(height: 18, radius: 9),
+                SizedBox(height: 8),
+                FractionallySizedBox(
+                  widthFactor: 0.68,
+                  child: SkeletonBox(height: 18, radius: 9),
+                ),
+                SizedBox(height: 14),
+                Row(
+                  children: [
+                    SkeletonBox(width: 86, height: 26, radius: 999),
+                    SizedBox(width: 10),
+                    Expanded(child: SkeletonBox(height: 12, radius: 6)),
+                    SizedBox(width: 10),
+                    SkeletonBox(width: 16, height: 16, radius: 4),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

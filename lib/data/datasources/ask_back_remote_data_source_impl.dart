@@ -166,6 +166,50 @@ class AskBackRemoteDataSourceImpl implements AskBackRemoteDataSource {
     return _access(response.data, 'Could not unlock this card');
   }
 
+  @override
+  Future<AskBackBlocksPage> listBlocks({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final response = await dio.get<Map<String, dynamic>>(
+      ApiRoutes.askBackBlocks,
+      queryParameters: <String, dynamic>{
+        'page': page,
+        'pageSize': pageSize,
+      },
+    );
+    final body = response.data;
+    if (body == null) {
+      throw StateError('Empty blocked people response');
+    }
+    final api = ApiResponse<List<AskBackBlockItem>>.fromJson(body, (json) {
+      if (json is! List) return const <AskBackBlockItem>[];
+      return [
+        for (final item in json)
+          if (item is Map)
+            AskBackBlockItem.fromJson(Map<String, dynamic>.from(item)),
+      ];
+    });
+    if (!api.success || api.data == null) {
+      throw StateError(api.message ?? 'Could not load blocked people');
+    }
+    return AskBackBlocksPage.fromApi(items: api.data!, meta: api.meta);
+  }
+
+  @override
+  Future<void> unblockByBlockId(String blockId) async {
+    final response = await dio.delete<Map<String, dynamic>>(
+      ApiRoutes.askBackBlockById(blockId),
+    );
+    final api = ApiResponse<Object?>.fromJson(
+      _body(response.data),
+      (_) => null,
+    );
+    if (!api.success) {
+      throw StateError(api.message ?? 'Could not unblock');
+    }
+  }
+
   AskBackAccess _access(Map<String, dynamic>? body, String failure) {
     final api = ApiResponse<AskBackAccess>.fromJson(
       _body(body),

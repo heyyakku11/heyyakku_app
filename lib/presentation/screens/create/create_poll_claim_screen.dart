@@ -18,16 +18,12 @@ class CreatePollClaimScreen extends StatefulWidget {
     super.key,
     required this.question,
     required this.options,
-    this.mediaUploadSessionId,
   });
 
   final String question;
 
   /// The filled-in options, in order; the picked index refers to this list.
   final List<String> options;
-
-  /// Set for a photo poll (an image uploaded on the create screen).
-  final String? mediaUploadSessionId;
 
   @override
   State<CreatePollClaimScreen> createState() => _CreatePollClaimScreenState();
@@ -69,20 +65,11 @@ class _CreatePollClaimScreenState extends State<CreatePollClaimScreen>
 
     setState(() => _submitting = true);
     try {
-      final api = AppScope.of(context).pollApi;
-      final sessionId = widget.mediaUploadSessionId;
-      final poll = sessionId == null
-          ? await api.createTextPoll(
-              question: widget.question,
-              options: widget.options,
-              selectedOptionIndex: picked,
-            )
-          : await api.createImagePoll(
-              question: widget.question,
-              options: widget.options,
-              selectedOptionIndex: picked,
-              mediaUploadSessionId: sessionId,
-            );
+      final poll = await AppScope.of(context).pollApi.createTextPoll(
+        question: widget.question,
+        options: widget.options,
+        selectedOptionIndex: picked,
+      );
       if (!mounted) return;
       // The create screen takes it from here and opens the share screen.
       Navigator.of(context).pop(poll);

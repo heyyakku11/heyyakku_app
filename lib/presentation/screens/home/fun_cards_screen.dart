@@ -156,6 +156,7 @@ class _FunCardsScreenState extends State<FunCardsScreen> {
                       check: _cards[index],
                       showTitle: false,
                       compact: true,
+                      
                     ),
                   ),
                 ),

@@ -101,8 +101,23 @@ class AskBackChatController extends ChangeNotifier {
   bool get isLoadingOlder => _loadingOlder;
   bool get hasMoreOlder => _hasMoreOlder;
   bool get otherTyping => _otherTyping;
-  bool get canSend => _conversation?.canSend ?? false;
-  AskBackTurn get turn => _conversation?.turn ?? AskBackTurn.them;
+
+  /// True while a send is still in flight — composer must close immediately.
+  bool get _hasSending =>
+      _pending.any((message) => message.state == ChatMessageState.sending);
+
+  /// Composer / send gate. Closed as soon as a send is queued, not after the
+  /// network round-trip (a refresh must not reopen the field mid-send).
+  bool get canSend {
+    if (_hasSending) return false;
+    return _conversation?.canSend ?? false;
+  }
+
+  AskBackTurn get turn {
+    if (_hasSending) return AskBackTurn.them;
+    return _conversation?.turn ?? AskBackTurn.them;
+  }
+
   int? get messagesLeft => _conversation?.messagesLeft;
   bool get isPaused => _conversation?.isPaused ?? false;
   ValueNotifier<bool> get connected => _realtime.isConnected;
@@ -247,7 +262,18 @@ class AskBackChatController extends ChangeNotifier {
 
   Future<void> refreshConversation() async {
     try {
-      _conversation = await _remote.get(conversationId);
+      final next = await _remote.get(conversationId);
+      // A GET that still says "your turn" while we are delivering must not
+      // reopen the composer — keep the optimistic waiting lock.
+      if (_hasSending && next.canSend) {
+        _conversation = next.copyWith(
+          canSend: false,
+          turn: AskBackTurn.them,
+          messagesLeft: _conversation?.messagesLeft ?? next.messagesLeft,
+        );
+      } else {
+        _conversation = next;
+      }
       _inbox.sync(_conversation!);
       _notify();
     } catch (_) {
@@ -269,6 +295,7 @@ class AskBackChatController extends ChangeNotifier {
       state: ChatMessageState.sending,
     );
     _pending.add(pending);
+    _applyLocalSendEffects();
     _stopTyping();
     _notify();
     unawaited(_deliver(pending));
@@ -279,7 +306,9 @@ class AskBackChatController extends ChangeNotifier {
   /// first attempt did reach the server nothing is duplicated.
   void retry(ChatMessage message) {
     if (message.state != ChatMessageState.failed) return;
+    if (!canSend) return;
     message.state = ChatMessageState.sending;
+    _applyLocalSendEffects();
     _notify();
     unawaited(_deliver(message));
   }
@@ -292,8 +321,14 @@ class AskBackChatController extends ChangeNotifier {
         content: pending.content,
       );
       _mergeConfirmed(ChatMessage.fromServer(stored));
+      // Turn / messages-left come from the conversation, not the send body.
+      unawaited(refreshConversation());
     } catch (error) {
-      if (!_pending.contains(pending)) return; // already confirmed by an event
+      if (!_pending.contains(pending)) {
+        // Already confirmed by an event; still reconcile turn state.
+        unawaited(refreshConversation());
+        return;
+      }
       pending.state = ChatMessageState.failed;
       final mapped = DioErrorMapper.map(error);
       if (_turnRuleCodes.contains(mapped.code)) {
@@ -305,9 +340,26 @@ class AskBackChatController extends ChangeNotifier {
       } else if (mapped.kind == ApiErrorKind.conflict) {
         // Closed or blocked in the meantime.
         unawaited(refreshConversation());
+      } else {
+        // Network / transient: restore turn and messages-left until retry.
+        unawaited(refreshConversation());
       }
     }
     _notify();
+  }
+
+  /// Flip turn / messages-left as soon as we queue a send so the caption and
+  /// composer do not wait on the network.
+  void _applyLocalSendEffects() {
+    final current = _conversation;
+    if (current == null || !current.canSend) return;
+    final left = current.messagesLeft;
+    _conversation = current.copyWith(
+      canSend: false,
+      turn: AskBackTurn.them,
+      messagesLeft: left == null ? null : (left - 1).clamp(0, left),
+    );
+    _inbox.sync(_conversation!);
   }
 
   // ---- incoming ----
@@ -318,6 +370,8 @@ class AskBackChatController extends ChangeNotifier {
       _otherTyping = false;
       unawaited(_markRead());
     }
+    // Reply or echo from another device: turn and messages-left must catch up.
+    unawaited(refreshConversation());
     _notify();
   }
 

@@ -2,6 +2,9 @@
 enum ApiErrorKind {
   badRequest,
   unauthorized,
+
+  /// HTTP 402: payment not captured / not yet confirmed by the backend.
+  paymentRequired,
   forbidden,
   notFound,
   conflict,

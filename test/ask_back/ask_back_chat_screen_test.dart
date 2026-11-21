@@ -13,6 +13,7 @@ Future<FakeRemote> _open(
   WidgetTester tester, {
   AskBackConversation? current,
   List<AskBackMessage> history = const [],
+  AskBackAccess? cardAccess,
 }) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
@@ -20,6 +21,7 @@ Future<FakeRemote> _open(
 
   final remote = FakeRemote([...history]);
   if (current != null) remote.current = current;
+  if (cardAccess != null) remote.access = cardAccess;
   final realtime = FakeRealtime();
   final inbox = AskBackInboxController(remote: remote, realtime: realtime);
 
@@ -124,6 +126,32 @@ void main() {
     expect(find.text('You can ask again once they reply.'), findsOneWidget);
   });
 
+  testWidgets('sending a message swaps the composer to waiting immediately', (
+    tester,
+  ) async {
+    await _open(
+      tester,
+      current: conversation(
+        messagesLeft: 3,
+        turn: AskBackTurn.me,
+        canSend: true,
+      ),
+      history: const [],
+    );
+
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Why that option?');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send'));
+    // One frame only — do not wait for the network; UI must flip now.
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Waiting for their reply'), findsOneWidget);
+    expect(find.textContaining('2 messages left'), findsNothing);
+    expect(find.text('You can ask again once they reply.'), findsOneWidget);
+  });
+
   testWidgets('the thread starts at the top, not above the composer', (
     tester,
   ) async {
@@ -208,6 +236,7 @@ void main() {
 
     expect(find.text('Your free ask back is used'), findsOneWidget);
     expect(find.textContaining('all 33 waiting replies'), findsOneWidget);
+    expect(find.text('Unlock now'), findsOneWidget);
     expect(find.byKey(const ValueKey('free-ask-unlock')), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
 
@@ -215,6 +244,73 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('See what they really think'), findsOneWidget);
   });
+
+  testWidgets(
+    'when the card is already unlocked, limit bar offers Yakku plans',
+    (tester) async {
+      await _open(
+        tester,
+        current: conversation(
+          canSend: false,
+          turn: AskBackTurn.done,
+          waitingReplies: 12,
+        ),
+        history: [message(1, mine: true), message(2)],
+        cardAccess: const AskBackAccess(
+          unlocked: true,
+          paused: false,
+          planCode: 'yakku_lite',
+          planName: 'Yakku Lite',
+          planExpired: false,
+          canUnlock: false,
+          reasonsRevealed: true,
+          unlockSource: 'purchase',
+        ),
+      );
+
+      expect(find.text('Want more ask backs?'), findsOneWidget);
+      expect(find.text('Show Yakku plans'), findsOneWidget);
+      expect(find.text('Unlock now'), findsNothing);
+      expect(find.textContaining('Unlock this card \u00B7'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'when tickets remain, limit bar offers Unlock this card with ticket count',
+    (tester) async {
+      await _open(
+        tester,
+        current: conversation(
+          canSend: false,
+          turn: AskBackTurn.done,
+          waitingReplies: 8,
+        ),
+        history: [message(1, mine: true), message(2)],
+        cardAccess: const AskBackAccess(
+          unlocked: false,
+          paused: false,
+          planCode: 'yakku_lite',
+          planName: 'Yakku Lite',
+          planExpired: false,
+          canUnlock: true,
+          reasonsRevealed: true,
+          ticketsLeft: 3,
+        ),
+      );
+
+      expect(find.text('Unlock this card'), findsOneWidget);
+      expect(
+        find.text('Unlock this card \u00B7 3 tickets left'),
+        findsOneWidget,
+      );
+      expect(find.text('Unlock now'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('free-ask-unlock')));
+      await tester.pumpAndSettle();
+      expect(find.text('Not now'), findsOneWidget);
+      expect(find.text('See what they really think'), findsNothing);
+    },
+  );
 
   testWidgets('blocking asks what happened, reports, and ends the chat', (
     tester,

@@ -8,14 +8,15 @@ import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
+import 'package:yakku/presentation/widgets/ask_back_unlock_sheet.dart';
 import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 /// "Ask back" pill beside a voter's reason. Tapping it starts the private
 /// conversation for that vote (or opens the one that already exists).
 ///
-/// When [locked], tapping opens the Yakku plans sheet instead. [voteId] is the
-/// reason's id. Show it only for a reason with `canAskBack`; the server decides
-/// again who may ask whom.
+/// When [locked] and the owner can spend a plan ticket ([AskBackAccess.canUnlock]),
+/// tapping opens the ticket unlock sheet. Otherwise locked taps open Yakku plans.
+/// [voteId] is the reason's id. Show it only for a reason with `canAskBack`.
 class AskBackButton extends StatefulWidget {
   const AskBackButton({
     super.key,
@@ -24,14 +25,30 @@ class AskBackButton extends StatefulWidget {
     this.foreground = YakkuPalette.primary,
     this.compact = false,
     this.locked = false,
+    this.cardAccess,
+    this.contentType,
+    this.contentId,
+    this.onPurchaseFulfilled,
   });
 
   final String voteId;
 
   /// The reason's `askBackLocked`: true when asking back still needs an unlock
-  /// (padlock shown). False once the card is open or a conversation exists for
-  /// this reason (no padlock).
+  /// (closed padlock shown). False once the card is open or a conversation
+  /// exists for this reason.
   final bool locked;
+
+  /// Owner access for this card. Drives ticket unlock vs plans, and the open
+  /// padlock when the card is already unlocked.
+  final AskBackAccess? cardAccess;
+
+  /// Card context for permanent `this_card` in the plans sheet.
+  final String? contentType;
+  final String? contentId;
+
+  /// Called after backend confirms a purchase or ticket unlock so parents can
+  /// reload access / reasons.
+  final Future<void> Function()? onPurchaseFulfilled;
 
   /// Pill fill and the colour of its icon and label.
   final Color background;
@@ -39,6 +56,9 @@ class AskBackButton extends StatefulWidget {
 
   /// A smaller pill for use inside a reason card.
   final bool compact;
+
+  bool get _showOpenLock =>
+      cardAccess != null && cardAccess!.unlocked && !cardAccess!.paused;
 
   @override
   State<AskBackButton> createState() => _AskBackButtonState();
@@ -52,12 +72,40 @@ class _AskBackButtonState extends State<AskBackButton> {
 
   Future<void> _start() async {
     if (_busy) return;
-    // Locked reasons open the plans sheet; they do not start a chat yet.
     if (widget.locked) {
-      await showYakkuPlans(context);
+      final opened = await _resolveLock();
+      if (!opened || !mounted) return;
+      final onFulfilled = widget.onPurchaseFulfilled;
+      if (onFulfilled != null) await onFulfilled();
+      if (!mounted) return;
+      await _startConversation();
       return;
     }
 
+    await _startConversation();
+  }
+
+  /// Spends a plan ticket when available; otherwise opens Yakku plans.
+  /// Returns true when the lock may be cleared (ticket spent or purchase paid).
+  Future<bool> _resolveLock() async {
+    final access = widget.cardAccess;
+    if (access != null && access.canUnlock && !access.unlocked) {
+      final unlocked = await showAskBackUnlockSheet(
+        context,
+        access: access,
+        unlock: () => AppScope.of(context).askBack.unlock(widget.voteId),
+      );
+      return unlocked == true;
+    }
+
+    return showYakkuPlans(
+      context,
+      contentType: widget.contentType,
+      contentId: widget.contentId,
+    );
+  }
+
+  Future<void> _startConversation() async {
     final scope = AppScope.of(context);
     final router = GoRouter.of(context);
     setState(() => _busy = true);
@@ -70,7 +118,10 @@ class _AskBackButtonState extends State<AskBackButton> {
         final stale = DioErrorMapper.map(error).code == _lockedCode;
         if (!stale) rethrow;
         if (!mounted) return;
-        await showYakkuPlans(context);
+        final opened = await _resolveLock();
+        if (!opened || !mounted) return;
+        final onFulfilled = widget.onPurchaseFulfilled;
+        if (onFulfilled != null) await onFulfilled();
         return;
       }
       if (!mounted) return;
@@ -126,12 +177,17 @@ class _AskBackButtonState extends State<AskBackButton> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              // Padlock only while asking back still needs an unlock. Once a
-              // conversation has started (or the card is open), locked is false.
               if (widget.locked) ...[
                 SizedBox(width: widget.compact ? 6 : 8),
                 Icon(
                   Icons.lock_outline_rounded,
+                  size: widget.compact ? 13 : 14,
+                  color: widget.foreground,
+                ),
+              ] else if (widget._showOpenLock) ...[
+                SizedBox(width: widget.compact ? 6 : 8),
+                Icon(
+                  Icons.lock_open_rounded,
                   size: widget.compact ? 13 : 14,
                   color: widget.foreground,
                 ),

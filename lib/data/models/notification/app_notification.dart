@@ -10,7 +10,7 @@ class AppNotification {
   final bool isRead;
   final DateTime createdAt;
 
-  /// The card this notification is about, when the server attached one.
+  /// Where the client should navigate when the row is opened.
   final NotificationTarget? target;
 
   const AppNotification({
@@ -33,7 +33,9 @@ class AppNotification {
       body: json['body'] as String? ?? '',
       isRead: json['isRead'] as bool? ?? false,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now().toUtc(),
-      target: NotificationTarget.tryParse(json['data']),
+      target:
+          NotificationTarget.tryParse(json['target']) ??
+          NotificationTarget.tryParse(json['data']),
     );
   }
 
@@ -51,35 +53,100 @@ class AppNotification {
   }
 }
 
-/// The card a notification belongs to, read from its `data` JSON
-/// (`{ contentId, contentType: "poll" | "check" | "personality", shareCode }`).
+/// Navigation payload for a notification.
+///
+/// Prefers the structured `target` object from the API
+/// (`screen`, `conversationId`, `contentType`, `contentId`). Falls back to
+/// decoding the legacy `data` JSON blob.
 class NotificationTarget {
   const NotificationTarget({
-    required this.contentId,
-    required this.isCheck,
+    this.screen,
+    this.conversationId,
+    this.contentId,
+    this.isCheck = false,
     this.isPersonality = false,
   });
 
-  final String contentId;
+  /// askBackConversation | cardResults | cardResultsReady | personalityReady |
+  /// personalityResults (legacy ready) | cardShare
+  final String? screen;
+  final String? conversationId;
+  final String? contentId;
   final bool isCheck;
   final bool isPersonality;
+
+  bool get isAskBackConversation {
+    if (screen == 'askBackConversation') return true;
+    return conversationId != null && conversationId!.isNotEmpty;
+  }
+
+  /// Ordinary personality vote / progress (not the ready celebration).
+  bool get isPersonalityProgress {
+    if (!isPersonality) return false;
+    if (isPersonalityReady || isCardShare) return false;
+    return true;
+  }
+
+  /// "Who you are is in" / results-ready celebration (push-only entry).
+  /// Accepts legacy `personalityResults` from older payloads.
+  bool get isPersonalityReady {
+    if (!isPersonality) return false;
+    return screen == 'personalityReady' || screen == 'personalityResults';
+  }
+
+  /// Poll/check results-ready celebration (push-only entry).
+  bool get isCardResultsReady => screen == 'cardResultsReady';
+
+  /// Nudge to share the card again (not a vote result tap).
+  bool get isCardShare => screen == 'cardShare';
 
   static NotificationTarget? tryParse(Object? raw) {
     try {
       final decoded = raw is String ? jsonDecode(raw) : raw;
       if (decoded is! Map) return null;
-      final id = decoded['contentId']?.toString();
-      final type = decoded['contentType']?.toString().toLowerCase();
-      if (id == null || id.isEmpty) return null;
-      if (type == 'personality') {
+      final map = Map<String, dynamic>.from(decoded);
+
+      final screen = map['screen']?.toString();
+      final conversationId = map['conversationId']?.toString();
+      final contentId = map['contentId']?.toString();
+      final type = map['contentType']?.toString().toLowerCase();
+
+      final hasConversation =
+          conversationId != null && conversationId.isNotEmpty;
+      final isAskBack =
+          screen == 'askBackConversation' ||
+          (hasConversation &&
+              (screen == null || screen == 'askBackConversation'));
+
+      if (isAskBack && hasConversation) {
         return NotificationTarget(
-          contentId: id,
-          isCheck: false,
+          screen: screen ?? 'askBackConversation',
+          conversationId: conversationId,
+          contentId: contentId,
+          isCheck: type == 'check',
+        );
+      }
+
+      if (type == 'personality' ||
+          screen == 'personalityReady' ||
+          screen == 'personalityResults') {
+        if (contentId == null || contentId.isEmpty) return null;
+        // Old pushes omit `screen`; treat them as ordinary vote/progress.
+        return NotificationTarget(
+          screen: screen ?? 'cardResults',
+          contentId: contentId,
           isPersonality: true,
         );
       }
-      if (type != 'poll' && type != 'check') return null;
-      return NotificationTarget(contentId: id, isCheck: type == 'check');
+
+      if (contentId == null || contentId.isEmpty) return null;
+      if (type != null && type != 'poll' && type != 'check') return null;
+
+      return NotificationTarget(
+        screen: screen,
+        contentId: contentId,
+        isCheck: type == 'check',
+      );
     } catch (_) {
       return null;
     }

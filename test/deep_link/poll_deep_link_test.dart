@@ -8,11 +8,17 @@ import 'package:yakku/core/auth/user_preferences.dart';
 import 'package:yakku/core/auth/login_auth_service.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
+import 'package:yakku/core/payments/payment_flow_controller.dart';
+import 'package:yakku/core/payments/pending_payment_store.dart';
+import 'package:yakku/core/payments/pending_purchase_intent.dart';
+import 'package:yakku/core/payments/razorpay_checkout_service.dart';
 import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
+import 'package:yakku/core/storage/secure_storage_service.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
+import 'package:yakku/data/datasources/payment_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/models/auth/verify_otp_data.dart';
@@ -21,7 +27,6 @@ import 'package:yakku/data/models/checks/check_response.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
-import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/core/router/app_router.dart';
@@ -203,6 +208,11 @@ class _Scope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final payments = _FPayments();
+    final pendingPayments = PendingPaymentStore(
+      secureStorage: SecureStorageService.inMemory(),
+    );
+    final checkout = _FCheckout();
     return AppScope(
       themeController: _F1(),
       authController: auth,
@@ -211,9 +221,17 @@ class _Scope extends StatelessWidget {
       polls: _F7(),
       pollApi: pollApi,
       checkApi: _F14(),
-      mediaUploads: _F8(),
       activityPolls: _F9(),
       userRemote: _F10(),
+      payments: payments,
+      pendingPayments: pendingPayments,
+      pendingPurchase: _FPendingPurchase(),
+      paymentFlow: PaymentFlowController(
+        payments: payments,
+        pendingPayments: pendingPayments,
+        checkout: checkout,
+      ),
+      razorpayCheckout: checkout,
       notifications: _F15(),
       deviceRegistration: _F12(),
       draftPolls: _F13(),
@@ -234,8 +252,6 @@ class _F6 extends Fake implements BackgroundApiWorker {}
 
 class _F7 extends Fake implements MockPollRepository {}
 
-class _F8 extends Fake implements MediaUploadRepository {}
-
 class _F9 extends Fake implements ActivityPollRepository {}
 
 class _F10 extends Fake implements UserRemoteDataSource {}
@@ -251,6 +267,18 @@ class _F18 extends Fake implements AskBackInboxController {}
 class _F12 extends Fake implements DeviceRegistrationService {}
 
 class _F13 extends Fake implements DraftPollStore {}
+
+class _FPayments extends Fake implements PaymentRemoteDataSource {}
+
+class _FPendingPurchase extends Fake implements PendingPurchaseStore {}
+
+class _FCheckout extends Fake implements RazorpayCheckoutService {
+  @override
+  bool get isOpening => false;
+
+  @override
+  bool get isSessionActive => false;
+}
 
 class _F14 extends CheckApiRepository {
   _F14() : super(_FakeCheckRemote());
@@ -458,12 +486,12 @@ void main() {
       ('404', (_) async => throw _http(404), 'Poll not found'),
       ('403', (_) async => throw _http(403), 'Poll unavailable'),
       ('500', (_) async => throw _http(500), "Couldn't load this poll"),
-      ('closed', (_) async => _poll(status: 'closed'), 'Poll closed'),
-      ('expired', (_) async => _poll(status: 'expired'), 'Poll expired'),
+      ('closed', (_) async => _poll(status: 'closed'), 'Voting is closed'),
+      ('expired', (_) async => _poll(status: 'expired'), 'This card expired'),
       (
         'past expiresAt',
         (_) async => _poll(expiresAt: DateTime.utc(2020)),
-        'Poll expired',
+        'This card expired',
       ),
     ]) {
       testWidgets('error state: ${c.$1}', (tester) async {
@@ -665,7 +693,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('already voted (signed in) shows the message, not the card', (
+    testWidgets('already voted (signed in) shows status and option preview', (
       tester,
     ) async {
       await open(
@@ -674,7 +702,9 @@ void main() {
         loggedIn: true,
       );
       expect(find.text('You already voted'), findsOneWidget);
-      expect(find.text('Pizza'), findsNothing);
+      expect(find.text('Back to Yakku'), findsOneWidget);
+      // Options stay visible as a locked preview (pick highlighted when known).
+      expect(find.text('Pizza'), findsOneWidget);
     });
 
     testWidgets('own card (signed in) cannot be voted on', (tester) async {

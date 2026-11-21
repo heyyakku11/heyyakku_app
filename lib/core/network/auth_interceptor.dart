@@ -7,10 +7,11 @@ import 'package:yakku/core/network/api_routes.dart';
 
 typedef SessionExpiredCallback = Future<void> Function();
 
-/// Attaches Bearer tokens from [AuthTokenStore] and silently refreshes on 401.
+/// Attaches Bearer tokens from [AuthTokenStore], rotates them **before** use
+/// when the JWT is expired / near expiry, and still recovers from 401s.
 ///
 /// Retry policy: at most one refresh-driven retry per request (`auth_retried`).
-/// Concurrent 401s share one refresh via [TokenRefreshService] single-flight.
+/// Concurrent refreshes share one flight via [TokenRefreshService].
 /// Uses [Interceptor] (not [QueuedInterceptor]) so a post-refresh retry that
 /// still returns 401 cannot deadlock the interceptor error queue.
 class AuthInterceptor extends Interceptor {
@@ -51,9 +52,26 @@ class AuthInterceptor extends Interceptor {
       if (!_tokenStore.isHydrated) {
         await _tokenStore.hydrate();
       }
-      final accessToken = _tokenStore.accessToken;
-      if (accessToken != null && accessToken.isNotEmpty) {
-        options.headers['Authorization'] = 'Bearer $accessToken';
+
+      try {
+        final accessToken = await _tokenRefreshService.ensureFreshAccessToken();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $accessToken';
+        }
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint('[AUTH] Proactive refresh failed: $error');
+        }
+        await _onSessionExpired();
+        handler.reject(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+            error: error,
+            message: 'Session expired. Please sign in again.',
+          ),
+        );
+        return;
       }
     }
     handler.next(options);

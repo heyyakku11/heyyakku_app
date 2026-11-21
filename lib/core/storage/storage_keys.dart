@@ -3,6 +3,9 @@ abstract final class StorageKeys {
   static const accessToken = 'accessToken';
   static const refreshToken = 'refreshToken';
 
+  /// Last payment order awaiting backend verification / status recovery.
+  static const pendingPaymentOrder = 'pendingPaymentOrder';
+
   // Preferences
   static const isUserLogged = 'isUserLogged';
   static const phoneNumber = 'phoneNumber';
@@ -27,4 +30,10 @@ abstract final class StorageKeys {
 
   /// "Notify me when it opens" on the Community placeholder (device only).
   static const communityNotifyMe = 'communityNotifyMe';
+
+  /// Plan the user meant to buy before being sent to sign-up.
+  static const pendingPurchaseIntent = 'pendingPurchaseIntent';
+
+  /// Content ids whose ready-celebration (confetti) the user has already watched.
+  static const seenCardResultsCelebrations = 'seenCardResultsCelebrations';
 }

@@ -6,7 +6,9 @@ import 'package:yakku/core/constants/api_constants.dart';
 import 'package:yakku/core/network/dio_error_mapper.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
 import 'package:yakku/presentation/app_scope.dart';
+import 'package:yakku/presentation/screens/profile/blocked_users_screen.dart';
 import 'package:yakku/presentation/screens/profile/delete_account_screen.dart';
+import 'package:yakku/presentation/screens/profile/payment_history_screen.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -227,6 +229,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _openPayments() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => const PaymentHistoryScreen(),
+      ),
+    );
+  }
+
+  void _openBlockedPeople() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => const BlockedUsersScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -282,6 +300,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? _setPushAllowed
                         : null,
                   ),
+                ),
+                _SettingsRow(
+                  icon: FontAwesomeIcons.ban,
+                  title: 'Blocked people',
+                  subtitle: 'Unblock people you blocked from Ask Back',
+                  onTap: _openBlockedPeople,
+                  showChevron: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            const _SectionLabel('PAYMENTS'),
+            _SettingsCard(
+              children: [
+                _SettingsRow(
+                  icon: FontAwesomeIcons.receipt,
+                  title: 'Payment history',
+                  subtitle: 'Past purchases and payment status',
+                  onTap: _openPayments,
+                  showChevron: true,
                 ),
               ],
             ),

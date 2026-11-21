@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/data/models/checks/user_check_response.dart';
+import 'package:yakku/data/models/plans/yakku_plan.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/presentation/screens/card_results_screen.dart';
@@ -10,44 +12,111 @@ import 'package:yakku/presentation/screens/option_results_detail_screen.dart';
 import '../ask_back/ask_back_controllers_test.dart'
     show FakeRealtime, FakeRemote;
 import '../helpers/app_scope_fakes.dart';
-
 PollReason reason(String id, String text, {bool hidden = false}) =>
     PollReason(id: id, text: text, canAskBack: true, isHidden: hidden);
+
+List<YakkuPlan> _sampleCatalog() => const [
+      YakkuPlan(
+        id: 'free',
+        code: YakkuPlan.freeCode,
+        name: 'Free',
+        priceMinor: 0,
+        currency: 'INR',
+      ),
+      YakkuPlan(
+        id: 'card',
+        code: YakkuPlan.thisCardCode,
+        name: 'This card',
+        priceMinor: 4900,
+        currency: 'INR',
+        unlockTickets: 1,
+        askBackMessageLimit: 1,
+      ),
+      YakkuPlan(
+        id: 'lite',
+        code: YakkuPlan.liteCode,
+        name: 'Yakku Lite',
+        priceMinor: 9900,
+        currency: 'INR',
+        durationDays: 7,
+        unlockTickets: 3,
+        askBackMessageLimit: 3,
+      ),
+      YakkuPlan(
+        id: 'love',
+        code: YakkuPlan.loveCode,
+        name: 'Yakku Love',
+        priceMinor: 29900,
+        currency: 'INR',
+        durationDays: 30,
+      ),
+    ];
+
+class _PlansUserRemote extends Fake implements UserRemoteDataSource {
+  _PlansUserRemote({required this.plans});
+
+  final List<YakkuPlan> plans;
+
+  @override
+  Future<List<YakkuPlan>> listPlans() async => plans;
+}
+
+AskBackAccess access({
+  required bool revealed,
+  bool unlocked = false,
+  bool paused = false,
+  bool? canUnlock,
+  int? ticketsLeft,
+}) => AskBackAccess(
+  unlocked: unlocked,
+  paused: paused,
+  planCode: revealed || unlocked ? 'yakku_lite' : 'free',
+  planName: revealed || unlocked ? 'Yakku Lite' : 'Free',
+  planExpired: false,
+  canUnlock: canUnlock ?? (revealed && !unlocked),
+  reasonsRevealed: revealed,
+  ticketsLeft: ticketsLeft ?? (revealed && !unlocked ? 3 : null),
+  unlockSource: unlocked ? 'purchase' : null,
+);
 
 Future<void> openReasons(
   WidgetTester tester,
   List<PollReason> reasons, {
   int hiddenCount = 0,
+  AskBackAccess? cardAccess,
+  String? contentType = 'poll',
+  String? contentId = 'poll-1',
 }) async {
   tester.view.physicalSize = const Size(800, 1800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  final remote = FakeRemote([])
+    ..access = cardAccess ?? access(revealed: false);
+  final realtime = FakeRealtime();
   await tester.pumpWidget(
-    MaterialApp(
-      home: OptionReasonsScreen(
-        label: 'Like having you around',
-        percent: 46,
-        fraction: 0.46,
-        votes: reasons.length,
-        count: reasons.length,
-        loadReasons: () async =>
-            PollReasonList(items: reasons, hiddenCount: hiddenCount),
-        onReport: (_) async => null,
+    testAppScope(
+      askBack: remote,
+      realtime: realtime,
+      inbox: AskBackInboxController(remote: remote, realtime: realtime),
+      userRemote: _PlansUserRemote(plans: _sampleCatalog()),
+      child: MaterialApp(
+        home: OptionReasonsScreen(
+          label: 'Like having you around',
+          percent: 46,
+          fraction: 0.46,
+          votes: reasons.length,
+          count: reasons.length,
+          loadReasons: () async =>
+              PollReasonList(items: reasons, hiddenCount: hiddenCount),
+          onReport: (_) async => null,
+          contentType: contentType,
+          contentId: contentId,
+        ),
       ),
     ),
   );
   await tester.pumpAndSettle();
 }
-
-AskBackAccess access({required bool revealed}) => AskBackAccess(
-  unlocked: false,
-  paused: false,
-  planCode: revealed ? 'yakku_lite' : 'free',
-  planName: revealed ? 'Yakku Lite' : 'Free',
-  planExpired: false,
-  canUnlock: revealed,
-  reasonsRevealed: revealed,
-);
 
 /// A made check with 3 reasons on A and 2 on B, so 3 reasons are hidden on the
 /// free plan.
@@ -96,7 +165,9 @@ Future<FakeRemote> openResults(
       child: MaterialApp(home: CardResultsScreen.check(check: madeCheck())),
     ),
   );
-  await tester.pumpAndSettle();
+  // Share-more shake repeats forever; settle would hang.
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
   return remote;
 }
 
@@ -150,11 +221,13 @@ void main() {
       await tester.tap(find.text('2 more reasons \u00B7 Unlock now'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('plan-love')));
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-yakku_love')));
+      await tester.tap(find.byKey(const ValueKey('plan-yakku_love')));
       await tester.pumpAndSettle();
       expect(find.text('Get Yakku Love \u00B7 \u20B9299'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('plan-card')));
+      await tester.ensureVisible(find.byKey(const ValueKey('plan-this_card')));
+      await tester.tap(find.byKey(const ValueKey('plan-this_card')));
       await tester.pumpAndSettle();
       expect(find.text('Get this card \u00B7 \u20B949'), findsOneWidget);
     });
@@ -178,11 +251,15 @@ void main() {
     testWidgets('every reason is readable, with Ask back, and no button', (
       tester,
     ) async {
-      await openReasons(tester, [
-        reason('1', 'First reason'),
-        reason('2', 'Second reason'),
-        reason('3', 'Third reason'),
-      ]);
+      await openReasons(
+        tester,
+        [
+          reason('1', 'First reason'),
+          reason('2', 'Second reason'),
+          reason('3', 'Third reason'),
+        ],
+        cardAccess: access(revealed: true, unlocked: true),
+      );
 
       expect(find.text('First reason'), findsOneWidget);
       expect(find.text('Second reason'), findsOneWidget);
@@ -190,9 +267,70 @@ void main() {
       expect(find.text('Ask back'), findsNWidgets(3));
       expect(find.textContaining('Unlock now'), findsNothing);
       expect(find.byKey(const ValueKey('hidden-reasons')), findsNothing);
+      expect(find.byKey(const ValueKey('ticket-unlock-reasons')), findsNothing);
       expect(find.textContaining('hidden'), findsNothing);
       expect(find.text('All 3 open'), findsOneWidget);
+      expect(find.byIcon(Icons.lock_open_rounded), findsWidgets);
     });
+
+    testWidgets(
+      'Lite with tickets shows Unlock this card and opens the ticket sheet',
+      (tester) async {
+        await openReasons(
+          tester,
+          [
+            reason('1', 'Top reason'),
+            reason('2', 'Other reason'),
+          ],
+          cardAccess: access(
+            revealed: true,
+            unlocked: false,
+            canUnlock: true,
+            ticketsLeft: 2,
+          ),
+        );
+
+        expect(
+          find.text('2 tickets left \u00B7 Unlock this card'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('ticket-unlock-reasons')), findsOneWidget);
+
+        await tester.tap(find.byKey(const ValueKey('ticket-unlock-pill')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('See what they really think'), findsNothing);
+        expect(find.textContaining('Unlock'), findsWidgets);
+        expect(find.text('Not now'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'unlocked card with stale hidden flags shows Show Yakku plans without this_card',
+      (tester) async {
+        await openReasons(
+          tester,
+          [
+            reason('1', 'Visible'),
+            reason('2', '', hidden: true),
+            reason('3', '', hidden: true),
+          ],
+          hiddenCount: 2,
+          // Unlocked but reasons not marked revealed → CTA is upgrade, not unlock.
+          cardAccess: access(revealed: false, unlocked: true),
+        );
+
+        expect(find.text('Show Yakku plans'), findsOneWidget);
+        expect(find.textContaining('Unlock now'), findsNothing);
+
+        await tester.tap(find.text('Show Yakku plans'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('See what they really think'), findsOneWidget);
+        expect(find.text('This card'), findsNothing);
+        expect(find.textContaining('Get Yakku Lite'), findsOneWidget);
+      },
+    );
   });
 
   group('Something else answers', () {
@@ -200,19 +338,33 @@ void main() {
       WidgetTester tester,
       List<PollCustomAnswer> answers, {
       int hiddenCount = 0,
+      AskBackAccess? cardAccess,
     }) async {
       tester.view.physicalSize = const Size(800, 1800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+      final remote = FakeRemote([])
+        ..access = cardAccess ?? access(revealed: false);
+      final realtime = FakeRealtime();
       await tester.pumpWidget(
-        MaterialApp(
-          home: CustomAnswersScreen(
-            percent: 30,
-            fraction: 0.3,
-            count: answers.length,
-            loadAnswers: () async =>
-                PollCustomAnswerList(items: answers, hiddenCount: hiddenCount),
-            onReport: (_) async => null,
+        testAppScope(
+          askBack: remote,
+          realtime: realtime,
+          inbox: AskBackInboxController(remote: remote, realtime: realtime),
+          userRemote: _PlansUserRemote(plans: _sampleCatalog()),
+          child: MaterialApp(
+            home: CustomAnswersScreen(
+              percent: 30,
+              fraction: 0.3,
+              count: answers.length,
+              loadAnswers: () async => PollCustomAnswerList(
+                items: answers,
+                hiddenCount: hiddenCount,
+              ),
+              onReport: (_) async => null,
+              contentType: 'poll',
+              contentId: 'poll-1',
+            ),
           ),
         ),
       );
@@ -322,18 +474,14 @@ void main() {
   });
 
   group('results screen', () {
-    testWidgets('the free plan gets the unlock bar and the plans sheet', (
+    testWidgets('results screen no longer shows the unlock bar', (
       tester,
     ) async {
       await openResults(tester, revealed: false);
 
-      expect(find.text('See what they\nreally think'), findsOneWidget);
-      expect(find.byKey(const ValueKey('unlock-now')), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('unlock-now')));
-      await tester.pumpAndSettle();
-      expect(find.text('See what they really think'), findsOneWidget);
-      expect(find.text('Get Yakku Lite \u00B7 \u20B999'), findsOneWidget);
+      expect(find.text('See what they\nreally think'), findsNothing);
+      expect(find.byKey(const ValueKey('unlock-now')), findsNothing);
+      expect(find.textContaining('really think'), findsNothing);
     });
 
     testWidgets('a paid plan or a bought card has no unlock bar', (

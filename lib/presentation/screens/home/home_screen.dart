@@ -5,7 +5,6 @@ import 'package:yakku/data/models/home/mirror_check.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/dashboard.dart';
-import 'package:yakku/presentation/screens/home/home_feed_dummy.dart';
 import 'package:yakku/presentation/screens/community/community_placeholder.dart';
 import 'package:yakku/presentation/screens/home/widgets/home_feed_body.dart';
 import 'package:yakku/presentation/screens/home/widgets/home_feed_skeleton.dart';
@@ -152,7 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return HomeFeedBody(
                                   mirrorChecks: _checks,
                                   funGroups: _funGroups,
-                                  questionsWorthAsking: questionsWorthAsking,
                                   errorMessage: _checks.isEmpty ? _error : null,
                                   leading: card == null
                                       ? null

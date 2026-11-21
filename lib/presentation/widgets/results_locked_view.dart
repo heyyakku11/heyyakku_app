@@ -29,6 +29,8 @@ class ResultsLockedView extends StatelessWidget {
     this.stickerColor,
     this.ownerLabel,
     this.resultsReady = false,
+    /// Confetti only from the ready push (`cardResultsReady`), not share links.
+    this.showConfetti = false,
     this.totalVotes = 0,
     this.onViewResults,
     this.closesAt,
@@ -71,9 +73,12 @@ class ResultsLockedView extends StatelessWidget {
   /// A tag above the card, e.g. "This is your card", for when the owner opens it from a link.
   final String? ownerLabel;
 
-  /// True once the results can be opened. The vote-progress panel becomes a "results are ready" panel, the
-  /// confetti pops, and the bottom button opens the results ([onViewResults]) instead of sharing again.
+  /// True once the results can be opened. The vote-progress panel becomes a "results are ready" panel
+  /// and the bottom button opens the results ([onViewResults]) instead of sharing again.
   final bool resultsReady;
+
+  /// Party-popper overlay. Only set from the ready push path.
+  final bool showConfetti;
 
   /// How many friends answered; shown in the ready panel.
   final int totalVotes;
@@ -303,7 +308,7 @@ class ResultsLockedView extends StatelessWidget {
       ],
     );
 
-    if (!resultsReady) return body;
+    if (!resultsReady || !showConfetti) return body;
     // Party popper over the whole view, from the bottom corners.
     return Stack(
       children: [

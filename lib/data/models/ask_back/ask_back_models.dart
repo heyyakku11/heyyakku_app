@@ -96,6 +96,7 @@ class AskBackConversation {
     required this.canSend,
     required this.canReopen,
     required this.canUnblock,
+    this.voteId,
     this.turn = AskBackTurn.them,
     this.messagesLeft,
     this.isPaused = false,
@@ -103,6 +104,9 @@ class AskBackConversation {
   });
 
   final String id;
+
+  /// Vote this chat is about; used to spend one plan ticket on the card.
+  final String? voteId;
   final AskBackStatus status;
 
   /// `asker` (owns the poll or check) or `voter`.
@@ -134,6 +138,7 @@ class AskBackConversation {
   factory AskBackConversation.fromJson(Map<String, dynamic> json) {
     return AskBackConversation(
       id: json['id'] as String,
+      voteId: json['voteId']?.toString(),
       status: AskBackStatus.parse(json['status']),
       myRole: json['myRole'] as String? ?? 'voter',
       other: AskBackParticipant.fromJson(_map(json['other'])),
@@ -147,6 +152,42 @@ class AskBackConversation {
       messagesLeft: (json['messagesLeft'] as num?)?.toInt(),
       isPaused: json['isPaused'] as bool? ?? false,
       waitingReplies: (json['waitingReplies'] as num?)?.toInt(),
+    );
+  }
+
+  AskBackConversation copyWith({
+    AskBackStatus? status,
+    bool? canSend,
+    bool? canReopen,
+    bool? canUnblock,
+    AskBackTurn? turn,
+    int? messagesLeft,
+    bool clearMessagesLeft = false,
+    bool? isPaused,
+    int? waitingReplies,
+    bool clearWaitingReplies = false,
+    int? unreadCount,
+  }) {
+    return AskBackConversation(
+      id: id,
+      voteId: voteId,
+      status: status ?? this.status,
+      myRole: myRole,
+      other: other,
+      context: context,
+      createdAt: createdAt,
+      unreadCount: unreadCount ?? this.unreadCount,
+      canSend: canSend ?? this.canSend,
+      canReopen: canReopen ?? this.canReopen,
+      canUnblock: canUnblock ?? this.canUnblock,
+      turn: turn ?? this.turn,
+      messagesLeft: clearMessagesLeft
+          ? null
+          : (messagesLeft ?? this.messagesLeft),
+      isPaused: isPaused ?? this.isPaused,
+      waitingReplies: clearWaitingReplies
+          ? null
+          : (waitingReplies ?? this.waitingReplies),
     );
   }
 }
@@ -254,6 +295,7 @@ class AskBackListItem {
     this.canSend = false,
     this.isPaused = false,
     this.messagesLeft,
+    this.canUnblock = false,
   });
 
   final String id;
@@ -269,6 +311,9 @@ class AskBackListItem {
   final bool isPaused;
   final int? messagesLeft;
 
+  /// True when this chat is blocked and the caller is who blocked.
+  final bool canUnblock;
+
   bool get isAsker => myRole == 'asker';
 
   /// Closed, blocked, finished, or paused: the Ended tab.
@@ -280,6 +325,12 @@ class AskBackListItem {
 
   /// Active and waiting for the other person.
   bool get isWaiting => !isEnded && turn == AskBackTurn.them;
+
+  /// I blocked them (vs they blocked me).
+  bool get iBlocked => status == AskBackStatus.blocked && canUnblock;
+
+  /// They blocked me.
+  bool get theyBlockedMe => status == AskBackStatus.blocked && !canUnblock;
 
   factory AskBackListItem.fromJson(Map<String, dynamic> json) {
     final last = json['lastMessage'];
@@ -298,6 +349,7 @@ class AskBackListItem {
       canSend: json['canSend'] as bool? ?? false,
       isPaused: json['isPaused'] as bool? ?? false,
       messagesLeft: (json['messagesLeft'] as num?)?.toInt(),
+      canUnblock: json['canUnblock'] as bool? ?? false,
     );
   }
 
@@ -310,6 +362,7 @@ class AskBackListItem {
     bool? canSend,
     bool? isPaused,
     AskBackContext? context,
+    bool? canUnblock,
   }) {
     return AskBackListItem(
       id: id,
@@ -324,6 +377,7 @@ class AskBackListItem {
       canSend: canSend ?? this.canSend,
       isPaused: isPaused ?? this.isPaused,
       messagesLeft: messagesLeft,
+      canUnblock: canUnblock ?? this.canUnblock,
     );
   }
 }
@@ -403,6 +457,73 @@ class AskBackStatusEvent {
 
   final String conversationId;
   final AskBackStatus status;
+}
+
+/// One person the caller blocked (`GET /api/v1/ask-back/blocks`).
+class AskBackBlockItem {
+  const AskBackBlockItem({
+    required this.blockId,
+    required this.anonymousName,
+    required this.blockedAt,
+    this.sourceConversationId,
+  });
+
+  final String blockId;
+  final String anonymousName;
+  final DateTime blockedAt;
+  final String? sourceConversationId;
+
+  factory AskBackBlockItem.fromJson(Map<String, dynamic> json) {
+    return AskBackBlockItem(
+      blockId: json['blockId']?.toString() ?? '',
+      anonymousName: json['anonymousName'] as String? ?? 'Someone',
+      blockedAt: DateTime.parse(json['blockedAt'] as String),
+      sourceConversationId: json['sourceConversationId']?.toString(),
+    );
+  }
+}
+
+/// Paginated blocked-people page (`page` / `pageSize` meta from the API).
+class AskBackBlocksPage {
+  const AskBackBlocksPage({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    required this.totalPages,
+  });
+
+  final List<AskBackBlockItem> items;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+
+  bool get hasMore => page < totalPages;
+
+  factory AskBackBlocksPage.fromApi({
+    required List<AskBackBlockItem> items,
+    required dynamic meta,
+  }) {
+    var page = 1;
+    var pageSize = items.length;
+    var totalCount = items.length;
+    var totalPages = 1;
+    if (meta is Map) {
+      final map = Map<String, dynamic>.from(meta);
+      page = (map['page'] as num?)?.toInt() ?? page;
+      pageSize = (map['pageSize'] as num?)?.toInt() ?? pageSize;
+      totalCount = (map['totalCount'] as num?)?.toInt() ?? totalCount;
+      totalPages = (map['totalPages'] as num?)?.toInt() ?? totalPages;
+    }
+    return AskBackBlocksPage(
+      items: items,
+      page: page,
+      pageSize: pageSize,
+      totalCount: totalCount,
+      totalPages: totalPages,
+    );
+  }
 }
 
 Map<String, dynamic> _map(Object? value) {

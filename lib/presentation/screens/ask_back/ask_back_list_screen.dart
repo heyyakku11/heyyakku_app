@@ -516,8 +516,12 @@ class _StatusBadge extends StatelessWidget {
             YakkuPalette.greyBlush,
             YakkuPalette.textSecondary,
           )
+        : item.iBlocked
+        ? ('Block', YakkuPalette.blushFill, YakkuPalette.Raspberry)
+        : item.theyBlockedMe
+        ? ('Blocked', YakkuPalette.greyBlush, YakkuPalette.textSecondary)
         : (
-            item.status == AskBackStatus.blocked ? 'Blocked' : 'Chat ended',
+            'Chat ended',
             YakkuPalette.greyBlush,
             YakkuPalette.textSecondary,
           );

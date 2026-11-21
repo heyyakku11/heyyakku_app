@@ -9,14 +9,20 @@ import 'package:yakku/core/auth/user_preferences.dart';
 import 'package:yakku/core/background/background_api_worker.dart';
 import 'package:yakku/core/deep_link/poll_deep_link.dart';
 import 'package:yakku/core/device/device_registration_service.dart';
+import 'package:yakku/core/payments/payment_flow_controller.dart';
+import 'package:yakku/core/payments/pending_payment_store.dart';
+import 'package:yakku/core/payments/pending_purchase_intent.dart';
+import 'package:yakku/core/payments/razorpay_checkout_service.dart';
 import 'package:yakku/core/realtime/ask_back_realtime_service.dart';
 import 'package:yakku/core/router/app_router.dart';
 import 'package:yakku/core/router/app_routes.dart';
+import 'package:yakku/core/storage/secure_storage_service.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/ask_back_remote_data_source.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/check_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source.dart';
+import 'package:yakku/data/datasources/payment_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/models/auth/verify_otp_data.dart';
 import 'package:yakku/data/models/auth/verify_otp_request_model.dart';
@@ -25,7 +31,6 @@ import 'package:yakku/data/models/personality/personality_card.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
-import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
@@ -188,6 +193,11 @@ class _Scope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final payments = _FPayments();
+    final pendingPayments = PendingPaymentStore(
+      secureStorage: SecureStorageService.inMemory(),
+    );
+    final checkout = _FCheckout();
     return AppScope(
       themeController: _F1(),
       authController: auth,
@@ -196,9 +206,17 @@ class _Scope extends StatelessWidget {
       polls: _F7(),
       pollApi: _F20(),
       checkApi: _F14(),
-      mediaUploads: _F8(),
       activityPolls: _F9(),
       userRemote: remote,
+      payments: payments,
+      pendingPayments: pendingPayments,
+      pendingPurchase: _FPendingPurchase(),
+      paymentFlow: PaymentFlowController(
+        payments: payments,
+        pendingPayments: pendingPayments,
+        checkout: checkout,
+      ),
+      razorpayCheckout: checkout,
       notifications: _F15(),
       deviceRegistration: _F12(),
       draftPolls: _F13(),
@@ -219,8 +237,6 @@ class _F6 extends Fake implements BackgroundApiWorker {}
 
 class _F7 extends Fake implements MockPollRepository {}
 
-class _F8 extends Fake implements MediaUploadRepository {}
-
 class _F9 extends Fake implements ActivityPollRepository {}
 
 class _F15 extends Fake implements NotificationRemoteDataSource {}
@@ -236,6 +252,18 @@ class _F12 extends Fake implements DeviceRegistrationService {}
 class _F13 extends Fake implements DraftPollStore {}
 
 class _F20 extends Fake implements PollApiRepository {}
+
+class _FPayments extends Fake implements PaymentRemoteDataSource {}
+
+class _FPendingPurchase extends Fake implements PendingPurchaseStore {}
+
+class _FCheckout extends Fake implements RazorpayCheckoutService {
+  @override
+  bool get isOpening => false;
+
+  @override
+  bool get isSessionActive => false;
+}
 
 class _F14 extends CheckApiRepository {
   _F14() : super(_FakeCheckRemote());
@@ -488,6 +516,13 @@ void main() {
       testWidgets('error state: ${c.$1}', (tester) async {
         await pump(tester, c.$2);
         expect(find.text(c.$3), findsOneWidget);
+        if (c.$1 == 'completed card') {
+          expect(
+            find.text("Quiet Fox's card already has all its votes."),
+            findsOneWidget,
+          );
+          expect(find.text('2 of 5 votes in'), findsOneWidget);
+        }
         expect(find.byType(CircularProgressIndicator), findsNothing);
       });
     }

@@ -6,6 +6,12 @@ class UserPlanResponse {
   final DateTime? expiresAt;
   final bool isExpired;
 
+  /// Cards unlockable on this activation; null means unlimited (Love).
+  final int? unlockTickets;
+
+  /// Plan-sourced unlocks used on the current entitlement.
+  final int cardsUnlocked;
+
   const UserPlanResponse({
     required this.id,
     required this.code,
@@ -13,6 +19,8 @@ class UserPlanResponse {
     this.activatedAt,
     this.expiresAt,
     this.isExpired = false,
+    this.unlockTickets,
+    this.cardsUnlocked = 0,
   });
 
   factory UserPlanResponse.fromJson(Map<String, dynamic> json) {
@@ -23,7 +31,19 @@ class UserPlanResponse {
       activatedAt: _parseDate(json['activatedAt']),
       expiresAt: _parseDate(json['expiresAt']),
       isExpired: json['isExpired'] as bool? ?? false,
+      unlockTickets: json['unlockTickets'] as int?,
+      cardsUnlocked: json['cardsUnlocked'] as int? ?? 0,
     );
+  }
+
+  /// Whole days remaining until [expiresAt]; null when there is no expiry.
+  int? get daysLeft {
+    final end = expiresAt?.toUtc();
+    if (end == null) return null;
+    final now = DateTime.now().toUtc();
+    if (!end.isAfter(now)) return 0;
+    final seconds = end.difference(now).inSeconds;
+    return (seconds / Duration.secondsPerDay).ceil();
   }
 }
 

@@ -24,6 +24,16 @@ class PreferenceStorageService {
     return prefs.getBool(key);
   }
 
+  Future<List<String>> readStringList(String key) async {
+    final prefs = await _instance();
+    return prefs.getStringList(key) ?? const [];
+  }
+
+  Future<void> updateStringList(String key, List<String> value) async {
+    final prefs = await _instance();
+    await prefs.setStringList(key, value);
+  }
+
   /// Writes only if the key does not already exist.
   Future<void> create(String key, String value) async {
     if (await exists(key)) {

@@ -3,8 +3,11 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:yakku/core/theme/yakku_palette.dart';
+import 'package:yakku/data/models/ask_back/ask_back_models.dart';
 import 'package:yakku/data/models/poll/poll_reason.dart';
+import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/widgets/ask_back_button.dart';
+import 'package:yakku/presentation/widgets/ask_back_unlock_sheet.dart';
 import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 /// Every anonymous reason voters gave for one option of a card (owner view).
@@ -21,6 +24,8 @@ class OptionReasonsScreen extends StatefulWidget {
     required this.count,
     required this.loadReasons,
     required this.onReport,
+    this.contentType,
+    this.contentId,
   });
 
   final String label;
@@ -38,6 +43,10 @@ class OptionReasonsScreen extends StatefulWidget {
   /// backed out or it failed.
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
 
+  /// Card context for permanent `this_card` purchases in the plans sheet.
+  final String? contentType;
+  final String? contentId;
+
   @override
   State<OptionReasonsScreen> createState() => _OptionReasonsScreenState();
 }
@@ -46,9 +55,16 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
   bool _loading = true;
   bool _failed = false;
   List<PollReason> _reasons = const [];
+  AskBackAccess? _access;
 
   /// Reasons an admin blocked after a report; their text is never sent.
   int _blocked = 0;
+
+  bool get _cardUnlocked =>
+      _access != null && _access!.unlocked && !_access!.paused;
+
+  bool get _canSpendTicket =>
+      _access != null && _access!.canUnlock && !_access!.unlocked;
 
   @override
   void initState() {
@@ -63,10 +79,25 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
     });
     try {
       final list = await widget.loadReasons();
+      AskBackAccess? access = _access;
+      final type = widget.contentType;
+      final id = widget.contentId;
+      if (type != null &&
+          type.isNotEmpty &&
+          id != null &&
+          id.isNotEmpty &&
+          mounted) {
+        try {
+          access = await AppScope.of(context).askBack.getCardAccess(type, id);
+        } catch (_) {
+          // Reasons still render; CTA falls back to Unlock now.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _reasons = list.items;
         _blocked = list.blockedCount;
+        _access = access;
         _loading = false;
       });
     } catch (_) {
@@ -81,8 +112,31 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
   /// Opens the plans sheet; when something was bought the reasons are loaded
   /// again, now readable.
   Future<void> _unlock() async {
-    final bought = await showYakkuPlans(context);
+    final bought = await showYakkuPlans(
+      context,
+      contentType: widget.contentType,
+      contentId: widget.contentId,
+      includeThisCard: _cardUnlocked ? false : null,
+    );
     if (bought && mounted) await _load();
+  }
+
+  /// Spends one plan ticket on this card via the first askable reason's vote.
+  Future<void> _unlockWithTicket() async {
+    final access = _access;
+    if (access == null || !_canSpendTicket) return;
+    final voteId = _reasons
+        .where((r) => r.canAskBack)
+        .map((r) => r.id)
+        .followedBy(_reasons.map((r) => r.id))
+        .firstOrNull;
+    if (voteId == null) return;
+    final unlocked = await showAskBackUnlockSheet(
+      context,
+      access: access,
+      unlock: () => AppScope.of(context).askBack.unlock(voteId),
+    );
+    if (unlocked == true && mounted) await _load();
   }
 
   Future<void> _report(PollReason reason) async {
@@ -104,8 +158,12 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
     // Voters who picked this option and wrote nothing. A blocked reason has
     // no text left, so it would look like one of them; it is counted apart.
     final withoutReason = widget.votes - widget.count - _blocked;
-    // On the free plan only the option's top reason is readable.
-    final hidden = _reasons.where((reason) => reason.isHidden).length;
+    // On the free plan only the option's top reason is readable. Once access
+    // says reasons are revealed, trust that over stale isHidden flags.
+    final reasonsRevealed = _access?.reasonsRevealed == true;
+    final hidden = reasonsRevealed
+        ? 0
+        : _reasons.where((reason) => reason.isHidden).length;
     final visible = _reasons.length - hidden;
     return _DetailScaffold(
       palette: _DetailPalette.reasons,
@@ -133,14 +191,29 @@ class _OptionReasonsScreenState extends State<OptionReasonsScreen> {
       removed: _blocked,
       panelSubtitle: hidden > 0 ? '$visible free \u00B7 $hidden hidden' : null,
       children: [
+        if (_canSpendTicket)
+          _TicketUnlockPill(
+            key: const ValueKey('ticket-unlock-reasons'),
+            access: _access!,
+            palette: _DetailPalette.reasons,
+            onUnlock: _unlockWithTicket,
+          ),
         for (final reason in _reasons)
           if (!reason.isHidden)
-            _ReasonCard(reason: reason, onReport: () => _report(reason)),
+            _ReasonCard(
+              reason: reason,
+              onReport: () => _report(reason),
+              onPurchaseFulfilled: _load,
+              contentType: widget.contentType,
+              contentId: widget.contentId,
+              cardAccess: _access,
+            ),
         if (hidden > 0)
           _HiddenReasons(
             key: const ValueKey('hidden-reasons'),
             count: hidden,
             palette: _DetailPalette.reasons,
+            showPlansLabel: _cardUnlocked,
             onUnlock: _unlock,
           ),
       ],
@@ -158,6 +231,8 @@ class CustomAnswersScreen extends StatefulWidget {
     required this.count,
     required this.loadAnswers,
     required this.onReport,
+    this.contentType,
+    this.contentId,
   });
 
   final int percent;
@@ -169,6 +244,9 @@ class CustomAnswersScreen extends StatefulWidget {
   /// the owner backed out or it failed.
   final Future<ReasonReportResult?> Function(String reasonId) onReport;
 
+  final String? contentType;
+  final String? contentId;
+
   @override
   State<CustomAnswersScreen> createState() => _CustomAnswersScreenState();
 }
@@ -177,9 +255,16 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
   bool _loading = true;
   bool _failed = false;
   List<PollCustomAnswer> _answers = const [];
+  AskBackAccess? _access;
 
   /// Reasons an admin blocked after a report; their text is never sent.
   int _blocked = 0;
+
+  bool get _cardUnlocked =>
+      _access != null && _access!.unlocked && !_access!.paused;
+
+  bool get _canSpendTicket =>
+      _access != null && _access!.canUnlock && !_access!.unlocked;
 
   @override
   void initState() {
@@ -194,10 +279,25 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
     });
     try {
       final list = await widget.loadAnswers();
+      AskBackAccess? access = _access;
+      final type = widget.contentType;
+      final id = widget.contentId;
+      if (type != null &&
+          type.isNotEmpty &&
+          id != null &&
+          id.isNotEmpty &&
+          mounted) {
+        try {
+          access = await AppScope.of(context).askBack.getCardAccess(type, id);
+        } catch (_) {
+          // Answers still render; CTA falls back to Unlock now.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _answers = list.items;
         _blocked = list.blockedCount;
+        _access = access;
         _loading = false;
       });
     } catch (_) {
@@ -212,8 +312,30 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
   /// Opens the plans sheet; when something was bought the answers are loaded
   /// again, now readable.
   Future<void> _unlock() async {
-    final bought = await showYakkuPlans(context);
+    final bought = await showYakkuPlans(
+      context,
+      contentType: widget.contentType,
+      contentId: widget.contentId,
+      includeThisCard: _cardUnlocked ? false : null,
+    );
     if (bought && mounted) await _load();
+  }
+
+  Future<void> _unlockWithTicket() async {
+    final access = _access;
+    if (access == null || !_canSpendTicket) return;
+    final voteId = _answers
+        .where((a) => a.canAskBack)
+        .map((a) => a.id)
+        .followedBy(_answers.map((a) => a.id))
+        .firstOrNull;
+    if (voteId == null) return;
+    final unlocked = await showAskBackUnlockSheet(
+      context,
+      access: access,
+      unlock: () => AppScope.of(context).askBack.unlock(voteId),
+    );
+    if (unlocked == true && mounted) await _load();
   }
 
   Future<void> _report(PollCustomAnswer answer) async {
@@ -240,7 +362,10 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
   @override
   Widget build(BuildContext context) {
     // On the free plan only one answer is readable.
-    final hidden = _answers.where((answer) => answer.isHidden).length;
+    final reasonsRevealed = _access?.reasonsRevealed == true;
+    final hidden = reasonsRevealed
+        ? 0
+        : _answers.where((answer) => answer.isHidden).length;
     final visible = _answers.length - hidden;
     return _DetailScaffold(
       palette: _DetailPalette.custom,
@@ -263,9 +388,23 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
       removed: _blocked,
       panelSubtitle: hidden > 0 ? '$visible free \u00B7 $hidden hidden' : null,
       children: [
+        if (_canSpendTicket)
+          _TicketUnlockPill(
+            key: const ValueKey('ticket-unlock-answers'),
+            access: _access!,
+            palette: _DetailPalette.custom,
+            onUnlock: _unlockWithTicket,
+          ),
         for (final answer in _answers)
           if (!answer.isHidden)
-            _CustomAnswerCard(answer: answer, onReport: () => _report(answer)),
+            _CustomAnswerCard(
+              answer: answer,
+              onReport: () => _report(answer),
+              onPurchaseFulfilled: _load,
+              contentType: widget.contentType,
+              contentId: widget.contentId,
+              cardAccess: _access,
+            ),
         if (hidden > 0)
           _HiddenReasons(
             key: const ValueKey('hidden-answers'),
@@ -273,6 +412,7 @@ class _CustomAnswersScreenState extends State<CustomAnswersScreen> {
             palette: _DetailPalette.custom,
             noun: 'answer',
             standIns: _standIns,
+            showPlansLabel: _cardUnlocked,
             onUnlock: _unlock,
           ),
       ],
@@ -786,6 +926,10 @@ class _ReasonFooter extends StatelessWidget {
     required this.palette,
     required this.onReport,
     this.askBackLocked = false,
+    this.cardAccess,
+    this.contentType,
+    this.contentId,
+    this.onPurchaseFulfilled,
   });
 
   final String voteId;
@@ -794,6 +938,10 @@ class _ReasonFooter extends StatelessWidget {
   final ReasonReportState state;
   final _DetailPalette palette;
   final VoidCallback onReport;
+  final AskBackAccess? cardAccess;
+  final String? contentType;
+  final String? contentId;
+  final Future<void> Function()? onPurchaseFulfilled;
 
   @override
   Widget build(BuildContext context) {
@@ -807,6 +955,10 @@ class _ReasonFooter extends StatelessWidget {
             foreground: palette.accent,
             compact: true,
             locked: askBackLocked,
+            cardAccess: cardAccess,
+            contentType: contentType,
+            contentId: contentId,
+            onPurchaseFulfilled: onPurchaseFulfilled,
           )
         else
           const Expanded(
@@ -836,10 +988,21 @@ class _ReasonFooter extends StatelessWidget {
 
 /// One anonymous reason: the quote, then Ask back (or why there is none) and a flag.
 class _ReasonCard extends StatelessWidget {
-  const _ReasonCard({required this.reason, required this.onReport});
+  const _ReasonCard({
+    required this.reason,
+    required this.onReport,
+    this.contentType,
+    this.contentId,
+    this.cardAccess,
+    this.onPurchaseFulfilled,
+  });
 
   final PollReason reason;
   final VoidCallback onReport;
+  final String? contentType;
+  final String? contentId;
+  final AskBackAccess? cardAccess;
+  final Future<void> Function()? onPurchaseFulfilled;
 
   @override
   Widget build(BuildContext context) {
@@ -884,8 +1047,79 @@ class _ReasonCard extends StatelessWidget {
             state: reason.reportState,
             palette: _DetailPalette.reasons,
             onReport: onReport,
+            cardAccess: cardAccess,
+            contentType: contentType,
+            contentId: contentId,
+            onPurchaseFulfilled: onPurchaseFulfilled,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Stadium pill: spend a plan ticket to open Ask Back on every reason.
+class _TicketUnlockPill extends StatelessWidget {
+  const _TicketUnlockPill({
+    super.key,
+    required this.access,
+    required this.palette,
+    required this.onUnlock,
+  });
+
+  final AskBackAccess access;
+  final _DetailPalette palette;
+  final VoidCallback onUnlock;
+
+  String get _label {
+    final tickets = access.ticketsLeft;
+    if (tickets == null) return 'Unlock this card';
+    if (tickets == 1) return '1 ticket left \u00B7 Unlock this card';
+    return '$tickets tickets left \u00B7 Unlock this card';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.center,
+        child: Material(
+          color: palette.accent,
+          shape: const StadiumBorder(),
+          elevation: 2,
+          child: InkWell(
+            key: const ValueKey('ticket-unlock-pill'),
+            customBorder: const StadiumBorder(),
+            onTap: onUnlock,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_open_rounded,
+                    size: 16,
+                    color: YakkuPalette.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: YakkuPalette.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -902,6 +1136,7 @@ class _HiddenReasons extends StatelessWidget {
     required this.onUnlock,
     this.noun = 'reason',
     this.standIns = _reasonStandIns,
+    this.showPlansLabel = false,
   });
 
   final int count;
@@ -913,6 +1148,9 @@ class _HiddenReasons extends StatelessWidget {
 
   /// Made-up lines to blur. They say nothing about the real ones.
   final List<_StandIn> standIns;
+
+  /// Card already unlocked: CTA upgrades plans instead of unlocking again.
+  final bool showPlansLabel;
 
   static const _reasonStandIns = <_StandIn>[
     _StandIn(body: 'Always fun. Never really opens up though.'),
@@ -997,7 +1235,9 @@ class _HiddenReasons extends StatelessWidget {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      count == 1
+                      showPlansLabel
+                          ? 'Show Yakku plans'
+                          : count == 1
                           ? '1 more $noun \u00B7 Unlock now'
                           : '$count more ${noun}s \u00B7 Unlock now',
                       maxLines: 1,
@@ -1031,10 +1271,21 @@ class _StandIn {
 /// (with Ask back, or why there is none) or "No reason added". A card with a
 /// reason has the accent border.
 class _CustomAnswerCard extends StatelessWidget {
-  const _CustomAnswerCard({required this.answer, required this.onReport});
+  const _CustomAnswerCard({
+    required this.answer,
+    required this.onReport,
+    this.contentType,
+    this.contentId,
+    this.cardAccess,
+    this.onPurchaseFulfilled,
+  });
 
   final PollCustomAnswer answer;
   final VoidCallback onReport;
+  final String? contentType;
+  final String? contentId;
+  final AskBackAccess? cardAccess;
+  final Future<void> Function()? onPurchaseFulfilled;
 
   @override
   Widget build(BuildContext context) {
@@ -1113,6 +1364,10 @@ class _CustomAnswerCard extends StatelessWidget {
               state: answer.reportState,
               palette: palette,
               onReport: onReport,
+              cardAccess: cardAccess,
+              contentType: contentType,
+              contentId: contentId,
+              onPurchaseFulfilled: onPurchaseFulfilled,
             ),
           ] else ...[
             const Text(

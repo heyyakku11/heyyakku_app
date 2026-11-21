@@ -12,6 +12,7 @@ AskBackListItem item({
   AskBackTurn turn = AskBackTurn.me,
   AskBackStatus status = AskBackStatus.active,
   bool isAsker = true,
+  bool canUnblock = false,
   String title = 'Mirror Check',
   String option = 'Genuinely like you',
   String preview = 'Hello',
@@ -38,6 +39,7 @@ AskBackListItem item({
     unreadCount: 0,
     turn: turn,
     canSend: turn == AskBackTurn.me && status == AskBackStatus.active,
+    canUnblock: canUnblock,
   );
 }
 
@@ -116,5 +118,34 @@ void main() {
     expect(find.text('Your turn'), findsNothing);
     expect(find.text('Chat ended'), findsNothing);
     expect(find.textContaining('ACTIVE'), findsNothing);
+  });
+
+  testWidgets('blocked chats tag Block when I blocked and Blocked when they did', (
+    tester,
+  ) async {
+    await open(tester, [
+      item(
+        id: '1',
+        status: AskBackStatus.blocked,
+        turn: AskBackTurn.done,
+        canUnblock: true,
+        title: 'Question',
+        preview: 'I blocked them',
+      ),
+      item(
+        id: '2',
+        status: AskBackStatus.blocked,
+        turn: AskBackTurn.done,
+        canUnblock: false,
+        title: 'Trust Check',
+        preview: 'They blocked me',
+      ),
+    ]);
+
+    await tester.tap(find.textContaining('Ended'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Block'), findsOneWidget);
+    expect(find.text('Blocked'), findsOneWidget);
   });
 }

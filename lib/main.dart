@@ -30,13 +30,13 @@ import 'package:yakku/presentation/screens/splash_overlay.dart';
 import 'package:yakku/presentation/screens/ask_back/ask_back_inbox_controller.dart';
 import 'package:yakku/core/storage/preference_storage_service.dart';
 import 'package:yakku/core/storage/secure_storage_service.dart';
+import 'package:yakku/core/storage/storage_keys.dart';
 import 'package:yakku/core/theme/app_theme.dart';
 import 'package:yakku/core/theme/theme_controller.dart';
 import 'package:yakku/data/datasources/activity_poll_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source.dart';
 import 'package:yakku/data/datasources/auth_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/device_remote_data_source_impl.dart';
-import 'package:yakku/data/datasources/media_upload_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/check_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/poll_remote_data_source_impl.dart';
 import 'package:yakku/data/repositories/check_api_repository.dart';
@@ -44,17 +44,26 @@ import 'package:yakku/data/datasources/notification_remote_data_source.dart';
 import 'package:yakku/data/datasources/notification_remote_data_source_impl.dart';
 import 'package:yakku/data/datasources/user_remote_data_source.dart';
 import 'package:yakku/data/datasources/user_remote_data_source_impl.dart';
+import 'package:yakku/data/datasources/payment_remote_data_source.dart';
+import 'package:yakku/data/datasources/payment_remote_data_source_impl.dart';
+import 'package:yakku/core/payments/checkout_user_messages.dart';
+import 'package:yakku/core/payments/payment_confirm_result.dart';
+import 'package:yakku/core/payments/payment_flow_controller.dart';
+import 'package:yakku/core/payments/pending_payment_store.dart';
+import 'package:yakku/core/payments/pending_purchase_intent.dart';
+import 'package:yakku/core/payments/razorpay_checkout_service.dart';
 import 'package:yakku/data/repositories/activity_poll_repository.dart';
 import 'package:yakku/data/repositories/api_activity_poll_repository.dart';
 import 'package:yakku/data/repositories/draft_poll_store.dart';
-import 'package:yakku/data/repositories/media_upload_repository.dart';
 import 'package:yakku/data/repositories/mock_poll_repository.dart';
 import 'package:yakku/data/repositories/poll_api_repository.dart';
 import 'package:yakku/data/repositories/personality_card_store.dart';
 import 'package:yakku/presentation/app_scope.dart';
 import 'package:yakku/presentation/cubit/internet/internet_cubit.dart';
+import 'package:yakku/presentation/payments/entitlement_refresh.dart';
 import 'package:yakku/presentation/widgets/app_toast.dart';
 import 'package:yakku/presentation/widgets/internet_status_listener.dart';
+import 'package:yakku/presentation/widgets/yakku_plans_sheet.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,6 +105,10 @@ Future<void> main() async {
     userPreferences: userPreferences,
     tokenStore: tokenStore,
   );
+  // Pending payment recovery is per signed-in user; drop orphans when logged out.
+  if (!session.isUserLogged) {
+    await secureStorage.clearKeys([StorageKeys.pendingPaymentOrder]);
+  }
   final hasCompletedOnboarding = await userPreferences
       .getHasCompletedOnboarding();
   final draftPolls = DraftPollStore();
@@ -166,9 +179,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final LoginAuthService _loginAuth;
   late final PollApiRepository _pollApi;
   late final CheckApiRepository _checkApi;
-  late final MediaUploadRepository _mediaUploads;
   late final ActivityPollRepository _activityPolls;
   late final UserRemoteDataSource _userRemote;
+  late final PaymentRemoteDataSource _payments;
+  late final PendingPaymentStore _pendingPayments;
+  late final PendingPurchaseStore _pendingPurchase;
+  late final PaymentFlowController _paymentFlow;
+  late final RazorpayCheckoutService _razorpayCheckout;
   late final PersonalityCardStore _personalityCards;
   late final NotificationRemoteDataSource _notifications;
   late final AskBackRemoteDataSource _askBack;
@@ -233,10 +250,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _checkApi = CheckApiRepository(CheckRemoteDataSourceImpl(authenticatedDio));
 
-    _mediaUploads = MediaUploadRepository(
-      MediaUploadRemoteDataSourceImpl(apiDio: authenticatedDio),
-    );
-
     _activityPolls =
         widget.activityPollRepository ??
         ApiActivityPollRepository(
@@ -247,6 +260,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         widget.userRemoteDataSource ??
         UserRemoteDataSourceImpl(authenticatedDio);
 
+    _payments = PaymentRemoteDataSourceImpl(authenticatedDio);
+    _pendingPayments = PendingPaymentStore(secureStorage: secureStorage);
+    _pendingPurchase = PendingPurchaseStore(storage: preferenceStorage);
+    _razorpayCheckout = RazorpayCheckoutService();
+    _paymentFlow = PaymentFlowController(
+      payments: _payments,
+      pendingPayments: _pendingPayments,
+      checkout: _razorpayCheckout,
+    );
+
     _personalityCards = PersonalityCardStore(
       remote: _userRemote,
       auth: _authController,
@@ -256,21 +279,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _askBack = AskBackRemoteDataSourceImpl(authenticatedDio);
     _askBackRealtime = AskBackRealtimeService(
-      // The socket takes its token once per connection attempt, so refresh a
-      // token that is about to expire first.
+      // Socket auth uses the same proactive rotate-before-use path as REST.
       accessToken: () async {
-        var token = tokenStore.accessToken;
-        if (token == null || token.isEmpty) return null;
-        final secondsLeft = AskBackRealtimeService.secondsUntilExpiry(token);
-        if (secondsLeft != null && secondsLeft < 60) {
-          try {
-            await tokenRefreshService.refresh();
-            token = tokenStore.accessToken;
-          } catch (_) {
-            // Connect with what we have; the server refuses it if expired.
-          }
+        try {
+          return await tokenRefreshService.ensureFreshAccessToken();
+        } catch (_) {
+          // Connect with whatever is left; the hub refuses it if expired.
+          return tokenStore.accessToken;
         }
-        return token;
       },
     );
     _askBackInbox = AskBackInboxController(
@@ -315,15 +331,78 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _askBackStarted = false;
 
   /// Ask back is for signed-in users: start the list (and its socket) on
-  /// sign-in, and drop both on sign-out.
+  /// sign-in, and drop both on sign-out. Pending payment / purchase recovery
+  /// belongs to the signed-in user, so clear it on sign-out.
   void _syncAskBackWithAuth() {
     final signedIn = _authController.isLoggedIn;
     if (signedIn && !_askBackStarted) {
       _askBackStarted = true;
       unawaited(_askBackInbox.start());
-    } else if (!signedIn && _askBackStarted) {
-      _askBackStarted = false;
-      unawaited(_askBackInbox.reset());
+      unawaited(_resumePendingPurchaseAfterAuth());
+      unawaited(_reconcilePendingPaymentQuietly());
+    } else if (!signedIn) {
+      if (_askBackStarted) {
+        _askBackStarted = false;
+        unawaited(_askBackInbox.reset());
+      }
+      unawaited(_pendingPayments.clear());
+      unawaited(_pendingPurchase.clear());
+    }
+  }
+
+  /// After sign-in, reopen plans with the plan the user tried to buy while
+  /// signed out. Catalog and current plan are reloaded from the backend.
+  Future<void> _resumePendingPurchaseAfterAuth() async {
+    final intent = await _pendingPurchase.read();
+    if (intent == null) return;
+
+    // Let the router finish moving from sign-up onto the main shell.
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!mounted || !_authController.isLoggedIn) return;
+
+    await _pendingPurchase.clear();
+    if (!mounted || !_authController.isLoggedIn) return;
+
+    final context = _rootNavigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+
+    await showYakkuPlans(
+      context,
+      contentType: intent.contentType,
+      contentId: intent.contentId,
+      initialPlanCode: intent.planCode,
+    );
+  }
+
+  /// Network-after-pay / interrupted Checkout recovery. Never creates a new
+  /// order — only retries verify when a payload exists, else polls status.
+  Future<void> _reconcilePendingPaymentQuietly() async {
+    if (!_authController.isLoggedIn) return;
+    if (_paymentFlow.isBusy) return;
+    try {
+      final result = await _paymentFlow.reconcilePendingPayment();
+      if (result == null || !mounted) return;
+
+      final message = CheckoutUserMessages.forConfirmResult(
+        result,
+        notifyPending: false,
+      );
+      if (message != null) AppToast.show(message);
+
+      if (result is PaymentConfirmFulfilled) {
+        await EntitlementRefresh.afterFulfillment(
+          userRemote: _userRemote,
+          personalityCards: _personalityCards,
+          askBack: _askBack,
+          askBackInbox: _askBackInbox,
+          contentType: result.contentType,
+          contentId: result.contentId,
+        );
+      }
+    } catch (error, stack) {
+      if (kDebugMode) {
+        debugPrint('[Payments] pending reconcile failed: $error\n$stack');
+      }
     }
   }
 
@@ -335,6 +414,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Bring the socket back after the app was in the background.
         unawaited(_askBackRealtime.ensureConnected().catchError((Object _) {}));
       }
+      if (_authController.isLoggedIn) {
+        unawaited(_reconcilePendingPaymentQuietly());
+      }
     }
   }
 
@@ -345,6 +427,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _personalityCards.dispose();
     _askBackInbox.dispose();
     unawaited(_askBackRealtime.dispose());
+    _paymentFlow.dispose();
+    _razorpayCheckout.dispose();
     _themeController.dispose();
     _authController.dispose();
     _backgroundApiWorker.dispose();
@@ -369,9 +453,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         polls: _polls,
         pollApi: _pollApi,
         checkApi: _checkApi,
-        mediaUploads: _mediaUploads,
         activityPolls: _activityPolls,
         userRemote: _userRemote,
+        payments: _payments,
+        pendingPayments: _pendingPayments,
+        pendingPurchase: _pendingPurchase,
+        paymentFlow: _paymentFlow,
+        razorpayCheckout: _razorpayCheckout,
         personalityCards: _personalityCards,
         notifications: _notifications,
         deviceRegistration: _deviceRegistration,
