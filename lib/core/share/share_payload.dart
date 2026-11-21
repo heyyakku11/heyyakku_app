@@ -101,8 +101,8 @@ class SharePayload {
   }
 
   /// The link friends open to answer someone's personality card:
-  /// `https://<website>/personality/{shareCode}`. The "question" is the
-  /// card's title, which share adapters use as the message headline.
+  /// `https://<website>/personality?share_code={shareCode}`. The "question"
+  /// is the card's title, which share adapters use as the message headline.
   factory SharePayload.personality({
     required String shareCode,
     String? websiteBaseUrl,
@@ -128,8 +128,8 @@ class SharePayload {
         pathSegments: [
           ...base.pathSegments.where((s) => s.isNotEmpty),
           'personality',
-          code,
         ],
+        queryParameters: {PollDeepLink.shareCodeQueryParam: code},
       ),
     );
   }

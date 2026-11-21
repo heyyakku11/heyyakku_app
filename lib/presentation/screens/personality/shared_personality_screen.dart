@@ -30,9 +30,9 @@ enum _PersonalityIssue {
   failed,
 }
 
-/// Destination of `https://<web host>/personality/{shareCode}` links: a
-/// friend's personality card, where the visitor picks 3 traits that describe
-/// its owner.
+/// Destination of `https://<web host>/personality?share_code=…` links (and
+/// legacy `/personality/{shareCode}`): a friend's personality card, where the
+/// visitor picks 3 traits that describe its owner.
 ///
 /// Mirrors `SharedPollScreen`. The card is loaded through the share-code API
 /// (the same one the website uses) and the API's voting state decides what is

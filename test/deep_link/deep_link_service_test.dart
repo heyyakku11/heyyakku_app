@@ -22,6 +22,7 @@ void main() {
 
     test('accepts https personality links on an allowed host', () {
       const card = AppDeepLink(AppDeepLinkKind.personality, _code);
+      expect(parse('https://$_host/personality?share_code=$_code'), card);
       expect(parse('https://$_host/personality/$_code'), card);
       expect(parse('https://$_host/personality/$_code?x=1#y'), card);
     });
@@ -32,6 +33,10 @@ void main() {
         const AppDeepLink(AppDeepLinkKind.poll, _code),
       );
       expect(
+        parse('yakku:///personality?share_code=$_code'),
+        const AppDeepLink(AppDeepLinkKind.personality, _code),
+      );
+      expect(
         parse('yakku:///personality/$_code'),
         const AppDeepLink(AppDeepLinkKind.personality, _code),
       );
@@ -39,6 +44,10 @@ void main() {
 
     test('maps each kind to its in-app location', () {
       expect(parse('https://$_host/vote/$_code')!.location, '/vote/$_code');
+      expect(
+        parse('https://$_host/personality?share_code=$_code')!.location,
+        '/personality/$_code',
+      );
       expect(
         parse('https://$_host/personality/$_code')!.location,
         '/personality/$_code',

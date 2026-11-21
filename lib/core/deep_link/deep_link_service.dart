@@ -29,16 +29,16 @@ class DeepLinkService {
        _appLinks = appLinks,
        _allowedHosts = allowedHosts ?? defaultAllowedHosts;
 
-  /// Web hosts that serve `/vote/{shareCode}` and `/personality/{shareCode}`,
-  /// per build environment. These match the `appLinkHost` placeholders in
-  /// android/app/build.gradle.kts.
+  /// Web hosts that serve `/vote?share_code=…` and `/personality?share_code=…`
+  /// (plus legacy path forms), per build environment. These match the
+  /// `appLinkHost` placeholders in android/app/build.gradle.kts.
   static const _devHost = 'heyyakku-web-git-develop-heyyakku33-9072.vercel.app';
   static const _stagingHost =
       'heyyakku-web-git-staging-heyyakku33-9072.vercel.app';
   static const _productionHost = 'heyyakku-web.vercel.app';
 
   /// Custom scheme used by the web "Open in app" button:
-  /// `yakku:///vote/{code}` and `yakku:///personality/{code}`.
+  /// `yakku:///vote?share_code=…` and `yakku:///personality?share_code=…`.
   static const customScheme = 'yakku';
 
   static Set<String> get defaultAllowedHosts =>
@@ -97,10 +97,9 @@ class DeepLinkService {
 
   /// Returns the link this app should open, or `null`.
   ///
-  /// Accepts `https://<allowed host>/vote/{shareCode}`,
-  /// `https://<allowed host>/personality/{shareCode}` and the custom scheme
-  /// forms `yakku:///vote/{shareCode}` and `yakku:///personality/{shareCode}`.
-  /// Query strings and fragments are ignored.
+  /// Accepts canonical `?share_code=` links and legacy `/{segment}/{code}`
+  /// paths for both polls and personality cards, over https on an allowed
+  /// host or the `yakku://` custom scheme.
   @visibleForTesting
   static AppDeepLink? linkFromUri(
     Uri uri, {

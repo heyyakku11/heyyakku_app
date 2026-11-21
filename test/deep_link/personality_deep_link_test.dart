@@ -276,7 +276,19 @@ class _FakeCheckRemote extends Fake implements CheckRemoteDataSource {
 
 void main() {
   group('personality links in PollDeepLink', () {
-    test('shareCodeFromUrl accepts the canonical URL and keeps the case', () {
+    test('shareCodeFromUrl accepts the canonical query URL and keeps the case', () {
+      expect(
+        PollDeepLink.personalityShareCodeFromUrl(
+          Uri.parse(
+            'https://heyyakku-web.vercel.app/personality?share_code=$_code&x=1#y',
+          ),
+          webBaseUrl: _web,
+        ),
+        _code,
+      );
+    });
+
+    test('shareCodeFromUrl still accepts the legacy path URL', () {
       expect(
         PollDeepLink.personalityShareCodeFromUrl(
           Uri.parse('https://heyyakku-web.vercel.app/personality/$_code?x=1#y'),
